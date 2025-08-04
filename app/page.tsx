@@ -1,4 +1,4 @@
-/* HomePage.tsx com as cores atualizadas para seguir o design system "Açaí do Chef" */
+/* HomePage.tsx com correção de layout fixo para BottomNavigation visível */
 
 "use client"
 import { useState, useEffect } from "react"
@@ -34,7 +34,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-screen flex flex-col justify-between bg-background text-foreground">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-3 text-center">
         <div className="flex items-center justify-center space-x-2">
@@ -44,7 +44,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-secondary via-muted to-primary"></div>
 
         <div className="relative z-10 flex flex-col items-center justify-center min-h-full p-4 space-y-4">
@@ -129,18 +129,6 @@ export default function HomePage() {
               <p className="text-xs text-destructive">Consulte nossos horários na seção "Sobre Nós".</p>
             </div>
           )}
-
-          {/* Imagem decorativa */}
-          {/*<div className="absolute bottom-16 left-0 right-0 h-20 overflow-hidden z-0">
-            <div className="relative w-full h-full">
-              <Image
-                src="/placeholder.svg?height=120&width=400&text=Delicious+Food"
-                alt="Comida deliciosa"
-                fill
-                className={`object-cover transition-opacity duration-300 ${isOpen ? "opacity-40" : "opacity-20"}`}
-              />
-            </div>
-          </div>*/}
         </div>
       </div>
 
