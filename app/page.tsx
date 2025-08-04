@@ -34,7 +34,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="h-screen flex flex-col justify-between bg-background text-foreground">
+    <div className="flex flex-col h-[100dvh] bg-background text-foreground">
       {/* Header */}
       <div className="bg-primary text-primary-foreground p-3 text-center">
         <div className="flex items-center justify-center space-x-2">
@@ -44,7 +44,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative flex flex-col justify-center items-center px-4">
         <div className="absolute inset-0 bg-gradient-to-b from-secondary via-muted to-primary"></div>
 
         <div className="relative z-10 flex flex-col items-center justify-center min-h-full p-4 space-y-4">
