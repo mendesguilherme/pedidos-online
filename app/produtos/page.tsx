@@ -11,72 +11,12 @@ import { CartEmptyWarning } from "@/components/cart-empty-warning"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { products, Product } from "@/data/products"
 
-interface Product {
-  id: number
-  name: string
-  description: string
-  price: number
-  image: string
-  category: string
-}
-
 interface CartItem {
   id: number
   name: string
   price: number
   quantity: number
 }
-
-const products: Product[] = [
-  {
-    id: 1,
-    name: "Hambúrguer Clássico",
-    description: "Pão artesanal, carne bovina 180g, queijo, alface, tomate e molho especial",
-    price: 25.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hambúrgueres",
-  },
-  {
-    id: 2,
-    name: "Pizza Margherita",
-    description: "Molho de tomate, mussarela, manjericão fresco e azeite",
-    price: 32.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Pizzas",
-  },
-  {
-    id: 3,
-    name: "Batata Frita",
-    description: "Batatas crocantes temperadas com sal e ervas",
-    price: 12.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Acompanhamentos",
-  },
-  {
-    id: 4,
-    name: "Refrigerante Lata",
-    description: "Coca-Cola, Guaraná ou Fanta - 350ml",
-    price: 5.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Bebidas",
-  },
-  {
-    id: 5,
-    name: "Hambúrguer Bacon",
-    description: "Pão brioche, carne 200g, bacon crocante, queijo cheddar e cebola caramelizada",
-    price: 29.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hambúrgueres",
-  },
-  {
-    id: 6,
-    name: "Suco Natural",
-    description: "Laranja, limão ou maracujá - 400ml",
-    price: 8.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Bebidas",
-  },
-]
 
 export default function ProdutosPage() {
   const searchParams = useSearchParams()
@@ -103,7 +43,6 @@ export default function ProdutosPage() {
     cvv: "",
   })
 
-  // Função para lidar com a mudança de tipo na tela de pagamento
   const handleTipoChange = (newTipo: string) => {
     if (activeTab === "pagamento" && newTipo === "entrega" && tipo === "entrega" && initialTipo === "entrega") {
       setActiveTab("endereco")
@@ -164,19 +103,8 @@ export default function ProdutosPage() {
         setActiveTab("endereco")
       }
     } else if (activeTab === "endereco") {
-      if (cart.length === 0) {
-        alert("Adicione pelo menos um item ao carrinho para continuar.")
-        setActiveTab("produtos")
-        return
-      }
       setActiveTab("pagamento")
     } else if (activeTab === "pagamento") {
-      if (cart.length === 0) {
-        alert("Adicione pelo menos um item ao carrinho para finalizar o pedido.")
-        setActiveTab("produtos")
-        return
-      }
-
       const isAddressValid = () => {
         if (tipo === "retirada") return true
         return (
@@ -208,7 +136,6 @@ export default function ProdutosPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="flex-1">
-        {/* Navigation Tabs */}
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
 
         <div className="container mx-auto px-4 py-6 pb-32">
@@ -260,7 +187,6 @@ export default function ProdutosPage() {
           )}
         </div>
 
-        {/* Order Summary - Fixed at bottom */}
         <OrderSummary
           subtotal={subtotal}
           deliveryFee={entregaFee}
@@ -276,7 +202,6 @@ export default function ProdutosPage() {
         />
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   )

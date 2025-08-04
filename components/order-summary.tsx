@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 
 interface OrderSummaryProps {
   subtotal: number
-  entregaFee: number
+  deliveryFee: number
   total: number
   itemCount: number
   currentTab: string
@@ -27,7 +27,7 @@ interface OrderSummaryProps {
 
 export function OrderSummary({
   subtotal,
-  entregaFee,
+  deliveryFee,
   total,
   itemCount,
   currentTab,
@@ -38,7 +38,6 @@ export function OrderSummary({
   paymentMethod,
   onNextStep,
 }: OrderSummaryProps) {
-  // Validação do endereço (campos obrigatórios)
   const isAddressValid = () => {
     if (tipo === "retirada") return true
     return (
@@ -50,14 +49,11 @@ export function OrderSummary({
     )
   }
 
-  // Validação do pagamento
   const isPaymentValid = () => {
     return paymentMethod !== ""
   }
 
-  // Atualizar a lógica para determinar o estado do botão
   const getButtonState = () => {
-    // Se não há itens no carrinho, sempre bloquear
     if (!hasItems) {
       return {
         enabled: false,
@@ -105,8 +101,6 @@ export function OrderSummary({
   }
 
   const buttonState = getButtonState()
-
-  // Determinar quantos indicadores de progresso mostrar
   const showThreeSteps = initialTipo === "entrega"
 
   return (
@@ -119,9 +113,9 @@ export function OrderSummary({
                 {itemCount} {itemCount === 1 ? "item" : "itens"}
               </p>
               <p className="text-xs sm:text-sm text-gray-600">Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}</p>
-              {entregaFee > 0 && (
+              {deliveryFee > 0 && (
                 <p className="text-xs sm:text-sm text-gray-600">
-                  Taxa de entrega: R$ {entregaFee.toFixed(2).replace(".", ",")}
+                  Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
                 </p>
               )}
             </div>
@@ -144,7 +138,6 @@ export function OrderSummary({
             {buttonState.label}
           </Button>
 
-          {/* Indicador de progresso - 2 ou 3 etapas dependendo do tipo inicial */}
           <div className="flex justify-center mt-3 space-x-2">
             <div
               className={`w-2 h-2 rounded-full transition-colors ${
