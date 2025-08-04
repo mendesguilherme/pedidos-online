@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Pedido Online - Açaí do Chef',
-  description: 'O melhor açaí da cidade!',  
+  description: 'O melhor açaí da cidade!',
 }
 
 export default function RootLayout({
@@ -14,16 +14,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
+    <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>{children}</body>
     </html>
   )

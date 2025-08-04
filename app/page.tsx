@@ -1,5 +1,3 @@
-/* HomePage.tsx com correção de layout fixo para BottomNavigation visível */
-
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -36,7 +34,10 @@ export default function HomePage() {
   return (
     <div className="flex flex-col h-[100dvh] bg-background text-foreground">
       {/* Header */}
-      <div className="bg-primary text-primary-foreground p-3 text-center">
+      <div
+        className="bg-primary text-primary-foreground p-3 text-center cursor-pointer hover:brightness-110 transition"
+        onClick={() => router.push("/perfil")}
+      >
         <div className="flex items-center justify-center space-x-2">
           <User className="w-4 h-4" />
           <span className="font-medium text-sm">CLIQUE PARA ENTRAR</span>
@@ -45,7 +46,7 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="flex-1 relative flex flex-col justify-center items-center px-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary via-muted to-primary"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary via-muted to-primary" />
 
         <div className="relative z-10 flex flex-col items-center justify-center min-h-full p-4 space-y-4">
           {/* Logo */}
@@ -66,12 +67,12 @@ export default function HomePage() {
           </div>
 
           {/* Status */}
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-lg px-4">
             {typeof window !== "undefined" && isOpen !== null && <RestaurantStatus />}
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-3 w-full max-w-xs relative z-20">
+          <div className="space-y-3 w-full max-w-lg px-4">
             <Button
               onClick={() => handleOptionSelect("entrega")}
               disabled={!isOpen}
@@ -121,7 +122,7 @@ export default function HomePage() {
 
           {/* Aviso Fechado */}
           {!isOpen && (
-            <div className="bg-destructive/10 border border-destructive rounded-lg p-3 w-full max-w-sm text-center">
+            <div className="bg-destructive/10 border border-destructive rounded-lg p-3 w-full max-w-md text-center">
               <div className="flex items-center justify-center space-x-2 text-destructive mb-1">
                 <Clock className="w-4 h-4" />
                 <span className="font-semibold text-sm">Estamos Fechados</span>

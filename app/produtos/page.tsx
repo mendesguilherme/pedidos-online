@@ -9,6 +9,7 @@ import { AddressForm } from "@/components/address-form"
 import { PaymentForm } from "@/components/payment-form"
 import { CartEmptyWarning } from "@/components/cart-empty-warning"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { products, Product } from "@/data/products"
 
 interface Product {
   id: number

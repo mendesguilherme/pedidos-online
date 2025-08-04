@@ -1,16 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Clock, CheckCircle, XCircle } from "lucide-react"
 import { isRestaurantOpen, getNextOpenTime, getTodayHours } from "@/utils/business-hours"
 
 export function RestaurantStatus() {
+  const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [nextOpen, setNextOpen] = useState<{ day: string; time: string } | null>(null)
   const [todayHours, setTodayHours] = useState({ open: "", close: "", isOpen: false })
   const [currentTime, setCurrentTime] = useState("")
 
   useEffect(() => {
+    setMounted(true)
+
     const updateStatus = () => {
       setIsOpen(isRestaurantOpen())
       setNextOpen(getNextOpenTime())
@@ -19,15 +22,16 @@ export function RestaurantStatus() {
         new Date().toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
-        }),
+        })
       )
     }
 
     updateStatus()
-    const interval = setInterval(updateStatus, 60000) // Update every minute
-
+    const interval = setInterval(updateStatus, 60000)
     return () => clearInterval(interval)
   }, [])
+
+  if (!mounted) return null // Só renderiza no cliente
 
   return (
     <div className="bg-white rounded-lg shadow-md p-3 mb-4 border-l-4 border-l-gray-600">
