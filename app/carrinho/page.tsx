@@ -1,55 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useCart } from "@/context/CartContext"
+import { BottomNavigation } from "@/components/bottom-navigation"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, ArrowLeft, Minus, Plus, Trash2, Home } from "lucide-react"
-import { BottomNavigation } from "@/components/bottom-navigation"
-
-interface CartItem {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  image: string
-}
 
 export default function CarrinhoPage() {
   const router = useRouter()
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-
-  useEffect(() => {
-    const mockItems: CartItem[] = [
-      {
-        id: 1,
-        name: "Hambúrguer Clássico",
-        price: 25.9,
-        quantity: 2,
-        image: "/placeholder.svg?height=80&width=80",
-      },
-      {
-        id: 2,
-        name: "Batata Frita",
-        price: 12.9,
-        quantity: 1,
-        image: "/placeholder.svg?height=80&width=80",
-      },
-    ]
-    setCartItems(mockItems)
-  }, [])
-
-  const updateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity === 0) {
-      setCartItems((items) => items.filter((item) => item.id !== id))
-    } else {
-      setCartItems((items) => items.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)))
-    }
-  }
-
-  const removeItem = (id: number) => {
-    setCartItems((items) => items.filter((item) => item.id !== id))
-  }
+  const { cart, removeItem, updateQuantity } = useCart()
+  const cartItems = cart.items
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const total = subtotal
@@ -88,9 +50,7 @@ export default function CarrinhoPage() {
                 <p className="text-gray-500 mb-6">Adicione itens ao seu carrinho para continuar</p>
                 <div className="space-y-3">
                   <Button onClick={() => router.push("/produtos")}>Ver Produtos</Button>
-                  <Button variant="outline" onClick={() => router.push("/")}>
-                    Voltar ao Menu Principal
-                  </Button>
+                  <Button variant="outline" onClick={() => router.push("/")}>Voltar ao Menu Principal</Button>
                 </div>
               </CardContent>
             </Card>
@@ -107,7 +67,15 @@ export default function CarrinhoPage() {
                       />
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-800">{item.name}</h3>
-                        <p className="text-green-600 font-bold">R$ {item.price.toFixed(2).replace(".", ",")}</p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Acompanhamentos:</strong> {item.toppings?.join(", ") || "Nenhum"}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Adicionais:</strong> {item.extras?.join(", ") || "Nenhum"}
+                        </p>
+                        <p className="text-green-600 font-bold mt-1">
+                          R$ {item.price.toFixed(2).replace(".", ",")}
+                        </p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
@@ -157,12 +125,8 @@ export default function CarrinhoPage() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    <Button className="w-full" onClick={() => router.push("/produtos")}>
-                      Continuar Comprando
-                    </Button>
-                    <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/")}>
-                      Voltar ao Menu Principal
-                    </Button>
+                    <Button className="w-full" onClick={() => router.push("/produtos")}>Continuar Comprando</Button>
+                    <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/")}>Voltar ao Menu Principal</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -171,7 +135,6 @@ export default function CarrinhoPage() {
         </div>
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   )

@@ -104,25 +104,25 @@ export function OrderSummary({
   const showThreeSteps = initialTipo === "entrega"
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[140px]">
+    <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[140px]">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-2 sm:p-4">
-          <div className="flex items-center justify-between mb-3 text-base sm:text-lg">
+          <div className="flex items-center justify-between mb-3 text-sm sm:text-base">
             <div>
-              <p className="text-sm sm:text-base text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
               </p>
-              <p className="text-sm sm:text-base text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
               </p>
               {deliveryFee > 0 && (
-                <p className="text-sm sm:text-base text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
                 </p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-lg sm:text-xl font-bold text-primary">
+              <p className="text-base sm:text-lg font-bold text-primary">
                 Total: R$ {total.toFixed(2).replace(".", ",")}
               </p>
             </div>
@@ -132,7 +132,7 @@ export function OrderSummary({
             <Button
               variant="outline"
               onClick={onAddAcai}
-              className="w-full mb-2 text-sm sm:text-base border-primary text-primary hover:bg-primary/10"
+              className="w-full mb-2 text-xs sm:text-sm border-primary text-primary hover:bg-primary/10"
               disabled={!canAddAcai}
             >
               Adicionar ao Carrinho
@@ -140,7 +140,7 @@ export function OrderSummary({
           )}
 
           <Button
-            className={`w-full py-1.5 sm:py-2 text-sm sm:text-base transition-all ${
+            className={`w-full py-1.5 sm:py-2 text-xs sm:text-sm transition-all ${
               buttonState.enabled
                 ? "bg-primary hover:bg-primary/90 text-white"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
@@ -150,6 +150,7 @@ export function OrderSummary({
           >
             {buttonState.label}
           </Button>
+
 
           <div className="flex justify-center mt-2 space-x-1.5">
             <div

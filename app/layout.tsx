@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
+import { CartProvider } from "@/context/CartContext"
 
 export const metadata: Metadata = {
   title: 'Pedido Online - Açaí do Chef',
@@ -26,7 +27,11 @@ export default function RootLayout({
         <link rel="icon" href="/icon-192x192.avif" type="image/avif" />
         <link rel="apple-touch-icon" href="/icon-192x192.avif" type="image/avif" />
       </head>
-      <body>{children}</body>
+      <body>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </body>
     </html>
   )
 }

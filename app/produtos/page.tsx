@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { NavigationTabs } from "@/components/navigation-tabs"
 import { AddressForm } from "@/components/address-form"
@@ -13,9 +13,13 @@ import type { CupSizeOption, CupSizeOptionWithChoices } from "@/data/products"
 import { toppings } from "@/data/toppings"
 import { addons } from "@/data/addons"
 import { AcaiCupSelector } from "@/components/AcaiCupSelector"
+import { Cart, CartItem, Address } from "@/data/cart"
+import { useCart } from "@/context/CartContext"
 
 export default function ProdutosPage() {
+  const { cart, addItem } = useCart()
   const toppingsRef = useRef<HTMLDivElement | null>(null)
+  const addonsRef = useRef<HTMLDivElement | null>(null)
   const searchParams = useSearchParams()
   const initialTipo = searchParams.get("tipo") || "entrega"
   const [tipo, setTipo] = useState(initialTipo)
@@ -23,8 +27,7 @@ export default function ProdutosPage() {
   const [selectedCup, setSelectedCup] = useState<CupSizeOption | null>(null)
   const [selectedToppings, setSelectedToppings] = useState<string[]>([])
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
-  const [cartItems, setCartItems] = useState<CupSizeOptionWithChoices[]>([])
-
+  
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
     number: "",
@@ -76,16 +79,23 @@ export default function ProdutosPage() {
   }
 
   const handleAddToCart = () => {
-    if (!selectedCup) return
-    if (selectedToppings.length !== selectedCup.maxToppings) return
+  if (!selectedCup || selectedToppings.length !== selectedCup.maxToppings) return
 
-    const newItem: CupSizeOptionWithChoices = {
-      ...selectedCup,
+  const newItem: CartItem = {
+      id: Date.now(), // ou use uuid se quiser
+      name: `Açaí ${selectedCup.name} com ${selectedToppings.length} acompanhamentos`,
+      price: selectedCup.price + selectedExtras.reduce((acc, name) => {
+        const found = addons.find((a) => a.name === name)
+        return found ? acc + found.price : acc
+      }, 0),
+      quantity: 1,
+      image: "/acai.webp",
       toppings: [...selectedToppings],
       extras: [...selectedExtras],
     }
 
-    setCartItems((prev) => [...prev, newItem])
+    // Atualiza localStorage
+    addItem(newItem)
     resetMontagem()
     document.getElementById("acai-cup-selector")?.scrollIntoView({ behavior: "smooth" })
   }
@@ -94,10 +104,15 @@ export default function ProdutosPage() {
 
   const handleNextStep = () => {
     if (activeTab === "produtos") {
-      if (cartItems.length === 0) return
+      if (cart.items.length === 0) return
       setActiveTab(initialTipo === "retirada" ? "pagamento" : "endereco")
     } else if (activeTab === "endereco") {
-      const valid = deliveryAddress.street && deliveryAddress.number && deliveryAddress.neighborhood && deliveryAddress.city && deliveryAddress.zipCode
+      const valid =
+        deliveryAddress.street &&
+        deliveryAddress.number &&
+        deliveryAddress.neighborhood &&
+        deliveryAddress.city &&
+        deliveryAddress.zipCode
       if (!valid) return
       setActiveTab("pagamento")
     } else if (activeTab === "pagamento") {
@@ -111,6 +126,19 @@ export default function ProdutosPage() {
     setSelectedToppings([])
     setSelectedExtras([])
   }
+
+  useEffect(() => {
+    if (selectedCup && selectedToppings.length === selectedCup.maxToppings) {
+      setTimeout(() => {
+        if (addonsRef.current) {
+          const yOffset = -100
+          const y = addonsRef.current.getBoundingClientRect().top + window.scrollY + yOffset
+          window.scrollTo({ top: y, behavior: "smooth" })
+        }
+      }, 100)
+    }
+  }, [selectedToppings, selectedCup])
+
 
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
@@ -170,33 +198,35 @@ export default function ProdutosPage() {
                   </div>
 
                   <div>
-                    <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
-                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                      {addons.map((extra) => (
-                        <button
-                          key={extra.name}
-                          onClick={() => handleExtraToggle(extra.name)}
-                          className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
-                            selectedExtras.includes(extra.name)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 bg-white"
-                          }`}
-                        >
-                          {extra.imageUrl && (
-                            <img
-                              src={extra.imageUrl}
-                              alt={extra.name}
-                              className="w-16 h-16 rounded-full object-cover mb-1"
-                            />
-                          )}
-                          <span className="text-xs text-center text-gray-800 font-medium">
-                            {extra.name}
-                          </span>
-                          <span className="text-[10px] text-gray-500">
-                            +R$ {extra.price.toFixed(2)}
-                          </span>
-                        </button>
-                      ))}
+                    <div ref={addonsRef}>
+                      <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
+                      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {addons.map((extra) => (
+                          <button
+                            key={extra.name}
+                            onClick={() => handleExtraToggle(extra.name)}
+                            className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                              selectedExtras.includes(extra.name)
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-300 bg-white"
+                            }`}
+                          >
+                            {extra.imageUrl && (
+                              <img
+                                src={extra.imageUrl}
+                                alt={extra.name}
+                                className="w-16 h-16 rounded-full object-cover mb-1"
+                              />
+                            )}
+                            <span className="text-xs text-center text-gray-800 font-medium">
+                              {extra.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              +R$ {extra.price.toFixed(2)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -206,23 +236,30 @@ export default function ProdutosPage() {
 
           {activeTab === "endereco" && initialTipo === "entrega" && (
             <>
-              <CartEmptyWarning show={cartItems.length === 0} currentTab={activeTab} />
-              <AddressForm tipo={tipo} address={deliveryAddress} onAddressChange={setDeliveryAddress} />
+              <CartEmptyWarning show={cart.items.length === 0} currentTab={activeTab} />
+              <AddressForm
+                tipo={tipo}
+                address={deliveryAddress}
+                onAddressChange={setDeliveryAddress}
+              />
             </>
           )}
 
           {activeTab === "pagamento" && (
             <>
-              <CartEmptyWarning show={cartItems.length === 0} currentTab={activeTab} />
+              <CartEmptyWarning show={cart.items.length === 0} currentTab={activeTab} />
               <PaymentForm
                 paymentMethod={paymentMethod}
                 onPaymentMethodChange={setPaymentMethod}
                 cardData={cardData}
                 onCardDataChange={setCardData}
-                total={cartItems.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, name) => {
-                  const found = addons.find((a) => a.name === name)
-                  return found ? acc + found.price : acc
-                }, 0), 0) + entregaFee}
+                total={cart.items.reduce((sum, item) => {
+                  const extrasTotal = item.extras.reduce((acc, name) => {
+                    const found = addons.find((a) => a.name === name)
+                    return found ? acc + found.price : acc
+                  }, 0)
+                  return sum + item.price + extrasTotal
+                }, 0) + entregaFee}
                 tipo={tipo}
                 onTipoChange={setTipo}
                 deliveryAddress={deliveryAddress}
@@ -231,26 +268,33 @@ export default function ProdutosPage() {
               />
             </>
           )}
+
         </div>
 
         <OrderSummary
-          subtotal={cartItems.reduce((sum, item) => sum + item.price, 0)}
+          subtotal={cart.items.reduce((sum, item) => sum + item.price, 0)}
           deliveryFee={entregaFee}
-          total={cartItems.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, name) => {
-            const found = addons.find((a) => a.name === name)
-            return found ? acc + found.price : acc
-          }, 0), 0) + entregaFee}
-          itemCount={cartItems.length}
+          total={
+            cart.items.reduce((sum, item) => {
+              const extrasTotal = item.extras.reduce((acc, name) => {
+                const found = addons.find((a) => a.name === name)
+                return found ? acc + found.price : acc
+              }, 0)
+              return sum + item.price + extrasTotal
+            }, 0) + entregaFee
+          }
+          itemCount={cart.items.reduce((total, item) => total + item.quantity, 0)}
           currentTab={activeTab}
           tipo={tipo}
           initialTipo={initialTipo}
-          hasItems={cartItems.length > 0}
+          hasItems={cart.items.length > 0}
           canAddAcai={!!selectedCup && selectedToppings.length === selectedCup.maxToppings}
           deliveryAddress={deliveryAddress}
           paymentMethod={paymentMethod}
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
         />
+
 
         <BottomNavigation />
       </div>
