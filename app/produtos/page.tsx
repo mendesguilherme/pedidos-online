@@ -9,7 +9,7 @@ import { CartEmptyWarning } from "@/components/cart-empty-warning"
 import { OrderSummary } from "@/components/order-summary"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { acaiCups } from "@/data/products"
-import type { CupSizeOption } from "@/data/products"
+import type { CupSizeOption, CupSizeOptionWithChoices } from "@/data/products"
 import { toppings } from "@/data/toppings"
 import { addons } from "@/data/addons"
 import { AcaiCupSelector } from "@/components/AcaiCupSelector"
@@ -23,6 +23,7 @@ export default function ProdutosPage() {
   const [selectedCup, setSelectedCup] = useState<CupSizeOption | null>(null)
   const [selectedToppings, setSelectedToppings] = useState<string[]>([])
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
+  const [cartItems, setCartItems] = useState<CupSizeOptionWithChoices[]>([])
 
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
@@ -49,13 +50,12 @@ export default function ProdutosPage() {
 
     setTimeout(() => {
       if (toppingsRef.current) {
-        const yOffset = -100 // ajuste conforme a altura do NavigationTabs
+        const yOffset = -100
         const y = toppingsRef.current.getBoundingClientRect().top + window.scrollY + yOffset
         window.scrollTo({ top: y, behavior: "smooth" })
       }
     }, 100)
   }
-
 
   const handleToppingToggle = (topping: string) => {
     if (!selectedCup) return
@@ -75,44 +75,45 @@ export default function ProdutosPage() {
     }
   }
 
-  const subtotal = selectedCup?.price || 0
-  const toppingsPrice = 0 // acompanhamentos inclusos
-  const extrasPrice = selectedExtras.reduce((sum, extraName) => {
-    const found = addons.find((e) => e.name === extraName)
-    return found ? sum + found.price : sum
-  }, 0)
+  const handleAddToCart = () => {
+    if (!selectedCup) return
+    if (selectedToppings.length !== selectedCup.maxToppings) return
+
+    const newItem: CupSizeOptionWithChoices = {
+      ...selectedCup,
+      toppings: [...selectedToppings],
+      extras: [...selectedExtras],
+    }
+
+    setCartItems((prev) => [...prev, newItem])
+    resetMontagem()
+    document.getElementById("acai-cup-selector")?.scrollIntoView({ behavior: "smooth" })
+  }
+
   const entregaFee = tipo === "entrega" ? 5.0 : 0
-  const total = subtotal + toppingsPrice + extrasPrice + entregaFee
 
   const handleNextStep = () => {
-    if (!selectedCup) {
-      alert("Escolha um tamanho de copo de açaí para continuar.")
-      return
-    }
-    if (selectedToppings.length !== selectedCup.maxToppings) {
-      alert(`Escolha exatamente ${selectedCup.maxToppings} acompanhamentos.`)
-      return
-    }
     if (activeTab === "produtos") {
+      if (cartItems.length === 0) return
       setActiveTab(initialTipo === "retirada" ? "pagamento" : "endereco")
     } else if (activeTab === "endereco") {
       const valid = deliveryAddress.street && deliveryAddress.number && deliveryAddress.neighborhood && deliveryAddress.city && deliveryAddress.zipCode
-      if (!valid) {
-        alert("Preencha os dados obrigatórios do endereço.")
-        return
-      }
+      if (!valid) return
       setActiveTab("pagamento")
     } else if (activeTab === "pagamento") {
-      if (!paymentMethod) {
-        alert("Escolha um método de pagamento.")
-        return
-      }
+      if (!paymentMethod) return
       alert("Pedido finalizado com sucesso!")
     }
   }
 
+  const resetMontagem = () => {
+    setSelectedCup(null)
+    setSelectedToppings([])
+    setSelectedExtras([])
+  }
+
   return (
-    <div className="flex flex-col h-[100dvh] bg-gray-50 flex flex-col">
+    <div className="flex flex-col h-[100dvh] bg-gray-50">
       <div className="flex-1">
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
 
@@ -124,7 +125,7 @@ export default function ProdutosPage() {
                 <p className="text-center text-gray-600 m-1 p-1 text-sm leading-none">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
               </div>
 
-              <div>
+              <div id="acai-cup-selector">
                 <h2 className="font-semibold mb-2">Tamanho do Copo</h2>
                 <AcaiCupSelector
                   selectedCup={selectedCup?.id ?? null}
@@ -135,93 +136,93 @@ export default function ProdutosPage() {
                 />
               </div>
 
-
               {selectedCup && (
-              <>
-                <div ref={toppingsRef}>
-                  <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
-                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                    {toppings.map((t) => (
-                      <button
-                        key={t.name}
-                        onClick={() => handleToppingToggle(t.name)}
-                        className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
-                          selectedToppings.includes(t.name)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-300 bg-white"
-                        }`}
-                      >
-                        {t.imageUrl && (
-                          <img
-                            src={t.imageUrl}
-                            alt={t.name}
-                            className="w-16 h-16 rounded-full object-cover mb-1"
-                          />
-                        )}
-                        <span className="text-xs text-center text-gray-800 font-medium">
-                          {t.name}
-                        </span>
-                      </button>
-                    ))}
+                <>
+                  <div ref={toppingsRef}>
+                    <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
+                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                      {toppings.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => handleToppingToggle(t.name)}
+                          className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                            selectedToppings.includes(t.name)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {t.imageUrl && (
+                            <img
+                              src={t.imageUrl}
+                              alt={t.name}
+                              className="w-16 h-16 rounded-full object-cover mb-1"
+                            />
+                          )}
+                          <span className="text-xs text-center text-gray-800 font-medium">
+                            {t.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Selecionados: {selectedToppings.length}/{selectedCup.maxToppings}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Selecionados: {selectedToppings.length}/{selectedCup.maxToppings}
-                  </p>
-                </div>
 
-                <div>
-                  <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
-                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                    {addons.map((extra) => (
-                      <button
-                        key={extra.name}
-                        onClick={() => handleExtraToggle(extra.name)}
-                        className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
-                          selectedExtras.includes(extra.name)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-300 bg-white"
-                        }`}
-                      >
-                        {extra.imageUrl && (
-                          <img
-                            src={extra.imageUrl}
-                            alt={extra.name}
-                            className="w-16 h-16 rounded-full object-cover mb-1"
-                          />
-                        )}
-                        <span className="text-xs text-center text-gray-800 font-medium">
-                          {extra.name}
-                        </span>
-                        <span className="text-[10px] text-gray-500">
-                          +R$ {extra.price.toFixed(2)}
-                        </span>
-                      </button>
-                    ))}
+                  <div>
+                    <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
+                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                      {addons.map((extra) => (
+                        <button
+                          key={extra.name}
+                          onClick={() => handleExtraToggle(extra.name)}
+                          className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                            selectedExtras.includes(extra.name)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {extra.imageUrl && (
+                            <img
+                              src={extra.imageUrl}
+                              alt={extra.name}
+                              className="w-16 h-16 rounded-full object-cover mb-1"
+                            />
+                          )}
+                          <span className="text-xs text-center text-gray-800 font-medium">
+                            {extra.name}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            +R$ {extra.price.toFixed(2)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-              </>
-            )}
-
+                </>
+              )}
             </div>
           )}
 
           {activeTab === "endereco" && initialTipo === "entrega" && (
             <>
-              <CartEmptyWarning show={!selectedCup} currentTab={activeTab} />
+              <CartEmptyWarning show={cartItems.length === 0} currentTab={activeTab} />
               <AddressForm tipo={tipo} address={deliveryAddress} onAddressChange={setDeliveryAddress} />
             </>
           )}
 
           {activeTab === "pagamento" && (
             <>
-              <CartEmptyWarning show={!selectedCup} currentTab={activeTab} />
+              <CartEmptyWarning show={cartItems.length === 0} currentTab={activeTab} />
               <PaymentForm
                 paymentMethod={paymentMethod}
                 onPaymentMethodChange={setPaymentMethod}
                 cardData={cardData}
                 onCardDataChange={setCardData}
-                total={total}
+                total={cartItems.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, name) => {
+                  const found = addons.find((a) => a.name === name)
+                  return found ? acc + found.price : acc
+                }, 0), 0) + entregaFee}
                 tipo={tipo}
                 onTipoChange={setTipo}
                 deliveryAddress={deliveryAddress}
@@ -233,21 +234,26 @@ export default function ProdutosPage() {
         </div>
 
         <OrderSummary
-          subtotal={subtotal + toppingsPrice + extrasPrice}
+          subtotal={cartItems.reduce((sum, item) => sum + item.price, 0)}
           deliveryFee={entregaFee}
-          total={total}
-          itemCount={selectedCup ? 1 : 0}
+          total={cartItems.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, name) => {
+            const found = addons.find((a) => a.name === name)
+            return found ? acc + found.price : acc
+          }, 0), 0) + entregaFee}
+          itemCount={cartItems.length}
           currentTab={activeTab}
           tipo={tipo}
           initialTipo={initialTipo}
-          hasItems={!!selectedCup}
+          hasItems={cartItems.length > 0}
+          canAddAcai={!!selectedCup && selectedToppings.length === selectedCup.maxToppings}
           deliveryAddress={deliveryAddress}
           paymentMethod={paymentMethod}
           onNextStep={handleNextStep}
+          onAddAcai={handleAddToCart}
         />
-      </div>
 
-      <BottomNavigation />
+        <BottomNavigation />
+      </div>
     </div>
   )
 }

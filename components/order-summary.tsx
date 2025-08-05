@@ -12,6 +12,7 @@ interface OrderSummaryProps {
   tipo: string | null
   initialTipo: string | null
   hasItems: boolean
+  canAddAcai: boolean
   deliveryAddress: {
     street: string
     number: string
@@ -23,6 +24,7 @@ interface OrderSummaryProps {
   }
   paymentMethod: string
   onNextStep: () => void
+  onAddAcai: () => void
 }
 
 export function OrderSummary({
@@ -34,9 +36,11 @@ export function OrderSummary({
   tipo,
   initialTipo,
   hasItems,
+  canAddAcai,
   deliveryAddress,
   paymentMethod,
   onNextStep,
+  onAddAcai,
 }: OrderSummaryProps) {
   const isAddressValid = () => {
     if (tipo === "retirada") return true
@@ -49,15 +53,13 @@ export function OrderSummary({
     )
   }
 
-  const isPaymentValid = () => {
-    return paymentMethod !== ""
-  }
+  const isPaymentValid = () => paymentMethod !== ""
 
   const getButtonState = () => {
     if (!hasItems) {
       return {
         enabled: false,
-        label: "Adicione itens ao carrinho",
+        label: "Informar Endereço de Entrega",
       }
     }
 
@@ -65,32 +67,30 @@ export function OrderSummary({
       case "produtos":
         return {
           enabled: hasItems,
-          label: hasItems
-            ? initialTipo === "entrega"
+          label:
+            initialTipo === "entrega"
               ? "Informar Endereço de Entrega"
-              : "Definir Forma de Pagamento"
-            : "Adicione itens ao carrinho",
+              : "Definir Forma de Pagamento",
         }
       case "endereco":
         return {
           enabled: hasItems && isAddressValid(),
-          label: !hasItems
-            ? "Adicione itens ao carrinho"
-            : isAddressValid()
-              ? "Definir Forma de Pagamento"
-              : "Informar Endereço de Entrega",
+          label: isAddressValid()
+            ? "Definir Forma de Pagamento"
+            : "Informar Endereço de Entrega",
         }
       case "pagamento":
-        const needsAddress = tipo === "entrega" && !isAddressValid() && initialTipo === "retirada"
+        const needsAddress =
+          tipo === "entrega" &&
+          !isAddressValid() &&
+          initialTipo === "retirada"
         return {
           enabled: hasItems && isPaymentValid() && !needsAddress,
-          label: !hasItems
-            ? "Adicione itens ao carrinho"
-            : needsAddress
-              ? "Informar Endereço de Entrega"
-              : isPaymentValid()
-                ? "Finalizar Pedido"
-                : "Informar Forma de Pagamento",
+          label: needsAddress
+            ? "Informar Endereço de Entrega"
+            : isPaymentValid()
+              ? "Finalizar Pedido"
+              : "Informar Forma de Pagamento",
         }
       default:
         return {
@@ -110,7 +110,7 @@ export function OrderSummary({
           <div className="flex items-center justify-between mb-3 text-base sm:text-lg">
             <div>
               <p className="text-sm sm:text-base text-muted-foreground">
-                {itemCount} {itemCount === 1 ? "item" : "itens"}
+                {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
               </p>
               <p className="text-sm sm:text-base text-muted-foreground">
                 Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
@@ -127,6 +127,17 @@ export function OrderSummary({
               </p>
             </div>
           </div>
+
+          {currentTab === "produtos" && (
+            <Button
+              variant="outline"
+              onClick={onAddAcai}
+              className="w-full mb-2 text-sm sm:text-base border-primary text-primary hover:bg-primary/10"
+              disabled={!canAddAcai}
+            >
+              Adicionar ao Carrinho
+            </Button>
+          )}
 
           <Button
             className={`w-full py-1.5 sm:py-2 text-sm sm:text-base transition-all ${
@@ -150,7 +161,6 @@ export function OrderSummary({
                     : "bg-muted"
               }`}
             />
-
             {showThreeSteps && (
               <div
                 className={`w-2 h-2 rounded-full transition-colors ${
@@ -164,7 +174,6 @@ export function OrderSummary({
                 }`}
               />
             )}
-
             <div
               className={`w-2 h-2 rounded-full transition-colors ${
                 currentTab === "pagamento"

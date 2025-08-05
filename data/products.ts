@@ -9,6 +9,11 @@ export interface CupSizeOption {
   volumeMl: number
 }
 
+export interface CupSizeOptionWithChoices extends CupSizeOption {
+  toppings: string[]
+  extras: string[]
+}
+
 export const acaiCups: CupSizeOption[] = [
   {
     id: 1,
