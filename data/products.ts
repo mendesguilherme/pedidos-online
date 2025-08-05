@@ -1,61 +1,40 @@
-// src/data/products.ts
-
-export interface Product {
+// data/acaiCups.ts
+export interface CupSizeOption {
   id: number
   name: string
   description: string
   price: number
   image: string
-  category: string
+  maxToppings: number
+  volumeMl: number
 }
 
-export const products: Product[] = [
+export const acaiCups: CupSizeOption[] = [
   {
     id: 1,
-    name: "Hambúrguer Clássico",
-    description: "Pão artesanal, carne bovina 180g, queijo, alface, tomate e molho especial",
-    price: 25.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hambúrgueres",
+    name: "Copo de Açaí 330ml",
+    description: "Monte com até 3 acompanhamentos",
+    price: 15.0,
+    image: "/images/acai330.jpg",
+    maxToppings: 3,
+    volumeMl: 330,
   },
   {
     id: 2,
-    name: "Pizza Margherita",
-    description: "Molho de tomate, mussarela, manjericão fresco e azeite",
-    price: 32.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Pizzas",
+    name: "Copo de Açaí 550ml",
+    description: "Monte com até 3 acompanhamentos",
+    price: 20.0,
+    image: "/images/acai550.jpg",
+    maxToppings: 3,
+    volumeMl: 550,
   },
   {
     id: 3,
-    name: "Batata Frita",
-    description: "Batatas crocantes temperadas com sal e ervas",
-    price: 12.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Acompanhamentos",
-  },
-  {
-    id: 4,
-    name: "Refrigerante Lata",
-    description: "Coca-Cola, Guaraná ou Fanta - 350ml",
-    price: 5.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Bebidas",
-  },
-  {
-    id: 5,
-    name: "Hambúrguer Bacon",
-    description: "Pão brioche, carne 200g, bacon crocante, queijo cheddar e cebola caramelizada",
-    price: 29.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hambúrgueres",
-  },
-  {
-    id: 6,
-    name: "Suco Natural",
-    description: "Laranja, limão ou maracujá - 400ml",
-    price: 8.9,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Bebidas",
+    name: "Copo de Açaí 770ml",
+    description: "Monte com até 4 acompanhamentos",
+    price: 26.0,
+    image: "/images/acai770.jpg",
+    maxToppings: 4,
+    volumeMl: 770,
   },
 ]
