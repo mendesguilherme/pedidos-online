@@ -51,23 +51,23 @@ export default function HomePage() {
         <div className="relative z-10 flex flex-col items-center justify-center min-h-full p-4 space-y-4">
           {/* Logo */}
           <div className="relative">
-            <div className="w-24 h-24 rounded-full shadow-xl border-2 border-muted overflow-hidden">
+            <div className="w-36 h-36 rounded-full shadow-xl border-2 border-muted overflow-hidden">
               <Image
                 src="/images/logo.webp"
                 alt="Logo da empresa"
-                width={96}
-                height={96}
+                width={144}
+                height={144}
                 className="w-full h-full object-cover"
               />
             </div>
             <div
-              className="absolute inset-0 w-24 h-24 rounded-full border border-dashed border-accent animate-spin"
+              className="absolute inset-0 w-36 h-36 rounded-full border border-dashed border-accent animate-spin"
               style={{ animationDuration: "20s" }}
             ></div>
           </div>
 
           {/* Status */}
-          <div className="w-full max-w-lg px-4">
+          <div className="w-full max-w-xl px-6 sm:px-8">
             {typeof window !== "undefined" && isOpen !== null && <RestaurantStatus />}
           </div>
 
@@ -76,60 +76,69 @@ export default function HomePage() {
             <Button
               onClick={() => handleOptionSelect("entrega")}
               disabled={!isOpen}
-              className={`w-full font-semibold py-3 px-4 rounded-lg flex items-center justify-start space-x-3 shadow-lg transform transition-all duration-200 ${
+              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] ${
                 isOpen
                   ? "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
-              <div className={`p-1.5 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
-                <Truck className="w-5 h-5" />
+              <div className={`p-2 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
+                <Truck className="w-6 h-6" />
               </div>
-              <div className="flex flex-col items-start">
-                <span className="text-base">ENTREGA</span>
-                {!isOpen && <span className="text-xs text-muted-foreground">Fechado</span>}
+              <div className="flex flex-col items-start pl-4">
+                <span className="text-base leading-none">ENTREGA</span>
+                {!isOpen && <span className="text-xs text-muted-foreground leading-none">Fechado</span>}
               </div>
             </Button>
 
             <Button
               onClick={() => handleOptionSelect("retirada")}
               disabled={!isOpen}
-              className={`w-full font-semibold py-3 px-4 rounded-lg flex items-center justify-start space-x-3 shadow-lg transform transition-all duration-200 ${
+              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] ${
                 isOpen
                   ? "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
-              <div className={`p-1.5 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
-                <ShoppingBag className="w-5 h-5" />
+              <div className={`p-2 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
+                <ShoppingBag className="w-6 h-6" />
               </div>
-              <div className="flex flex-col items-start">
-                <span className="text-base">RETIRADA</span>
-                {!isOpen && <span className="text-xs text-muted-foreground">Fechado</span>}
+              <div className="flex flex-col items-start pl-4">
+                <span className="text-base leading-none">RETIRADA</span>
+                {!isOpen && <span className="text-xs text-muted-foreground leading-none">Fechado</span>}
               </div>
             </Button>
 
             <Button
               onClick={() => handleNavigation("/sobre")}
-              className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold py-3 px-4 rounded-lg flex items-center justify-start space-x-3 shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
             >
-              <div className="bg-white bg-opacity-20 p-1.5 rounded">
-                <Info className="w-5 h-5" />
+              <div className="bg-white bg-opacity-20 p-2 rounded">
+                <Info className="w-6 h-6" />
               </div>
-              <span className="text-base">SOBRE NÓS</span>
+              <div className="flex flex-col items-start justify-center pl-4">
+                <span className="text-base leading-none">SOBRE NÓS</span>                
+              </div>
+
             </Button>
           </div>
 
+
+
           {/* Aviso Fechado */}
-          {!isOpen && (
-            <div className="bg-muted border border-border rounded-lg p-3 w-full max-w-md text-center">
-              <div className="flex items-center justify-center space-x-2 text-red-500 mb-1">
-                <Clock className="w-4 h-4" />
-                <span className="font-semibold text-sm">Estamos Fechados</span>
+            {!isOpen && (
+              <div className="bg-muted border border-border rounded-lg p-3 w-full max-w-md text-center">
+                <div className="flex items-center justify-center space-x-2 text-red-500 mb-1">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-semibold text-sm">Estamos Fechados</span>
+                  {/* de `text-base` → `text-sm` */}
+                </div>
+                <p className="text-xs text-red-500">
+                  Consulte nossos horários na seção "Sobre Nós".
+                  {/* de `text-sm` → `text-xs` */}
+                </p>
               </div>
-              <p className="text-xs text-red-500">Consulte nossos horários na seção "Sobre Nós".</p>
-            </div>
-          )}
+            )}
 
         </div>
       </div>
