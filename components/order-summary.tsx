@@ -104,9 +104,9 @@ export function OrderSummary({
   const showThreeSteps = initialTipo === "entrega"
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[170px]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[140px]">
       <Card className="rounded-none border-0 shadow-none">
-        <CardContent className="p-3 sm:p-4">
+        <CardContent className="p-2 sm:p-4">
           <div className="flex items-center justify-between mb-3 text-base sm:text-lg">
             <div>
               <p className="text-sm sm:text-base text-muted-foreground">
@@ -129,7 +129,7 @@ export function OrderSummary({
           </div>
 
           <Button
-            className={`w-full py-2 sm:py-3 text-base sm:text-lg transition-all ${
+            className={`w-full py-1.5 sm:py-2 text-sm sm:text-base transition-all ${
               buttonState.enabled
                 ? "bg-primary hover:bg-primary/90 text-white"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
@@ -140,7 +140,7 @@ export function OrderSummary({
             {buttonState.label}
           </Button>
 
-          <div className="flex justify-center mt-3 space-x-2">
+          <div className="flex justify-center mt-2 space-x-1.5">
             <div
               className={`w-2 h-2 rounded-full transition-colors ${
                 currentTab === "produtos"

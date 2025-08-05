@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { NavigationTabs } from "@/components/navigation-tabs"
 import { AddressForm } from "@/components/address-form"
@@ -15,6 +15,7 @@ import { addons } from "@/data/addons"
 import { AcaiCupSelector } from "@/components/AcaiCupSelector"
 
 export default function ProdutosPage() {
+  const toppingsRef = useRef<HTMLDivElement | null>(null)
   const searchParams = useSearchParams()
   const initialTipo = searchParams.get("tipo") || "entrega"
   const [tipo, setTipo] = useState(initialTipo)
@@ -45,7 +46,16 @@ export default function ProdutosPage() {
     setSelectedCup(cup)
     setSelectedToppings([])
     setSelectedExtras([])
+
+    setTimeout(() => {
+      if (toppingsRef.current) {
+        const yOffset = -100 // ajuste conforme a altura do NavigationTabs
+        const y = toppingsRef.current.getBoundingClientRect().top + window.scrollY + yOffset
+        window.scrollTo({ top: y, behavior: "smooth" })
+      }
+    }, 100)
   }
+
 
   const handleToppingToggle = (topping: string) => {
     if (!selectedCup) return
@@ -109,8 +119,10 @@ export default function ProdutosPage() {
         <div className="container mx-auto px-4 py-2 pb-48">
           {activeTab === "produtos" && (
             <div className="space-y-6">
-              <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">Monte seu Açaí</h1>
-              <p className="text-center text-gray-600 mt-0">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
+              <div className="m-1 p-0 leading-none">
+                <h1 className="text-2xl font-bold text-center text-gray-800 m-0 p-0 leading-none">Monte seu Açaí</h1>
+                <p className="text-center text-gray-600 m-1 p-1 text-sm leading-none">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
+              </div>
 
               <div>
                 <h2 className="font-semibold mb-2">Tamanho do Copo</h2>
@@ -126,7 +138,7 @@ export default function ProdutosPage() {
 
               {selectedCup && (
               <>
-                <div>
+                <div ref={toppingsRef}>
                   <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
                   <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     {toppings.map((t) => (
