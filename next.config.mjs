@@ -1,3 +1,11 @@
+import nextPwa from "next-pwa"; // ou "next-pwa.js" se necessário para funcionar localmente
+
+const withPWA = nextPwa({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -9,6 +17,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+export default withPWA(nextConfig);
