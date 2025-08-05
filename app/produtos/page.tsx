@@ -125,41 +125,69 @@ export default function ProdutosPage() {
 
 
               {selectedCup && (
-                <>
-                  <div>
-                    <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
-                    <div className="grid grid-cols-2 gap-2">
-                      {toppings.map((t) => (
-                        <button
-                          key={t.name}
-                          onClick={() => handleToppingToggle(t.name)}
-                          className={`p-2 rounded border ${
-                            selectedToppings.includes(t.name) ? "border-blue-500" : "border-gray-300"
-                          }`}
-                        >
+              <>
+                <div>
+                  <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    {toppings.map((t) => (
+                      <button
+                        key={t.name}
+                        onClick={() => handleToppingToggle(t.name)}
+                        className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                          selectedToppings.includes(t.name)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 bg-white"
+                        }`}
+                      >
+                        {t.imageUrl && (
+                          <img
+                            src={t.imageUrl}
+                            alt={t.name}
+                            className="w-16 h-16 rounded-full object-cover mb-1"
+                          />
+                        )}
+                        <span className="text-xs text-center text-gray-800 font-medium">
                           {t.name}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">Selecionados: {selectedToppings.length}/{selectedCup.maxToppings}</p>
+                        </span>
+                      </button>
+                    ))}
                   </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Selecionados: {selectedToppings.length}/{selectedCup.maxToppings}
+                  </p>
+                </div>
 
-                  <div>
-                    <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
-                    <div className="grid grid-cols-2 gap-2">
-                      {addons.map((extra) => (
-                        <button
-                          key={extra.name}
-                          onClick={() => handleExtraToggle(extra.name)}
-                          className={`p-2 rounded border ${selectedExtras.includes(extra.name) ? "border-blue-500 bg-blue-50" : "border-gray-300"}`}
-                        >
-                          {extra.name} (+R$ {extra.price.toFixed(2)})
-                        </button>
-                      ))}
-                    </div>
+                <div>
+                  <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    {addons.map((extra) => (
+                      <button
+                        key={extra.name}
+                        onClick={() => handleExtraToggle(extra.name)}
+                        className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                          selectedExtras.includes(extra.name)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 bg-white"
+                        }`}
+                      >
+                        {extra.imageUrl && (
+                          <img
+                            src={extra.imageUrl}
+                            alt={extra.name}
+                            className="w-16 h-16 rounded-full object-cover mb-1"
+                          />
+                        )}
+                        <span className="text-xs text-center text-gray-800 font-medium">
+                          {extra.name}
+                        </span>
+                        <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
+                      </button>
+                    ))}
                   </div>
-                </>
-              )}
+                </div>
+              </>
+            )}
+
             </div>
           )}
 
