@@ -180,11 +180,14 @@ export default function ProdutosPage() {
                         <span className="text-xs text-center text-gray-800 font-medium">
                           {extra.name}
                         </span>
-                        <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
+                        <span className="text-[10px] text-gray-500">
+                          +R$ {extra.price.toFixed(2)}
+                        </span>
                       </button>
                     ))}
                   </div>
                 </div>
+
               </>
             )}
 

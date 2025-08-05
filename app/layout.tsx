@@ -7,11 +7,10 @@ export const metadata: Metadata = {
   title: 'Pedido Online - Açaí do Chef',
   description: 'O melhor açaí da cidade!',
   icons: {
-    icon: '/icon-192x192.png',
-    apple: '/icon-192x192.png'
+    icon: '/icon-192x192.avif',
+    apple: '/icon-192x192.avif'
   },
   manifest: '/manifest.json',
-  themeColor: '#6b21a8',
 }
 
 export default function RootLayout({
@@ -24,8 +23,8 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#6b21a8" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/icon-192x192.png" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <link rel="icon" href="/icon-192x192.avif" type="image/avif" />
+        <link rel="apple-touch-icon" href="/icon-192x192.avif" type="image/avif" />
       </head>
       <body>{children}</body>
     </html>

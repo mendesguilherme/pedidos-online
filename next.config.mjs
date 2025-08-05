@@ -1,9 +1,12 @@
-import nextPwa from "next-pwa"; // ou "next-pwa.js" se necessário para funcionar localmente
+import nextPwa from "next-pwa";
+
+const isDev = process.env.NODE_ENV === "development";
 
 const withPWA = nextPwa({
   dest: "public",
   register: true,
   skipWaiting: true,
+  disable: isDev, // ✅ ESSA LINHA desativa o PWA no dev (resolve os loops)
 });
 
 /** @type {import('next').NextConfig} */

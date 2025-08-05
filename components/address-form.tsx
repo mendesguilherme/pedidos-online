@@ -51,7 +51,6 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
 
   const searchCEP = async (cep: string) => {
     const cleanCEP = cep.replace(/\D/g, "")
-
     if (cleanCEP.length !== 8) {
       setCepStatus("idle")
       setCepError("")
@@ -73,7 +72,6 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
         return
       }
 
-      // Preencher os campos automaticamente
       onAddressChange({
         ...address,
         zipCode: formatZipCode(data.cep),
@@ -86,12 +84,9 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
       setCepStatus("success")
       setIsLoadingCEP(false)
 
-      // Focar no campo número após preencher
       setTimeout(() => {
         const numberInput = document.getElementById("number")
-        if (numberInput) {
-          numberInput.focus()
-        }
+        if (numberInput) numberInput.focus()
       }, 100)
     } catch (error) {
       setCepStatus("error")
@@ -105,7 +100,6 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
     if (formatted.length <= 9) {
       handleInputChange("zipCode", formatted)
 
-      // Buscar CEP automaticamente quando completo
       const cleanCEP = formatted.replace(/\D/g, "")
       if (cleanCEP.length === 8) {
         searchCEP(formatted)
@@ -116,9 +110,8 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
     }
   }
 
-  // Adicionar validação no início do componente
   return (
-    <div className="space-y-4 sm:space-y-6 px-4 sm:px-0">
+    <div className="address-fields space-y-4 sm:space-y-6 px-4 sm:px-0">
       <Card>
         <CardHeader className="text-center pb-4">
           <MapPin className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-green-600" />
@@ -137,7 +130,11 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                   value={address.zipCode}
                   onChange={(e) => handleZipCodeChange(e.target.value)}
                   className={`pr-10 ${
-                    cepStatus === "success" ? "border-green-500" : cepStatus === "error" ? "border-red-500" : ""
+                    cepStatus === "success"
+                      ? "border-green-500"
+                      : cepStatus === "error"
+                      ? "border-red-500"
+                      : ""
                   }`}
                   maxLength={9}
                 />

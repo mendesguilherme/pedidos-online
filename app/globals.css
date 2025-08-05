@@ -10,7 +10,7 @@
 
 @layer base {
   :root {
-    --background: 42 100% 96%;         /* tom pastel claro amarelo */
+    --background: 240 20% 98%;
     --foreground: 278 100% 10%;        /* roxo escuro para textos */
     --primary: 278 100% 27%;           /* roxo vibrante */
     --primary-foreground: 0 0% 100%;   /* branco */
@@ -93,4 +93,10 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.address-fields input,
+.address-fields textarea,
+.address-fields select {
+  @apply bg-yellow-50;
 }

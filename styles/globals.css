@@ -88,3 +88,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.address-fields input,
+.address-fields textarea,
+.address-fields select {
+  @apply bg-yellow-50 border-yellow-300 ;
+}
