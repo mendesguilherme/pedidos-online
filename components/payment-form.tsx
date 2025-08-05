@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 import {
   CreditCard,
   Smartphone,
@@ -72,6 +73,7 @@ export function PaymentForm({
   onDeliveryAddressChange,
   initialTipo,
 }: PaymentFormProps) {
+  const formTopRef = useRef<HTMLDivElement>(null)
   const [showPixCode, setShowPixCode] = useState(false)
   const [isLoadingCEP, setIsLoadingCEP] = useState(false)
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
@@ -161,6 +163,12 @@ export function PaymentForm({
   // Mostrar seção de endereço apenas se for entrega E o tipo inicial for retirada
   const showAddressSection = tipo === "entrega" && initialTipo === "retirada"
 
+  useEffect(() => {
+  if (tipo === "entrega" && initialTipo === "retirada") {
+        formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+    }, [tipo, initialTipo])
+
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0 pb-8">
       {/* Seleção de Tipo de Pedido */}
@@ -227,127 +235,129 @@ export function PaymentForm({
 
       {/* Endereço de Entrega (apenas se entrega E tipo inicial for retirada) */}
       {showAddressSection && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center">
-              <MapPin className="w-5 h-5 text-green-600 mr-2" />
-              <CardTitle className="text-lg sm:text-xl">Endereço de Entrega</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <Label htmlFor="zipCode-payment" className="text-sm font-medium">
-                  CEP <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative mt-1">
-                  <Input
-                    id="zipCode-payment"
-                    placeholder="00000-000"
-                    value={deliveryAddress.zipCode}
-                    onChange={(e) => handleZipCodeChange(e.target.value)}
-                    className={`pr-10 ${
-                      cepStatus === "success" ? "border-green-500" : cepStatus === "error" ? "border-red-500" : ""
-                    }`}
-                    maxLength={9}
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    {cepStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-                    {cepStatus === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
-                    {cepStatus === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
+        <div ref={formTopRef}>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center">
+                <MapPin className="w-5 h-5 text-green-600 mr-2" />
+                <CardTitle className="text-lg sm:text-xl">Endereço de Entrega</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="zipCode-payment" className="text-sm font-medium">
+                    CEP <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="zipCode-payment"
+                      placeholder="00000-000"
+                      value={deliveryAddress.zipCode}
+                      onChange={(e) => handleZipCodeChange(e.target.value)}
+                      className={`pr-10 ${
+                        cepStatus === "success" ? "border-green-500" : cepStatus === "error" ? "border-red-500" : ""
+                      }`}
+                      maxLength={9}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                      {cepStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                      {cepStatus === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                      {cepStatus === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
+                    </div>
                   </div>
+                  {cepStatus === "success" && (
+                    <p className="text-xs text-green-600 mt-1">CEP encontrado! Campos preenchidos automaticamente.</p>
+                  )}
+                  {cepStatus === "error" && <p className="text-xs text-red-500 mt-1">{cepError}</p>}
+                  <p className="text-xs text-gray-500 mt-1">Digite o CEP para preenchimento automático</p>
                 </div>
-                {cepStatus === "success" && (
-                  <p className="text-xs text-green-600 mt-1">CEP encontrado! Campos preenchidos automaticamente.</p>
-                )}
-                {cepStatus === "error" && <p className="text-xs text-red-500 mt-1">{cepError}</p>}
-                <p className="text-xs text-gray-500 mt-1">Digite o CEP para preenchimento automático</p>
-              </div>
 
-              <div className="sm:col-span-2">
-                <Label htmlFor="street-payment" className="text-sm font-medium">
-                  Rua/Avenida <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="street-payment"
-                  placeholder="Nome da rua"
-                  value={deliveryAddress.street}
-                  onChange={(e) => handleAddressInputChange("street", e.target.value)}
-                  className="mt-1"
-                  disabled={isLoadingCEP}
-                />
-              </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="street-payment" className="text-sm font-medium">
+                    Rua/Avenida <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="street-payment"
+                    placeholder="Nome da rua"
+                    value={deliveryAddress.street}
+                    onChange={(e) => handleAddressInputChange("street", e.target.value)}
+                    className="mt-1"
+                    disabled={isLoadingCEP}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="number-payment" className="text-sm font-medium">
-                  Número <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="number-payment"
-                  placeholder="123"
-                  value={deliveryAddress.number}
-                  onChange={(e) => handleAddressInputChange("number", e.target.value)}
-                  className="mt-1"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="number-payment" className="text-sm font-medium">
+                    Número <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="number-payment"
+                    placeholder="123"
+                    value={deliveryAddress.number}
+                    onChange={(e) => handleAddressInputChange("number", e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="complement-payment" className="text-sm font-medium">
-                  Complemento
-                </Label>
-                <Input
-                  id="complement-payment"
-                  placeholder="Apto, Bloco, etc."
-                  value={deliveryAddress.complement}
-                  onChange={(e) => handleAddressInputChange("complement", e.target.value)}
-                  className="mt-1"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="complement-payment" className="text-sm font-medium">
+                    Complemento
+                  </Label>
+                  <Input
+                    id="complement-payment"
+                    placeholder="Apto, Bloco, etc."
+                    value={deliveryAddress.complement}
+                    onChange={(e) => handleAddressInputChange("complement", e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="neighborhood-payment" className="text-sm font-medium">
-                  Bairro <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="neighborhood-payment"
-                  placeholder="Nome do bairro"
-                  value={deliveryAddress.neighborhood}
-                  onChange={(e) => handleAddressInputChange("neighborhood", e.target.value)}
-                  className="mt-1"
-                  disabled={isLoadingCEP}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="neighborhood-payment" className="text-sm font-medium">
+                    Bairro <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="neighborhood-payment"
+                    placeholder="Nome do bairro"
+                    value={deliveryAddress.neighborhood}
+                    onChange={(e) => handleAddressInputChange("neighborhood", e.target.value)}
+                    className="mt-1"
+                    disabled={isLoadingCEP}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="city-payment" className="text-sm font-medium">
-                  Cidade <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="city-payment"
-                  placeholder="Nome da cidade"
-                  value={deliveryAddress.city}
-                  onChange={(e) => handleAddressInputChange("city", e.target.value)}
-                  className="mt-1"
-                  disabled={isLoadingCEP}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="city-payment" className="text-sm font-medium">
+                    Cidade <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="city-payment"
+                    placeholder="Nome da cidade"
+                    value={deliveryAddress.city}
+                    onChange={(e) => handleAddressInputChange("city", e.target.value)}
+                    className="mt-1"
+                    disabled={isLoadingCEP}
+                  />
+                </div>
 
-              <div className="sm:col-span-2">
-                <Label htmlFor="reference-payment" className="text-sm font-medium">
-                  Ponto de Referência
-                </Label>
-                <Textarea
-                  id="reference-payment"
-                  placeholder="Ex: Próximo ao supermercado, portão azul..."
-                  value={deliveryAddress.reference}
-                  onChange={(e) => handleAddressInputChange("reference", e.target.value)}
-                  className="mt-1 resize-none"
-                  rows={3}
-                />
+                <div className="sm:col-span-2">
+                  <Label htmlFor="reference-payment" className="text-sm font-medium">
+                    Ponto de Referência
+                  </Label>
+                  <Textarea
+                    id="reference-payment"
+                    placeholder="Ex: Próximo ao supermercado, portão azul..."
+                    value={deliveryAddress.reference}
+                    onChange={(e) => handleAddressInputChange("reference", e.target.value)}
+                    className="mt-1 resize-none"
+                    rows={3}
+                  />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Forma de Pagamento */}
