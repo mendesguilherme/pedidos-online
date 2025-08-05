@@ -41,20 +41,9 @@ export default function SobrePage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Info className="w-5 h-5 mr-2 text-gray-600" />
-                Restaurante Sabor
+                Açaí do Chef - O melhor da cidade!
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-600">
-                Bem-vindo ao Restaurante Sabor! Oferecemos uma experiência gastronômica única com pratos preparados com
-                ingredientes frescos e muito carinho. Nossa missão é proporcionar momentos especiais através da boa
-                comida.
-              </p>
-              <p className="text-gray-600">
-                Fundado em 2020, nosso restaurante se dedica a oferecer o melhor da culinária brasileira e
-                internacional, sempre com foco na qualidade e no atendimento excepcional.
-              </p>
-            </CardContent>
           </Card>
 
           {/* Endereço */}
@@ -67,9 +56,9 @@ export default function SobrePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-gray-600">
-                <p>Rua das Flores, 123</p>
-                <p>Centro - São Paulo/SP</p>
-                <p>CEP: 01234-567</p>
+                <p>Rua Cério Galão, 660</p>
+                <p>Jardim Eldorado - Bebedouro/SP</p>
+                <p>CEP: 14706-126</p>
               </div>
             </CardContent>
           </Card>
@@ -124,24 +113,7 @@ export default function SobrePage() {
                 </p>
               </div>
             </CardContent>
-          </Card>
-
-          {/* Nossa História */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Nossa História</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">
-                O Restaurante Sabor nasceu do sonho de compartilhar sabores autênticos e criar experiências memoráveis
-                para nossos clientes. Cada prato é preparado com dedicação e ingredientes selecionados.
-              </p>
-              <p className="text-gray-600">
-                Nosso compromisso é com a excelência no atendimento e a satisfação de cada cliente que nos visita ou
-                escolhe nossos serviços de entrega.
-              </p>
-            </CardContent>
-          </Card>
+          </Card>          
 
           <div className="space-y-2">
             <Button onClick={() => router.push("/")} className="w-full">
