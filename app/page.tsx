@@ -76,17 +76,17 @@ export default function HomePage() {
             <Button
               onClick={() => handleOptionSelect("entrega")}
               disabled={!isOpen}
-              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] ${
+              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-2 shadow-lg transform transition-all duration-200 min-h-[50px] ${
                 isOpen
                   ? "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
-              <div className={`p-2 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
-                <Truck className="w-6 h-6" />
+              <div className={`p-1 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
+                <Truck className="w-7 h-7" />
               </div>
-              <div className="flex flex-col items-start pl-4">
-                <span className="text-base leading-none">ENTREGA</span>
+              <div className="flex flex-col items-start pl-0">
+                <span className="text-lg leading-none">ENTREGA</span>
                 {!isOpen && <span className="text-xs text-muted-foreground leading-none">Fechado</span>}
               </div>
             </Button>
@@ -94,29 +94,29 @@ export default function HomePage() {
             <Button
               onClick={() => handleOptionSelect("retirada")}
               disabled={!isOpen}
-              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] ${
+              className={`w-full font-semibold px-2 rounded-lg flex items-center space-x-2 shadow-lg transform transition-all duration-200 min-h-[50px] ${
                 isOpen
                   ? "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
-              <div className={`p-2 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
-                <ShoppingBag className="w-6 h-6" />
+              <div className={`p-1 rounded ${isOpen ? "bg-white bg-opacity-20" : "bg-muted"}`}>
+                <ShoppingBag className="w-7 h-7" />
               </div>
-              <div className="flex flex-col items-start pl-4">
-                <span className="text-base leading-none">RETIRADA</span>
+              <div className="flex flex-col items-start pl-0">
+                <span className="text-lg leading-none">RETIRADA</span>
                 {!isOpen && <span className="text-xs text-muted-foreground leading-none">Fechado</span>}
               </div>
             </Button>
 
             <Button
               onClick={() => handleNavigation("/sobre")}
-              className="w-full font-semibold px-2 rounded-lg flex items-center space-x-0 shadow-lg transform transition-all duration-200 min-h-[5px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+              className="w-full font-semibold px-2 rounded-lg flex items-center space-x-2 shadow-lg transform transition-all duration-200 min-h-[50px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
             >
-              <div className="bg-white bg-opacity-20 p-2 rounded">
-                <Info className="w-6 h-6" />
+              <div className="bg-white bg-opacity-20 p-1 rounded">
+                <Info className="w-7 h-7" />
               </div>
-              <div className="flex flex-col items-start justify-center pl-4">
+              <div className="flex flex-col items-start justify-center pl-0">
                 <span className="text-base leading-none">SOBRE NÓS</span>                
               </div>
 
