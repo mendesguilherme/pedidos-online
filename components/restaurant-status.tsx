@@ -48,7 +48,7 @@ export function RestaurantStatus() {
           <div className="flex items-center space-x-2 text-green-600">
             <CheckCircle className="w-4 h-4" />
             <span className="font-bold text-sm">ABERTO</span>
-            <span className="text-xs text-gray-600">até {todayHours.close}</span>
+            <span className="text-xs text-gray-600">até às {todayHours.close}</span>
           </div>
         ) : (
           <div className="flex items-center space-x-2 text-red-600">
