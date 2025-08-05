@@ -102,11 +102,11 @@ export default function ProdutosPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 flex flex-col">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 flex flex-col">
       <div className="flex-1">
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
 
-        <div className="container mx-auto px-4 py-6 pb-44">
+        <div className="container mx-auto px-4 py-2 pb-48">
           {activeTab === "produtos" && (
             <div className="space-y-6">
               <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">Monte seu Açaí</h1>
