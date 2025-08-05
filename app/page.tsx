@@ -122,14 +122,15 @@ export default function HomePage() {
 
           {/* Aviso Fechado */}
           {!isOpen && (
-            <div className="bg-destructive/10 border border-destructive rounded-lg p-3 w-full max-w-md text-center">
-              <div className="flex items-center justify-center space-x-2 text-destructive mb-1">
+            <div className="bg-muted border border-border rounded-lg p-3 w-full max-w-md text-center">
+              <div className="flex items-center justify-center space-x-2 text-red-500 mb-1">
                 <Clock className="w-4 h-4" />
                 <span className="font-semibold text-sm">Estamos Fechados</span>
               </div>
-              <p className="text-xs text-destructive">Consulte nossos horários na seção "Sobre Nós".</p>
+              <p className="text-xs text-red-500">Consulte nossos horários na seção "Sobre Nós".</p>
             </div>
           )}
+
         </div>
       </div>
 

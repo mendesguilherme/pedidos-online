@@ -56,7 +56,7 @@ export function RestaurantStatus() {
             <span className="font-bold text-sm">FECHADO</span>
             {nextOpen && (
               <span className="text-xs text-gray-600">
-                {nextOpen.day} às {nextOpen.time}
+                Abre {nextOpen.day} às {nextOpen.time}
               </span>
             )}
           </div>
