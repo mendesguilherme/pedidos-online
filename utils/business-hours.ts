@@ -7,13 +7,13 @@ export interface BusinessHours {
 }
 
 export const BUSINESS_HOURS: BusinessHours = {
-  monday: { open: "11:00", close: "22:00", isOpen: true },
-  tuesday: { open: "11:00", close: "22:00", isOpen: true },
-  wednesday: { open: "11:00", close: "22:00", isOpen: true },
-  thursday: { open: "11:00", close: "22:00", isOpen: true },
-  friday: { open: "11:00", close: "22:00", isOpen: true },
-  saturday: { open: "12:00", close: "23:00", isOpen: true },
-  sunday: { open: "12:00", close: "23:00", isOpen: true },
+  monday: { open: "14:00", close: "23:00", isOpen: true },
+  tuesday: { open: "14:00", close: "23:00", isOpen: true },
+  wednesday: { open: "14:00", close: "23:00", isOpen: true },
+  thursday: { open: "14:00", close: "23:00", isOpen: true },
+  friday: { open: "14:00", close: "23:00", isOpen: true },
+  saturday: { open: "14:00", close: "23:00", isOpen: true },
+  sunday: { open: "14:00", close: "23:00", isOpen: true },
 }
 
 export const DAY_NAMES = {
