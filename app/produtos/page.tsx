@@ -106,11 +106,11 @@ export default function ProdutosPage() {
       <div className="flex-1">
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
 
-        <div className="container mx-auto px-4 py-6 pb-32">
+        <div className="container mx-auto px-4 py-6 pb-44">
           {activeTab === "produtos" && (
             <div className="space-y-6">
-              <h1 className="text-3xl font-bold text-center text-gray-800">Monte seu Açaí</h1>
-              <p className="text-center text-gray-600">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
+              <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">Monte seu Açaí</h1>
+              <p className="text-center text-gray-600 mt-0">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
 
               <div>
                 <h2 className="font-semibold mb-2">Tamanho do Copo</h2>
