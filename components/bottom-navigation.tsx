@@ -17,6 +17,8 @@ export function BottomNavigation() {
     return false
   }
 
+  if (pathname !== "/") return null; // ← Esconde fora da home
+
   return (
     <div className="bg-primary text-primary-foreground border-t border-accent fixed bottom-0 left-0 right-0 z-50">
       <div className="flex justify-around items-center py-2">

@@ -104,7 +104,7 @@ export function OrderSummary({
   const showThreeSteps = initialTipo === "entrega"
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[84px]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[100px]">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3 text-base sm:text-lg">
