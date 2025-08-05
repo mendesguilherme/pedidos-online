@@ -107,30 +107,32 @@ export function OrderSummary({
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t shadow-lg">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center justify-between mb-3 text-sm sm:text-base">
+          <div className="flex items-center justify-between mb-3 text-base sm:text-lg">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 {itemCount} {itemCount === 1 ? "item" : "itens"}
               </p>
-              <p className="text-xs sm:text-sm text-gray-600">Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}</p>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
+              </p>
               {deliveryFee > 0 && (
-                <p className="text-xs sm:text-sm text-gray-600">
+                <p className="text-sm sm:text-base text-muted-foreground">
                   Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
                 </p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-base sm:text-lg font-bold text-green-600">
+              <p className="text-lg sm:text-xl font-bold text-primary">
                 Total: R$ {total.toFixed(2).replace(".", ",")}
               </p>
             </div>
           </div>
 
           <Button
-            className={`w-full py-2 sm:py-3 text-sm sm:text-base transition-all ${
+            className={`w-full py-2 sm:py-3 text-base sm:text-lg transition-all ${
               buttonState.enabled
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                ? "bg-primary hover:bg-primary/90 text-white"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
             onClick={onNextStep}
             disabled={!buttonState.enabled}
@@ -141,7 +143,11 @@ export function OrderSummary({
           <div className="flex justify-center mt-3 space-x-2">
             <div
               className={`w-2 h-2 rounded-full transition-colors ${
-                currentTab === "produtos" ? "bg-green-600" : hasItems ? "bg-green-400" : "bg-gray-300"
+                currentTab === "produtos"
+                  ? "bg-primary"
+                  : hasItems
+                    ? "bg-accent"
+                    : "bg-muted"
               }`}
             />
 
@@ -149,12 +155,12 @@ export function OrderSummary({
               <div
                 className={`w-2 h-2 rounded-full transition-colors ${
                   currentTab === "endereco"
-                    ? "bg-green-600"
+                    ? "bg-primary"
                     : hasItems && isAddressValid()
-                      ? "bg-green-400"
+                      ? "bg-accent"
                       : hasItems
-                        ? "bg-yellow-400"
-                        : "bg-gray-300"
+                        ? "bg-secondary"
+                        : "bg-muted"
                 }`}
               />
             )}
@@ -162,12 +168,12 @@ export function OrderSummary({
             <div
               className={`w-2 h-2 rounded-full transition-colors ${
                 currentTab === "pagamento"
-                  ? "bg-green-600"
+                  ? "bg-primary"
                   : hasItems && isAddressValid() && isPaymentValid()
-                    ? "bg-green-400"
+                    ? "bg-accent"
                     : hasItems && isAddressValid()
-                      ? "bg-yellow-400"
-                      : "bg-gray-300"
+                      ? "bg-secondary"
+                      : "bg-muted"
               }`}
             />
           </div>

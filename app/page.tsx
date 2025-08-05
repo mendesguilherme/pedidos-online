@@ -53,7 +53,7 @@ export default function HomePage() {
           <div className="relative">
             <div className="w-24 h-24 rounded-full shadow-xl border-2 border-muted overflow-hidden">
               <Image
-                src="/images/logo.png"
+                src="/images/logo.webp"
                 alt="Logo da empresa"
                 width={96}
                 height={96}

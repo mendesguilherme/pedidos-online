@@ -109,7 +109,7 @@ export default function ProdutosPage() {
         <div className="container mx-auto px-4 py-6 pb-32">
           {activeTab === "produtos" && (
             <div className="space-y-6">
-              <h1 className="text-2xl font-bold text-center text-gray-800">Monte seu Açaí</h1>
+              <h1 className="text-3xl font-bold text-center text-gray-800">Monte seu Açaí</h1>
               <p className="text-center text-gray-600">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
 
               <div>
