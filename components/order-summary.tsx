@@ -55,6 +55,9 @@ export function OrderSummary({
 
   const isPaymentValid = () => paymentMethod !== ""
 
+  const showAddButton = currentTab === "produtos"
+  const showOnlyOneButton = !showAddButton
+
   const getButtonState = () => {
     if (!hasItems) {
       return {
@@ -108,35 +111,48 @@ export function OrderSummary({
         <CardContent className="p-2 sm:p-4">
           <div className="flex justify-between items-start gap-4">
             {/* Coluna da esquerda: Resumo dos valores */}
-            <div className="text-xs sm:text-sm text-muted-foreground">
-              <p>{itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}</p>
-              <p>Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}</p>
+            <div className="text-xs sm:text-sm text-muted-foreground space-y-1 mt-2">
+              <p className="whitespace-nowrap">
+                {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
+              </p>
+              <p className="whitespace-nowrap">
+                Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
+              </p>
               {deliveryFee > 0 && (
-                <p>Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}</p>
+                <p className="whitespace-nowrap">
+                  Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
+                </p>
               )}
-              <p className="text-sm sm:text-base font-bold text-primary mt-1">
+              <p className="whitespace-nowrap text-sm sm:text-base font-bold text-primary mt-1">
                 Total: R$ {total.toFixed(2).replace(".", ",")}
               </p>
             </div>
 
             {/* Coluna da direita: Botões empilhados */}
-            <div className="flex flex-col gap-2 items-end min-w-[140px]">
+            <div
+              className={`flex flex-col ${
+                currentTab !== "produtos" ? "justify-center" : "gap-2"
+              } items-end min-h-[90px] w-full sm:min-w-[140px] pr-4 pt-2`}
+            >
               {currentTab === "produtos" && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onAddAcai}
                   disabled={!canAddAcai}
-                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 w-full"
+                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 px-4 py-1 w-full"
                 >
                   Adicionar ao Carrinho
                 </Button>
               )}
+
               <Button
                 size="sm"
                 onClick={onNextStep}
                 disabled={!buttonState.enabled}
-                className={`text-xs sm:text-sm px-4 w-full ${
+                className={`text-xs sm:text-sm px-4 ${
+                  currentTab !== "produtos" ? "max-w-[200]" : "w-full"
+                } ${
                   buttonState.enabled
                     ? "bg-primary hover:bg-primary/90 text-white"
                     : "bg-muted text-muted-foreground cursor-not-allowed"
@@ -145,6 +161,7 @@ export function OrderSummary({
                 {buttonState.label}
               </Button>
             </div>
+
           </div>
         </CardContent>
       </Card>
