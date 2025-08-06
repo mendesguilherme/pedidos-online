@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface OrderSummaryProps {
   subtotal: number
@@ -25,6 +27,7 @@ interface OrderSummaryProps {
   paymentMethod: string
   onNextStep: () => void
   onAddAcai: () => void
+  setTab: (tab: string) => void // <- adicionar prop se quiser trocar aba
 }
 
 export function OrderSummary({
@@ -41,7 +44,10 @@ export function OrderSummary({
   paymentMethod,
   onNextStep,
   onAddAcai,
+  setTab,
 }: OrderSummaryProps) {
+  const [showModal, setShowModal] = useState(false)
+
   const isAddressValid = () => {
     if (tipo === "retirada") return true
     return (
@@ -55,17 +61,8 @@ export function OrderSummary({
 
   const isPaymentValid = () => paymentMethod !== ""
 
-  const showAddButton = currentTab === "produtos"
-  const showOnlyOneButton = !showAddButton
-
-  const getButtonState = () => {
-    if (!hasItems) {
-      return {
-        enabled: false,
-        label: "Informar Endereço de Entrega",
-      }
-    }
-
+  const buttonState = (() => {
+    if (!hasItems) return { enabled: false, label: "Informar Endereço de Entrega" }
     switch (currentTab) {
       case "produtos":
         return {
@@ -96,21 +93,29 @@ export function OrderSummary({
               : "Informar Forma de Pagamento",
         }
       default:
-        return {
-          enabled: false,
-          label: "Carregando...",
-        }
+        return { enabled: false, label: "Carregando..." }
     }
-  }
+  })()
 
-  const buttonState = getButtonState()
+  const handleAddAcai = () => {
+    if (!canAddAcai) {
+      // Retorne modal de erro ou feedback
+      alert("Por favor, selecione um copo e os acompanhamentos antes de adicionar.")
+      return
+    }
+
+    // Adiciona ao carrinho
+    onAddAcai()
+    // Abre modal com opções
+    setShowModal(true)
+  }
 
   return (
     <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-2 sm:p-4">
           <div className="flex justify-between items-start gap-4">
-            {/* Coluna da esquerda: Resumo dos valores */}
+            {/* Resumo dos valores */}
             <div className="text-xs sm:text-sm text-muted-foreground space-y-1 mt-2">
               <p className="whitespace-nowrap">
                 {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
@@ -128,43 +133,73 @@ export function OrderSummary({
               </p>
             </div>
 
-            {/* Coluna da direita: Botões empilhados */}
+            {/* Botões */}
             <div
               className={`flex flex-col ${
-                currentTab !== "produtos" ? "justify-center" : "gap-2"
-              } items-end min-h-[90px] w-full sm:min-w-[140px] pr-4 pt-2`}
+                currentTab !== "produtos" ? "justify-center" : "justify-center"
+              } items-end justify-center min-h-[90px] w-full sm:min-w-[140px] pr-4`}
             >
               {currentTab === "produtos" && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onAddAcai}
-                  disabled={!canAddAcai}
-                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 px-4 py-1 w-full"
+                  onClick={handleAddAcai}
+                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 px-4 py-1 w-full rounded-md"
                 >
                   Adicionar ao Carrinho
                 </Button>
               )}
 
-              <Button
-                size="sm"
-                onClick={onNextStep}
-                disabled={!buttonState.enabled}
-                className={`text-xs sm:text-sm px-4 ${
-                  currentTab !== "produtos" ? "max-w-[200]" : "w-full"
-                } ${
-                  buttonState.enabled
-                    ? "bg-primary hover:bg-primary/90 text-white"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {buttonState.label}
-              </Button>
+              {currentTab !== "produtos" && (
+                <Button
+                  size="sm"
+                  onClick={onNextStep}
+                  disabled={!buttonState.enabled}
+                  className={`text-xs sm:text-sm px-4 rounded-md ${
+                    currentTab !== "produtos" ? "max-w-[200]" : "w-full"
+                  } ${
+                    buttonState.enabled
+                      ? "bg-primary hover:bg-primary/90 text-white"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  }`}
+                >
+                  {buttonState.label}
+                </Button>
+              )}
             </div>
-
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="mx-4 sm:mx-auto rounded-lg sm:max-w-md w-full text-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base sm:text-lg">
+              Açaí adicionado com sucesso!
+            </DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowModal(false)}
+              className="rounded-md"
+            >
+              Montar outro Açaí
+            </Button>
+            <Button
+              onClick={() => {
+                setShowModal(false)
+                setTab("endereco")
+              }}
+              className="rounded-md"
+            >
+              Ir para Endereço de Entrega
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }
