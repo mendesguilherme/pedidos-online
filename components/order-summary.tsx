@@ -113,10 +113,10 @@ export function OrderSummary({
   return (
     <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg">
       <Card className="rounded-none border-0 shadow-none">
-        <CardContent className="p-2 sm:p-4">
-          <div className="flex justify-between items-start gap-4">
-            {/* Resumo dos valores */}
-            <div className="text-xs sm:text-sm text-muted-foreground space-y-1 mt-2">
+        <CardContent className="p-2 sm:p-4 space-y-2">
+          {/* Linha dos dados */}
+          <div className="flex justify-between items-start flex-wrap gap-2">
+            <div className="text-xs sm:text-sm text-muted-foreground space-y-1 flex-1 min-w-[140px]">
               <p className="whitespace-nowrap">
                 {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
               </p>
@@ -128,52 +128,46 @@ export function OrderSummary({
                   Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
                 </p>
               )}
-              <p className="whitespace-nowrap text-sm sm:text-base font-bold text-primary mt-1">
-                Total: R$ {total.toFixed(2).replace(".", ",")}
-              </p>
             </div>
 
-            {/* Botões */}
-            <div
-              className={`flex flex-col ${
-                currentTab !== "produtos" ? "justify-center" : "justify-center"
-              } items-end justify-center min-h-[90px] w-full sm:min-w-[140px] pr-4`}
-            >
-              {currentTab === "produtos" && (
-                <Button
-                  size="sm"
-                  onClick={handleAddAcai}
-                  className="text-xs sm:text-sm px-4 py-1 w-full max-w-[200px] rounded-md bg-primary hover:bg-primary/90 text-white"
-                  style={{ borderRadius: "6px" }}
-                >
-                  Adicionar ao Carrinho
-                </Button>
-
-              )}
-
-              {currentTab !== "produtos" && (
-                <Button
-                  size="sm"
-                  onClick={onNextStep}
-                  disabled={!buttonState.enabled}
-                  className={`text-xs sm:text-sm px-4 w-full max-w-[200px] rounded-md ${
-                    buttonState.enabled
-                      ? "bg-primary hover:bg-primary/90 text-white"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  }`}
-                  style={{ borderRadius: "6px" }}
-                >
-                  {buttonState.label}
-                </Button>
-              )}
-            </div>
+            <p className="text-sm sm:text-base font-bold text-primary whitespace-nowrap self-end">
+              Total: R$ {total.toFixed(2).replace(".", ",")}
+            </p>
           </div>
+
+          {/* Linha do botão */}
+          {currentTab === "produtos" && (
+            <Button
+              size="sm"
+              onClick={handleAddAcai}
+              className="text-xs sm:text-sm px-4 py-2 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
+              style={{ borderRadius: "6px" }}
+            >
+              Adicionar ao Carrinho
+            </Button>
+          )}
+
+          {currentTab !== "produtos" && (
+            <Button
+              size="sm"
+              onClick={onNextStep}
+              disabled={!buttonState.enabled}
+              className={`text-xs sm:text-sm px-4 py-2 w-full rounded-md ${
+                buttonState.enabled
+                  ? "bg-primary hover:bg-primary/90 text-white"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              }`}
+              style={{ borderRadius: "6px" }}
+            >
+              {buttonState.label}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       {/* Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="mx-4 sm:mx-auto rounded-lg sm:max-w-md w-full text-sm">
+        <DialogContent className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">
               Açaí adicionado com sucesso!
