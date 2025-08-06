@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { gerarPix } from "@/utils/pix"
+import { Check, Copy } from "lucide-react"
+
 
 import {
   CreditCard,
@@ -86,6 +88,22 @@ export function PaymentForm({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [tipoDropdownOpen, setTipoDropdownOpen] = useState(false)
+
+  const pixCode = gerarPix(
+    "38873758827",
+    "AçaidoChef",
+    "Bebedouro",
+    total,
+    "PedidoOnline"
+  )
+
+  const [copied, setCopied] = useState(false)
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(pixCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const searchCEP = async (cep: string) => {
     const cleanCEP = cep.replace(/\D/g, "")
@@ -244,15 +262,18 @@ export function PaymentForm({
                   <div className="bg-white p-4 rounded-lg border-2 border-dashed border-purple-300">
                     <QrCode className="w-24 h-24 mx-auto mb-4 text-purple-600" />
                     <p className="text-xs text-gray-600 mb-2">Código PIX:</p>
-                    <p className="text-xs font-mono bg-gray-100 p-2 rounded break-all">
-                      {gerarPix(
-                        "38873758827", // ou chave aleatória
-                        "Guilherme Henrique Mendes Barbosa dos Santos",
-                        "Bebedouro",
-                        total,
-                        "Açaí do Chef - Pedido Online"
+                    <Button
+                      onClick={copyToClipboard}
+                      variant="outline"
+                      className="w-full text-xs font-mono bg-gray-100 hover:bg-gray-200 p-2 rounded flex items-center justify-between"
+                    >
+                      <span className="break-all text-left">{pixCode}</span>
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-600 ml-2" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-gray-500 ml-2" />
                       )}
-                    </p>
+                    </Button>
                   </div>
                   <div className="bg-yellow-50 p-3 rounded-lg">
                     <p className="text-sm text-yellow-800">

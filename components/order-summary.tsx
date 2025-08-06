@@ -205,13 +205,6 @@ export function OrderSummary({
 
           <div className="flex justify-center gap-3 mt-6">
             <button
-              onClick={() => setShowWarning(false)} // Voltar para seleção
-              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-            >
-              Não
-            </button>
-
-            <button
               onClick={() => {
                 setShowWarning(false)
                 onAddAcai(true)
@@ -221,6 +214,13 @@ export function OrderSummary({
             >
               Sim
             </button>
+
+            <button
+              onClick={() => setShowWarning(false)} // Voltar para seleção
+              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            >
+              Não
+            </button>            
           </div>
         </DialogContent>
       </Dialog>

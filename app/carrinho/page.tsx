@@ -23,7 +23,7 @@ export default function CarrinhoPage() {
         <div className="bg-white shadow-sm border-b sticky top-0 z-10">
           <div className="flex items-center justify-between p-3">
             <div className="flex items-center">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} className="mr-2">
+              <Button variant="ghost" size="sm" onClick={() => router.back()} className="mr-2 rounded-xl">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <ShoppingCart className="w-5 h-5 mr-1 text-gray-600" />
@@ -33,7 +33,7 @@ export default function CarrinhoPage() {
               variant="ghost"
               size="sm"
               onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-800 text-xs"
+              className="text-gray-600 hover:text-gray-800 text-xs rounded-xl"
             >
               <Home className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Menu Principal</span>
@@ -49,8 +49,16 @@ export default function CarrinhoPage() {
                 <h2 className="text-lg font-semibold text-gray-600 mb-1">Carrinho vazio</h2>
                 <p className="text-gray-500 mb-5">Adicione itens ao seu carrinho para continuar</p>
                 <div className="space-y-2">
-                  <Button onClick={() => router.push("/produtos")} className="text-sm py-2 px-4">Ver Produtos</Button>
-                  <Button variant="outline" onClick={() => router.push("/")} className="text-sm py-2 px-4">Voltar ao Menu Principal</Button>
+                  <Button onClick={() => router.push("/produtos")} className="text-sm py-2 px-4 rounded-xl">
+                    Ver Produtos
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/")}
+                    className="text-sm py-2 px-4 rounded-xl"
+                  >
+                    Voltar ao Menu Principal
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -82,7 +90,7 @@ export default function CarrinhoPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-7 h-7 p-0"
+                          className="w-7 h-7 p-0 rounded-xl"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </Button>
@@ -91,7 +99,7 @@ export default function CarrinhoPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-7 h-7 p-0"
+                          className="w-7 h-7 p-0 rounded-xl"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </Button>
@@ -99,7 +107,7 @@ export default function CarrinhoPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => removeItem(item.id)}
-                          className="text-red-500 hover:text-red-700 ml-1"
+                          className="text-red-500 hover:text-red-700 ml-1 rounded-xl"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -125,12 +133,12 @@ export default function CarrinhoPage() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-3">
-                    <Button className="w-full text-sm py-2" onClick={() => router.push("/produtos")}>
+                    <Button className="w-full text-sm py-2 rounded-xl" onClick={() => router.push("/produtos")}>
                       Continuar Comprando
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full bg-transparent text-sm py-2"
+                      className="w-full bg-transparent text-sm py-2 rounded-xl"
                       onClick={() => router.push("/")}
                     >
                       Voltar ao Menu Principal
