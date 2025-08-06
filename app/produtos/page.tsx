@@ -75,8 +75,8 @@ export default function ProdutosPage() {
     }
   }
 
-  const handleAddToCart = () => {
-    if (!selectedCup || selectedToppings.length !== selectedCup.maxToppings) return
+  const handleAddToCart = (force = false) => {
+    if (!selectedCup || (!force && selectedToppings.length !== selectedCup.maxToppings)) return
 
     const newItem = {
       id: Date.now(),

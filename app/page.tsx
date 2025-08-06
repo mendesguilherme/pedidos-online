@@ -48,7 +48,7 @@ export default function HomePage() {
       <div className="relative z-10 flex flex-col items-center justify-start min-h-full p-4 pt-1 space-y-3">
         {/* Logo */}
         <div className="relative mt-2">
-          <div className="w-44 h-44 rounded-full shadow-xl border-3 border-muted overflow-hidden">
+          <div className="w-36 h-36 rounded-full shadow-lg border-2 border-muted overflow-hidden">
             <Image
               src="/images/logo.webp"
               alt="Logo da empresa"
@@ -58,7 +58,7 @@ export default function HomePage() {
             />
           </div>
           <div
-            className="absolute inset-0 w-44 h-44 rounded-full border border-dashed border-accent animate-spin"
+            className="absolute inset-0 w-36 h-36 rounded-full border border-dashed border-accent animate-spin"
             style={{ animationDuration: "20s" }}
           />
         </div>
@@ -69,11 +69,11 @@ export default function HomePage() {
         </div>
 
         {/* Botões */}
-        <div className="space-y-4 w-full max-w-md px-4">
+        <div className="space-y-4 w-full max-w-md px-10">
           <Button
             onClick={() => handleOptionSelect("entrega")}
             disabled={!isOpen}
-            className={`w-full text-xl font-semibold px-4 rounded-2xl flex items-center space-x-4 shadow-lg transition-all duration-200 min-h-[64px] ${
+            className={`w-full text-base font-medium px-3 rounded-xl flex items-center space-x-3 shadow-md transition-all duration-200 min-h-[56px] ${
               isOpen
                 ? "bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
@@ -108,7 +108,7 @@ export default function HomePage() {
 
           <Button
             onClick={() => handleNavigation("/sobre")}
-            className="w-full text-xl font-semibold px-4 rounded-2xl flex items-center space-x-4 shadow-lg transition-all duration-200 min-h-[64px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+            className="w-full text-xl font-semibold px-3 rounded-xl flex items-center space-x-3 shadow-md transition-all duration-200 min-h-[56px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
           >
             <div className="bg-white bg-opacity-20 p-2 rounded">
               <Info className="w-8 h-8" />
@@ -117,6 +117,7 @@ export default function HomePage() {
               <span className="text-xl leading-none">SOBRE NÓS</span>
             </div>
           </Button>
+
         </div>
       </div>
 

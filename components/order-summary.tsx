@@ -9,6 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription
 } from "@/components/ui/dialog"
 
 interface OrderSummaryProps {
@@ -32,7 +33,7 @@ interface OrderSummaryProps {
   }
   paymentMethod: string
   onNextStep: () => void
-  onAddAcai: () => void
+  onAddAcai: (force?: boolean) => void
   setTab: (tab: string) => void
 }
 
@@ -79,14 +80,19 @@ export function OrderSummary({
         : "Definir Forma de Pagamento",
   }
 
+  const [showWarning, setShowWarning] = useState(false)
+
+  const [forceAdd, setForceAdd] = useState(false)
+
   const handleAddAcai = () => {
-    if (!canAddAcai) {
-      alert("Por favor, selecione um copo e os acompanhamentos antes de adicionar.")
+    if (!canAddAcai && !forceAdd) {
+      setShowWarning(true)
       return
     }
 
     onAddAcai()
     setShowModal(true)
+    setForceAdd(false) // Resetar após adicionar
   }
 
   const handleNextStepClick = () => {
@@ -161,7 +167,7 @@ export function OrderSummary({
           <DialogFooter className="flex justify-center pt-2 gap-2">
             {currentTab === "endereco" ? (
               <Button onClick={() => setShowModal(false)} className="rounded-md">
-                OK, entendi
+                OK, Entendi!
               </Button>
             ) : (
               <>
@@ -186,6 +192,39 @@ export function OrderSummary({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showWarning} onOpenChange={setShowWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Seleção Incompleta</DialogTitle>
+            <DialogDescription>
+              Você selecionou menos acompanhamentos que o recomendado.
+              Deseja prosseguir mesmo assim?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-center gap-3 mt-6">
+            <button
+              onClick={() => setShowWarning(false)} // Voltar para seleção
+              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            >
+              Não
+            </button>
+
+            <button
+              onClick={() => {
+                setShowWarning(false)
+                onAddAcai(true)
+                setShowModal(true)
+              }}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition"
+            >
+              Sim
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }

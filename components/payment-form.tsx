@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { gerarPix } from "@/utils/pix"
 
 import {
   CreditCard,
@@ -244,8 +245,13 @@ export function PaymentForm({
                     <QrCode className="w-24 h-24 mx-auto mb-4 text-purple-600" />
                     <p className="text-xs text-gray-600 mb-2">Código PIX:</p>
                     <p className="text-xs font-mono bg-gray-100 p-2 rounded break-all">
-                      00020126580014BR.GOV.BCB.PIX013636297073-0001-0000-0000-000000000000520400005303986540
-                      {total.toFixed(2)}5802BR5925RESTAURANTE SABOR LTDA6009SAO PAULO62070503***6304ABCD
+                      {gerarPix(
+                        "38873758827", // ou chave aleatória
+                        "Guilherme Henrique Mendes Barbosa dos Santos",
+                        "Bebedouro",
+                        total,
+                        "Açaí do Chef - Pedido Online"
+                      )}
                     </p>
                   </div>
                   <div className="bg-yellow-50 p-3 rounded-lg">
