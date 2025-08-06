@@ -31,17 +31,17 @@ export function RestaurantStatus() {
     return () => clearInterval(interval)
   }, [])
 
-  if (!mounted) return null // Só renderiza no cliente
+  if (!mounted) return null
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-3 mb-4 border-l-4 border-l-gray-600">
+    <div className="bg-white rounded-xl shadow-md p-3 mb-4 border-l-4 border-l-gray-600">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
           <Clock className="w-4 h-4 text-gray-600" />
           <span className="font-medium text-gray-800 text-sm">Status</span>
         </div>
         <div className="text-xs text-gray-500">
-          {new Date().toLocaleDateString("pt-BR")} - {currentTime} 
+          {new Date().toLocaleDateString("pt-BR")} - {currentTime}
         </div>
       </div>
 

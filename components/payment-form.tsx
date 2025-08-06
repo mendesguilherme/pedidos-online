@@ -7,8 +7,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { gerarPix } from "@/utils/pix"
 import { Check, Copy } from "lucide-react"
-
-
 import {
   CreditCard,
   Smartphone,
@@ -74,6 +72,18 @@ export function PaymentForm({
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [cepError, setCepError] = useState("")
   const [selectedCardBrand, setSelectedCardBrand] = useState("")
+  const [changeFor, setChangeFor] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [tipoDropdownOpen, setTipoDropdownOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const pixCode = gerarPix(
+    "38873758827",
+    "AçaidoChef",
+    "Bebedouro",
+    total,
+    "PedidoOnline"
+  )
 
   const handleAddressInputChange = (field: keyof Address, value: string) => {
     onDeliveryAddressChange({ ...deliveryAddress, [field]: value })
@@ -84,21 +94,6 @@ export function PaymentForm({
     return numbers.replace(/(\d{5})(\d{3})/, "$1-$2")
   }
 
-  const [changeFor, setChangeFor] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const [tipoDropdownOpen, setTipoDropdownOpen] = useState(false)
-
-  const pixCode = gerarPix(
-    "38873758827",
-    "AçaidoChef",
-    "Bebedouro",
-    total,
-    "PedidoOnline"
-  )
-
-  const [copied, setCopied] = useState(false)
-
   const copyToClipboard = () => {
     navigator.clipboard.writeText(pixCode)
     setCopied(true)
@@ -107,7 +102,6 @@ export function PaymentForm({
 
   const searchCEP = async (cep: string) => {
     const cleanCEP = cep.replace(/\D/g, "")
-
     if (cleanCEP.length !== 8) {
       setCepStatus("idle")
       setCepError("")
@@ -129,7 +123,6 @@ export function PaymentForm({
         return
       }
 
-      // Preencher os campos automaticamente
       onDeliveryAddressChange({
         ...deliveryAddress,
         zipCode: formatZipCode(data.cep),
@@ -142,12 +135,9 @@ export function PaymentForm({
       setCepStatus("success")
       setIsLoadingCEP(false)
 
-      // Focar no campo número após preencher
       setTimeout(() => {
         const numberInput = document.getElementById("number-payment")
-        if (numberInput) {
-          numberInput.focus()
-        }
+        if (numberInput) numberInput.focus()
       }, 100)
     } catch (error) {
       setCepStatus("error")
@@ -160,8 +150,6 @@ export function PaymentForm({
     const formatted = formatZipCode(value)
     if (formatted.length <= 9) {
       handleAddressInputChange("zipCode", formatted)
-
-      // Buscar CEP automaticamente quando completo
       const cleanCEP = formatted.replace(/\D/g, "")
       if (cleanCEP.length === 8) {
         searchCEP(formatted)
@@ -176,29 +164,26 @@ export function PaymentForm({
     setShowPixCode(true)
   }
 
-  // Mostrar seção de endereço apenas se for entrega E o tipo inicial for retirada
   const showAddressSection = tipo === "entrega" && initialTipo === "retirada"
 
   useEffect(() => {
-  if (tipo === "entrega" && initialTipo === "retirada") {
-        formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-      }
-    }, [tipo, initialTipo])
+    if (showAddressSection) {
+      formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }, [tipo, initialTipo])
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0 pb-8">
-      {/* Título e subtítulo */}
       <div className="m-1 p-0 leading-none">
         <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
           Selecione a Forma de Pagamento
         </h1>
         <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
           Escolha uma das opções disponíveis para finalizar seu pedido com segurança.
-        </p>        
+        </p>
       </div>
 
-      {/* Alerta de seleção obrigatória */}
-      <div className="bg-blue-50 p-3 rounded-lg">
+      <div className="bg-blue-50 p-3 rounded-xl">
         <p className="text-sm text-blue-800">
           <span className="text-red-500">*</span> Selecione uma forma de pagamento para continuar
         </p>
@@ -207,7 +192,7 @@ export function PaymentForm({
       <RadioGroup value={paymentMethod} onValueChange={onPaymentMethodChange}>
         {/* Cartão */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+          <div className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-gray-50">
             <RadioGroupItem value="card" id="card" />
             <CreditCard className="w-5 h-5 text-blue-600" />
             <Label htmlFor="card" className="flex-1 cursor-pointer font-medium">
@@ -216,20 +201,18 @@ export function PaymentForm({
           </div>
 
           {paymentMethod === "card" && (
-            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-lg">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-xl">
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                 <div className="flex items-center mb-3">
                   <CreditCard className="w-5 h-5 text-blue-600 mr-2" />
                   <h3 className="font-semibold text-blue-800">Pagamento na Máquina</h3>
                 </div>
                 <p className="text-blue-700 text-sm mb-4">
-                  O pagamento será processado na máquina de cartão no momento da{" "}
-                  <strong>{tipo === "entrega" ? "entrega" : "retirada"}</strong>.
+                  O pagamento será processado na máquina de cartão no momento da <strong>{tipo === "entrega" ? "entrega" : "retirada"}</strong>.
                 </p>
-                <div className="mt-4 bg-white p-3 rounded-lg border border-blue-200">
+                <div className="mt-4 bg-white p-3 rounded-xl border border-blue-200">
                   <p className="text-xs text-blue-700">
-                    <strong>Importante:</strong> Tenha seu cartão em mãos no momento da{" "}
-                    {tipo === "entrega" ? "entrega" : "retirada"}. Aceitamos aproximação, chip e senha ou tarja magnética.
+                    <strong>Importante:</strong> Tenha seu cartão em mãos no momento da {tipo === "entrega" ? "entrega" : "retirada"}.
                   </p>
                 </div>
               </div>
@@ -239,7 +222,7 @@ export function PaymentForm({
 
         {/* PIX */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+          <div className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-gray-50">
             <RadioGroupItem value="pix" id="pix" />
             <Smartphone className="w-5 h-5 text-purple-600" />
             <Label htmlFor="pix" className="flex-1 cursor-pointer font-medium">
@@ -248,26 +231,18 @@ export function PaymentForm({
           </div>
 
           {paymentMethod === "pix" && (
-            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-lg">
-              {!showPixCode ? (
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-4">Clique no botão abaixo para gerar o código PIX</p>
-                  <Button onClick={generatePixCode} className="bg-purple-600 hover:bg-purple-700">
-                    <QrCode className="w-4 h-4 mr-2" />
-                    Gerar Código PIX
-                  </Button>
-                </div>
-              ) : (
+            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-xl">
+              {showPixCode ? (
                 <div className="text-center space-y-4">
-                  <div className="bg-white p-4 rounded-lg border-2 border-dashed border-purple-300">
+                  <div className="bg-white p-4 rounded-xl border-2 border-dashed border-purple-300">
                     <QrCode className="w-24 h-24 mx-auto mb-4 text-purple-600" />
                     <p className="text-xs text-gray-600 mb-2">Código PIX:</p>
                     <Button
                       onClick={copyToClipboard}
                       variant="outline"
-                      className="w-full text-xs font-mono bg-gray-100 hover:bg-gray-200 p-2 rounded flex items-center justify-between"
+                      className="w-full text-xs font-mono bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl flex items-center justify-between min-h-[48px]"
                     >
-                      <span className="break-all text-left">{pixCode}</span>
+                      <span className="break-all text-left flex-1">{pixCode}</span>
                       {copied ? (
                         <Check className="w-4 h-4 text-green-600 ml-2" />
                       ) : (
@@ -275,11 +250,19 @@ export function PaymentForm({
                       )}
                     </Button>
                   </div>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
+                  <div className="bg-yellow-50 p-3 rounded-xl">
                     <p className="text-sm text-yellow-800">
                       <strong>Importante:</strong> O pagamento deve ser realizado em até 30 minutos.
                     </p>
                   </div>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-4">Clique no botão abaixo para gerar o código PIX</p>
+                  <Button onClick={generatePixCode} className="bg-purple-600 hover:bg-purple-700 rounded-xl">
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Gerar Código PIX
+                  </Button>
                 </div>
               )}
             </div>
@@ -288,7 +271,7 @@ export function PaymentForm({
 
         {/* Dinheiro */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+          <div className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-gray-50">
             <RadioGroupItem value="cash" id="cash" />
             <Banknote className="w-5 h-5 text-green-600" />
             <Label htmlFor="cash" className="flex-1 cursor-pointer font-medium">
@@ -297,37 +280,36 @@ export function PaymentForm({
           </div>
 
           {paymentMethod === "cash" && (
-            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-lg">
+            <div className="ml-8 space-y-4 p-4 bg-gray-50 rounded-xl">
               <div>
                 <Label htmlFor="changeFor" className="text-sm font-medium">
                   Precisa de troco para quanto?
                 </Label>
                 <Input
-                id="changeFor"
-                ref={inputRef}
-                placeholder="Ex: R$ 50,00"
-                className="mt-1"
-                inputMode="numeric"
-                value={changeFor}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "") // Remove tudo que não for número
-                  const cents = Number(raw) / 100
-                  setChangeFor(
-                    isNaN(cents)
-                      ? ""
-                      : cents.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })
-                  )
-                }}
-                onFocus={() => {
-                  inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
-                }}
-              />              
+                  id="changeFor"
+                  ref={inputRef}
+                  placeholder="Ex: R$ 50,00"
+                  className="mt-1 rounded-xl"
+                  inputMode="numeric"
+                  value={changeFor}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "")
+                    const cents = Number(raw) / 100
+                    setChangeFor(
+                      isNaN(cents)
+                        ? ""
+                        : cents.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })
+                    )
+                  }}
+                  onFocus={() => {
+                    inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+                  }}
+                />
               </div>
-
-              <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-blue-50 p-3 rounded-xl">
                 <p className="text-sm text-blue-800">
                   <strong>Lembre-se:</strong> Tenha o valor exato ou informe o valor para troco.
                 </p>

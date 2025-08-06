@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -112,142 +111,89 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
 
   return (
     <div className="address-fields space-y-4 sm:space-y-6 px-4 sm:px-0">
-        {/* Título padrão igual tela inicial */}
-        <div className="m-1 p-0 leading-none">
-          <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
-            Informe seu Endereço
-          </h1>
-          <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
-            Preencha os campos abaixo para receber seu pedido com segurança.
-          </p>
-        </div>
+      <div className="m-1 p-0 leading-none">
+        <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
+          Informe seu Endereço
+        </h1>
+        <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
+          Preencha os campos abaixo para receber seu pedido com segurança.
+        </p>
+      </div>
 
-        {/* Campos de formulário */}
-        <div className="space-y-4">
-          <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
-            {/* CEP */}
-            <div className="col-span-full">
-              <Label htmlFor="zipCode" className="text-sm font-medium">
-                CEP <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative mt-1">
-                <Input
-                  id="zipCode"
-                  placeholder="00000-000"
-                  value={address.zipCode}
-                  onChange={(e) => handleZipCodeChange(e.target.value)}
-                  className={`pr-10 ${
-                    cepStatus === "success"
-                      ? "border-green-500"
-                      : cepStatus === "error"
-                      ? "border-red-500"
-                      : ""
-                  }`}
-                  maxLength={9}
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  {cepStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-                  {cepStatus === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
-                  {cepStatus === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
-                </div>
+      <div className="space-y-4">
+        <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          <div className="col-span-full">
+            <Label htmlFor="zipCode" className="text-sm font-medium">CEP <span className="text-red-500">*</span></Label>
+            <div className="relative mt-1">
+              <Input
+                id="zipCode"
+                placeholder="00000-000"
+                value={address.zipCode}
+                onChange={(e) => handleZipCodeChange(e.target.value)}
+                className={`rounded-xl pr-10 ${
+                  cepStatus === "success"
+                    ? "border-green-500"
+                    : cepStatus === "error"
+                    ? "border-red-500"
+                    : ""
+                }`}
+                maxLength={9}
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {cepStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                {cepStatus === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                {cepStatus === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
               </div>
-              {cepStatus === "success" && (
-                <p className="text-xs text-green-600 mt-1">CEP encontrado! Campos preenchidos automaticamente.</p>
-              )}
-              {cepStatus === "error" && <p className="text-xs text-red-500 mt-1">{cepError}</p>}
-              <p className="text-xs text-gray-500 mt-1">Digite o CEP para preenchimento automático</p>
             </div>
-
-            {/* Rua */}
-            <div className="col-span-full">
-              <Label htmlFor="street" className="text-sm font-medium">
-                Rua/Avenida <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="street"
-                placeholder="Nome da rua"
-                value={address.street}
-                onChange={(e) => handleInputChange("street", e.target.value)}
-                disabled={isLoadingCEP}
-              />
-            </div>
-
-            {/* Número */}
-            <div>
-              <Label htmlFor="number" className="text-sm font-medium">
-                Número <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="number"
-                placeholder="123"
-                value={address.number}
-                onChange={(e) => handleInputChange("number", e.target.value)}
-              />
-            </div>
-
-            {/* Complemento */}
-            <div>
-              <Label htmlFor="complement" className="text-sm font-medium">
-                Complemento
-              </Label>
-              <Input
-                id="complement"
-                placeholder="Apto, Bloco, etc."
-                value={address.complement}
-                onChange={(e) => handleInputChange("complement", e.target.value)}
-              />
-            </div>
-
-            {/* Bairro */}
-            <div>
-              <Label htmlFor="neighborhood" className="text-sm font-medium">
-                Bairro <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="neighborhood"
-                placeholder="Nome do bairro"
-                value={address.neighborhood}
-                onChange={(e) => handleInputChange("neighborhood", e.target.value)}
-                disabled={isLoadingCEP}
-              />
-            </div>
-
-            {/* Cidade */}
-            <div>
-              <Label htmlFor="city" className="text-sm font-medium">
-                Cidade <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="city"
-                placeholder="Nome da cidade"
-                value={address.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
-                disabled={isLoadingCEP}
-              />
-            </div>
-
-            {/* Referência */}
-            <div className="col-span-full">
-              <Label htmlFor="reference" className="text-sm font-medium">
-                Ponto de Referência
-              </Label>
-              <Textarea
-                id="reference"
-                placeholder="Ex: Próximo ao supermercado, portão azul..."
-                value={address.reference}
-                onChange={(e) => handleInputChange("reference", e.target.value)}
-                className="resize-none"
-                rows={3}
-              />
-            </div>
+            {cepStatus === "success" && (
+              <p className="text-xs text-green-600 mt-1">CEP encontrado! Campos preenchidos automaticamente.</p>
+            )}
+            {cepStatus === "error" && <p className="text-xs text-red-500 mt-1">{cepError}</p>}
+            <p className="text-xs text-gray-500 mt-1">Digite o CEP para preenchimento automático</p>
           </div>
 
-          {/* Box da taxa */}
-          <div className="bg-green-50 p-3 rounded-md border border-green-200">
-            <h3 className="font-semibold text-green-800 mb-1">Taxa de Entrega:</h3>
-            <p className="text-green-700 text-sm sm:text-base">R$ 5,00 - Tempo estimado: 30-45 minutos</p>
+          <InputField id="street" label="Rua/Avenida" required value={address.street} onChange={handleInputChange} disabled={isLoadingCEP} />
+          <InputField id="number" label="Número" required value={address.number} onChange={handleInputChange} />
+          <InputField id="complement" label="Complemento" value={address.complement} onChange={handleInputChange} />
+          <InputField id="neighborhood" label="Bairro" required value={address.neighborhood} onChange={handleInputChange} disabled={isLoadingCEP} />
+          <InputField id="city" label="Cidade" required value={address.city} onChange={handleInputChange} disabled={isLoadingCEP} />
+
+          <div className="col-span-full">
+            <Label htmlFor="reference" className="text-sm font-medium">Ponto de Referência</Label>
+            <Textarea
+              id="reference"
+              placeholder="Ex: Próximo ao supermercado, portão azul..."
+              value={address.reference}
+              onChange={(e) => handleInputChange("reference", e.target.value)}
+              className="resize-none rounded-xl"
+              rows={3}
+            />
           </div>
         </div>
-      </div>    
+
+        <div className="bg-green-50 p-3 rounded-xl border border-green-200">
+          <h3 className="font-semibold text-green-800 mb-1">Taxa de Entrega:</h3>
+          <p className="text-green-700 text-sm sm:text-base">R$ 5,00 - Tempo estimado: 30-45 minutos</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InputField({ id, label, value, onChange, required = false, disabled = false }: any) {
+  return (
+    <div>
+      <Label htmlFor={id} className="text-sm font-medium">
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+      <Input
+        id={id}
+        placeholder={label}
+        value={value}
+        onChange={(e) => onChange(id, e.target.value)}
+        disabled={disabled}
+        className="rounded-xl"
+      />
+    </div>
   )
 }
