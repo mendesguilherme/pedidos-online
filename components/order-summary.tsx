@@ -141,11 +141,10 @@ export function OrderSummary({
             >
               {currentTab === "produtos" && (
                 <Button
-                  variant="outline"
                   size="sm"
                   onClick={handleAddAcai}
-                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 px-4 py-1 w-full rounded-md"
-                  style={{ borderRadius: "6px" }} // força o arredondamento se necessário
+                  className="text-xs sm:text-sm px-4 py-1 w-full max-w-[200px] rounded-md bg-primary hover:bg-primary/90 text-white"
+                  style={{ borderRadius: "6px" }}
                 >
                   Adicionar ao Carrinho
                 </Button>
@@ -157,14 +156,12 @@ export function OrderSummary({
                   size="sm"
                   onClick={onNextStep}
                   disabled={!buttonState.enabled}
-                  className={`text-xs sm:text-sm px-4 rounded-md ${
-                    currentTab !== "produtos" ? "max-w-[200]" : "w-full"
-                  } ${
+                  className={`text-xs sm:text-sm px-4 w-full max-w-[200px] rounded-md ${
                     buttonState.enabled
                       ? "bg-primary hover:bg-primary/90 text-white"
                       : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
-                  style={{ borderRadius: "6px" }} // reforço direto no estilo inline
+                  style={{ borderRadius: "6px" }}
                 >
                   {buttonState.label}
                 </Button>

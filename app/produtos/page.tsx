@@ -271,6 +271,7 @@ export default function ProdutosPage() {
           }
           itemCount={cart.items.reduce((total, item) => total + item.quantity, 0)}
           currentTab={activeTab}
+          setTab={setActiveTab}
           tipo={tipo}
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
