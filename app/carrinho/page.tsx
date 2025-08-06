@@ -43,8 +43,8 @@ export default function CarrinhoPage() {
 
         <div className="container mx-auto px-3 py-5 pb-20">
           {cartItems.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-10">
+            <Card className="rounded-xl">
+              <CardContent className="text-center py-10 rounded-xl">
                 <ShoppingCart className="w-14 h-14 mx-auto mb-3 text-gray-400" />
                 <h2 className="text-lg font-semibold text-gray-600 mb-1">Carrinho vazio</h2>
                 <p className="text-gray-500 mb-5">Adicione itens ao seu carrinho para continuar</p>
@@ -65,8 +65,8 @@ export default function CarrinhoPage() {
           ) : (
             <div className="space-y-3">
               {cartItems.map((item) => (
-                <Card key={item.id}>
-                  <CardContent className="p-3">
+                <Card key={item.id} className="rounded-xl">
+                  <CardContent className="p-3 rounded-xl">
                     <div className="flex items-center space-x-3">
                       <img
                         src={item.image || "/placeholder.svg"}
@@ -117,11 +117,11 @@ export default function CarrinhoPage() {
                 </Card>
               ))}
 
-              <Card>
+              <Card className="rounded-xl">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Resumo do Pedido</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="rounded-xl">
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal:</span>

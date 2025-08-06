@@ -140,7 +140,7 @@ export default function ProdutosPage() {
       <div className="flex-1">
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
 
-        <div className="container mx-auto px-4 py-2 pb-48">
+        <div className="container mx-auto px-4 py-2 pb-60">
           {activeTab === "produtos" && (
             <div className="space-y-4">
               <div className="m-1 p-0 leading-none">
@@ -161,7 +161,7 @@ export default function ProdutosPage() {
 
               {selectedCup && (
                 <>
-                  <div ref={toppingsRef} className="mt-2">
+                  <div className="mt-2" ref={toppingsRef}>
                     <h2 className="text-sm font-semibold mb-1">Acompanhamentos (obrigatórios)</h2>
                     <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {toppings.map((t) => (
@@ -181,7 +181,7 @@ export default function ProdutosPage() {
                               className="w-14 h-14 rounded-full object-cover mb-1"
                             />
                           )}
-                          <span className="text-[10px] text-center text-gray-800 font-medium">
+                          <span className="text-[11px] text-center text-gray-800 font-medium">
                             {t.name}
                           </span>
                         </button>
@@ -212,10 +212,10 @@ export default function ProdutosPage() {
                               className="w-14 h-14 rounded-full object-cover mb-1"
                             />
                           )}
-                          <span className="text-[10px] text-center text-gray-800 font-medium">
+                          <span className="text-[11px] text-center text-gray-800 font-medium">
                             {extra.name}
                           </span>
-                          <span className="text-[9px] text-gray-500">
+                          <span className="text-[10px] text-gray-500">
                             +R$ {extra.price.toFixed(2)}
                           </span>
                         </button>

@@ -1,4 +1,3 @@
-// components/ui/AcaiCupSelector.tsx
 import Image from "next/image"
 import { acaiCups } from "@/data/products"
 import { CupSizeOption } from "@/data/products"
@@ -14,14 +13,14 @@ export function AcaiCupSelector({ selectedCup, onChange }: Props) {
       {acaiCups.map((cup: CupSizeOption) => (
         <label
           key={cup.id}
-          className={`flex items-center border p-2 rounded-md cursor-pointer transition hover:shadow-sm ${
-            selectedCup === cup.id ? "border-blue-500" : "border-gray-300"
+          className={`flex items-center gap-3 border px-3 py-2 rounded-xl cursor-pointer transition hover:shadow-md ${
+            selectedCup === cup.id ? "border-blue-500 ring-2 ring-blue-300" : "border-gray-300"
           }`}
         >
           <input
             type="radio"
             name="acaiCup"
-            className="mr-2 accent-blue-500"
+            className="sr-only"
             checked={selectedCup === cup.id}
             onChange={() => onChange(cup.id)}
           />
