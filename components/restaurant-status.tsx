@@ -40,7 +40,9 @@ export function RestaurantStatus() {
           <Clock className="w-4 h-4 text-gray-600" />
           <span className="font-medium text-gray-800 text-sm">Status</span>
         </div>
-        <div className="text-xs text-gray-500">{currentTime}</div>
+        <div className="text-xs text-gray-500">
+          {new Date().toLocaleDateString("pt-BR")} - {currentTime} 
+        </div>
       </div>
 
       <div className="flex items-center justify-between">

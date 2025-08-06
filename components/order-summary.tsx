@@ -101,91 +101,50 @@ export function OrderSummary({
   }
 
   const buttonState = getButtonState()
-  const showThreeSteps = initialTipo === "entrega"
 
   return (
-    <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg min-h-[140px]">
+    <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-2 sm:p-4">
-          <div className="flex items-center justify-between mb-3 text-sm sm:text-base">
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
-              </p>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
-              </p>
+          <div className="flex justify-between items-start gap-4">
+            {/* Coluna da esquerda: Resumo dos valores */}
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              <p>{itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}</p>
+              <p>Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}</p>
               {deliveryFee > 0 && (
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
-                </p>
+                <p>Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}</p>
               )}
-            </div>
-            <div className="text-right">
-              <p className="text-base sm:text-lg font-bold text-primary">
+              <p className="text-sm sm:text-base font-bold text-primary mt-1">
                 Total: R$ {total.toFixed(2).replace(".", ",")}
               </p>
             </div>
-          </div>
 
-          {currentTab === "produtos" && (
-            <Button
-              variant="outline"
-              onClick={onAddAcai}
-              className="w-full mb-2 text-xs sm:text-sm border-primary text-primary hover:bg-primary/10"
-              disabled={!canAddAcai}
-            >
-              Adicionar ao Carrinho
-            </Button>
-          )}
-
-          <Button
-            className={`w-full py-1.5 sm:py-2 text-xs sm:text-sm transition-all ${
-              buttonState.enabled
-                ? "bg-primary hover:bg-primary/90 text-white"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-            onClick={onNextStep}
-            disabled={!buttonState.enabled}
-          >
-            {buttonState.label}
-          </Button>
-
-
-          <div className="flex justify-center mt-2 space-x-1.5">
-            <div
-              className={`w-2 h-2 rounded-full transition-colors ${
-                currentTab === "produtos"
-                  ? "bg-primary"
-                  : hasItems
-                    ? "bg-accent"
-                    : "bg-muted"
-              }`}
-            />
-            {showThreeSteps && (
-              <div
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  currentTab === "endereco"
-                    ? "bg-primary"
-                    : hasItems && isAddressValid()
-                      ? "bg-accent"
-                      : hasItems
-                        ? "bg-secondary"
-                        : "bg-muted"
+            {/* Coluna da direita: Botões empilhados */}
+            <div className="flex flex-col gap-2 items-end min-w-[140px]">
+              {currentTab === "produtos" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAddAcai}
+                  disabled={!canAddAcai}
+                  className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 w-full"
+                >
+                  Adicionar ao Carrinho
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={onNextStep}
+                disabled={!buttonState.enabled}
+                className={`text-xs sm:text-sm px-4 w-full ${
+                  buttonState.enabled
+                    ? "bg-primary hover:bg-primary/90 text-white"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
-              />
-            )}
-            <div
-              className={`w-2 h-2 rounded-full transition-colors ${
-                currentTab === "pagamento"
-                  ? "bg-primary"
-                  : hasItems && isAddressValid() && isPaymentValid()
-                    ? "bg-accent"
-                    : hasItems && isAddressValid()
-                      ? "bg-secondary"
-                      : "bg-muted"
-              }`}
-            />
+              >
+                {buttonState.label}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

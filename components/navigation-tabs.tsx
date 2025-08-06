@@ -28,7 +28,7 @@ export function NavigationTabs({ activeTab, onTabChange, tipo, initialTipo }: Na
     <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
       <div className="container mx-auto px-2 sm:px-4">
         {/* Botão Voltar ao Menu Principal */}
-        <div className="flex justify-center py-2 border-b border-border">
+        <div className="flex justify-center py-0 border-b border-border">
           <Button
             variant="ghost"
             size="sm"

@@ -9,11 +9,10 @@ import { CartEmptyWarning } from "@/components/cart-empty-warning"
 import { OrderSummary } from "@/components/order-summary"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { acaiCups } from "@/data/products"
-import type { CupSizeOption, CupSizeOptionWithChoices } from "@/data/products"
+import type { CupSizeOption } from "@/data/products"
 import { toppings } from "@/data/toppings"
 import { addons } from "@/data/addons"
 import { AcaiCupSelector } from "@/components/AcaiCupSelector"
-import { Cart, CartItem, Address } from "@/data/cart"
 import { useCart } from "@/context/CartContext"
 
 export default function ProdutosPage() {
@@ -27,7 +26,6 @@ export default function ProdutosPage() {
   const [selectedCup, setSelectedCup] = useState<CupSizeOption | null>(null)
   const [selectedToppings, setSelectedToppings] = useState<string[]>([])
   const [selectedExtras, setSelectedExtras] = useState<string[]>([])
-  
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
     number: "",
@@ -37,7 +35,6 @@ export default function ProdutosPage() {
     zipCode: "",
     reference: "",
   })
-
   const [paymentMethod, setPaymentMethod] = useState("")
   const [cardData, setCardData] = useState({
     number: "",
@@ -79,10 +76,10 @@ export default function ProdutosPage() {
   }
 
   const handleAddToCart = () => {
-  if (!selectedCup || selectedToppings.length !== selectedCup.maxToppings) return
+    if (!selectedCup || selectedToppings.length !== selectedCup.maxToppings) return
 
-  const newItem: CartItem = {
-      id: Date.now(), // ou use uuid se quiser
+    const newItem = {
+      id: Date.now(),
       name: `Açaí ${selectedCup.name} com ${selectedToppings.length} acompanhamentos`,
       price: selectedCup.price + selectedExtras.reduce((acc, name) => {
         const found = addons.find((a) => a.name === name)
@@ -94,7 +91,6 @@ export default function ProdutosPage() {
       extras: [...selectedExtras],
     }
 
-    // Atualiza localStorage
     addItem(newItem)
     resetMontagem()
     document.getElementById("acai-cup-selector")?.scrollIntoView({ behavior: "smooth" })
@@ -139,7 +135,6 @@ export default function ProdutosPage() {
     }
   }, [selectedToppings, selectedCup])
 
-
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
       <div className="flex-1">
@@ -147,14 +142,14 @@ export default function ProdutosPage() {
 
         <div className="container mx-auto px-4 py-2 pb-48">
           {activeTab === "produtos" && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="m-1 p-0 leading-none">
-                <h1 className="text-2xl font-bold text-center text-gray-800 m-0 p-0 leading-none">Monte seu Açaí</h1>
-                <p className="text-center text-gray-600 m-1 p-1 text-sm leading-none">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
+                <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">Monte seu Açaí</h1>
+                <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">Escolha um tamanho, acompanhamentos e adicionais opcionais.</p>
               </div>
 
-              <div id="acai-cup-selector">
-                <h2 className="font-semibold mb-2">Tamanho do Copo</h2>
+              <div id="acai-cup-selector" className="mt-1">
+                <h2 className="text-sm font-semibold mb-1">Tamanho do Copo</h2>
                 <AcaiCupSelector
                   selectedCup={selectedCup?.id ?? null}
                   onChange={(id) => {
@@ -166,14 +161,14 @@ export default function ProdutosPage() {
 
               {selectedCup && (
                 <>
-                  <div ref={toppingsRef}>
-                    <h2 className="font-semibold mt-6 mb-2">Acompanhamentos (obrigatórios)</h2>
-                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  <div ref={toppingsRef} className="mt-2">
+                    <h2 className="text-sm font-semibold mb-1">Acompanhamentos (obrigatórios)</h2>
+                    <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {toppings.map((t) => (
                         <button
                           key={t.name}
                           onClick={() => handleToppingToggle(t.name)}
-                          className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
+                          className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
                             selectedToppings.includes(t.name)
                               ? "border-blue-500 bg-blue-50"
                               : "border-gray-300 bg-white"
@@ -183,50 +178,48 @@ export default function ProdutosPage() {
                             <img
                               src={t.imageUrl}
                               alt={t.name}
-                              className="w-16 h-16 rounded-full object-cover mb-1"
+                              className="w-14 h-14 rounded-full object-cover mb-1"
                             />
                           )}
-                          <span className="text-xs text-center text-gray-800 font-medium">
+                          <span className="text-[10px] text-center text-gray-800 font-medium">
                             {t.name}
                           </span>
                         </button>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-xs text-gray-500 mt-1">
                       Selecionados: {selectedToppings.length}/{selectedCup.maxToppings}
                     </p>
                   </div>
 
-                  <div>
-                    <div ref={addonsRef}>
-                      <h2 className="font-semibold mt-6 mb-2">Adicionais (opcionais)</h2>
-                      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {addons.map((extra) => (
-                          <button
-                            key={extra.name}
-                            onClick={() => handleExtraToggle(extra.name)}
-                            className={`flex flex-col items-center p-2 border rounded-xl transition-all ${
-                              selectedExtras.includes(extra.name)
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-300 bg-white"
-                            }`}
-                          >
-                            {extra.imageUrl && (
-                              <img
-                                src={extra.imageUrl}
-                                alt={extra.name}
-                                className="w-16 h-16 rounded-full object-cover mb-1"
-                              />
-                            )}
-                            <span className="text-xs text-center text-gray-800 font-medium">
-                              {extra.name}
-                            </span>
-                            <span className="text-[10px] text-gray-500">
-                              +R$ {extra.price.toFixed(2)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                  <div className="mt-2" ref={addonsRef}>
+                    <h2 className="text-sm font-semibold mb-1">Adicionais (opcionais)</h2>
+                    <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                      {addons.map((extra) => (
+                        <button
+                          key={extra.name}
+                          onClick={() => handleExtraToggle(extra.name)}
+                          className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
+                            selectedExtras.includes(extra.name)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {extra.imageUrl && (
+                            <img
+                              src={extra.imageUrl}
+                              alt={extra.name}
+                              className="w-14 h-14 rounded-full object-cover mb-1"
+                            />
+                          )}
+                          <span className="text-[10px] text-center text-gray-800 font-medium">
+                            {extra.name}
+                          </span>
+                          <span className="text-[9px] text-gray-500">
+                            +R$ {extra.price.toFixed(2)}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -268,7 +261,6 @@ export default function ProdutosPage() {
               />
             </>
           )}
-
         </div>
 
         <OrderSummary
@@ -288,7 +280,6 @@ export default function ProdutosPage() {
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
         />
-
 
         <BottomNavigation />
       </div>
