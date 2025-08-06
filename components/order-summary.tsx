@@ -145,9 +145,11 @@ export function OrderSummary({
                   size="sm"
                   onClick={handleAddAcai}
                   className="text-xs sm:text-sm border-primary text-primary hover:bg-primary/10 px-4 py-1 w-full rounded-md"
+                  style={{ borderRadius: "6px" }} // força o arredondamento se necessário
                 >
                   Adicionar ao Carrinho
                 </Button>
+
               )}
 
               {currentTab !== "produtos" && (
@@ -162,6 +164,7 @@ export function OrderSummary({
                       ? "bg-primary hover:bg-primary/90 text-white"
                       : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
+                  style={{ borderRadius: "6px" }} // reforço direto no estilo inline
                 >
                   {buttonState.label}
                 </Button>
