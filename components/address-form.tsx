@@ -112,14 +112,21 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
 
   return (
     <div className="address-fields space-y-4 sm:space-y-6 px-4 sm:px-0">
-      <Card>
-        <CardHeader className="text-center pb-4">
-          <MapPin className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-green-600" />
-          <CardTitle className="text-lg sm:text-xl">Endereço de Entrega</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
+        {/* Título padrão igual tela inicial */}
+        <div className="m-1 p-0 leading-none">
+          <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
+            Informe seu Endereço
+          </h1>
+          <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
+            Preencha os campos abaixo para receber seu pedido com segurança.
+          </p>
+        </div>
+
+        {/* Campos de formulário */}
+        <div className="space-y-4">
+          <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+            {/* CEP */}
+            <div className="col-span-full">
               <Label htmlFor="zipCode" className="text-sm font-medium">
                 CEP <span className="text-red-500">*</span>
               </Label>
@@ -151,7 +158,8 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
               <p className="text-xs text-gray-500 mt-1">Digite o CEP para preenchimento automático</p>
             </div>
 
-            <div className="sm:col-span-2">
+            {/* Rua */}
+            <div className="col-span-full">
               <Label htmlFor="street" className="text-sm font-medium">
                 Rua/Avenida <span className="text-red-500">*</span>
               </Label>
@@ -160,11 +168,11 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="Nome da rua"
                 value={address.street}
                 onChange={(e) => handleInputChange("street", e.target.value)}
-                className="mt-1"
                 disabled={isLoadingCEP}
               />
             </div>
 
+            {/* Número */}
             <div>
               <Label htmlFor="number" className="text-sm font-medium">
                 Número <span className="text-red-500">*</span>
@@ -174,10 +182,10 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="123"
                 value={address.number}
                 onChange={(e) => handleInputChange("number", e.target.value)}
-                className="mt-1"
               />
             </div>
 
+            {/* Complemento */}
             <div>
               <Label htmlFor="complement" className="text-sm font-medium">
                 Complemento
@@ -187,10 +195,10 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="Apto, Bloco, etc."
                 value={address.complement}
                 onChange={(e) => handleInputChange("complement", e.target.value)}
-                className="mt-1"
               />
             </div>
 
+            {/* Bairro */}
             <div>
               <Label htmlFor="neighborhood" className="text-sm font-medium">
                 Bairro <span className="text-red-500">*</span>
@@ -200,11 +208,11 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="Nome do bairro"
                 value={address.neighborhood}
                 onChange={(e) => handleInputChange("neighborhood", e.target.value)}
-                className="mt-1"
                 disabled={isLoadingCEP}
               />
             </div>
 
+            {/* Cidade */}
             <div>
               <Label htmlFor="city" className="text-sm font-medium">
                 Cidade <span className="text-red-500">*</span>
@@ -214,12 +222,12 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="Nome da cidade"
                 value={address.city}
                 onChange={(e) => handleInputChange("city", e.target.value)}
-                className="mt-1"
                 disabled={isLoadingCEP}
               />
             </div>
 
-            <div className="sm:col-span-2">
+            {/* Referência */}
+            <div className="col-span-full">
               <Label htmlFor="reference" className="text-sm font-medium">
                 Ponto de Referência
               </Label>
@@ -228,18 +236,18 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
                 placeholder="Ex: Próximo ao supermercado, portão azul..."
                 value={address.reference}
                 onChange={(e) => handleInputChange("reference", e.target.value)}
-                className="mt-1 resize-none"
+                className="resize-none"
                 rows={3}
               />
             </div>
           </div>
 
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-green-800 mb-2">Taxa de Entrega:</h3>
+          {/* Box da taxa */}
+          <div className="bg-green-50 p-3 rounded-md border border-green-200">
+            <h3 className="font-semibold text-green-800 mb-1">Taxa de Entrega:</h3>
             <p className="text-green-700 text-sm sm:text-base">R$ 5,00 - Tempo estimado: 30-45 minutos</p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>    
   )
 }

@@ -3,7 +3,13 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface OrderSummaryProps {
   subtotal: number
@@ -27,7 +33,7 @@ interface OrderSummaryProps {
   paymentMethod: string
   onNextStep: () => void
   onAddAcai: () => void
-  setTab: (tab: string) => void // <- adicionar prop se quiser trocar aba
+  setTab: (tab: string) => void
 }
 
 export function OrderSummary({
@@ -61,53 +67,35 @@ export function OrderSummary({
 
   const isPaymentValid = () => paymentMethod !== ""
 
-  const buttonState = (() => {
-    if (!hasItems) return { enabled: false, label: "Informar Endereço de Entrega" }
-    switch (currentTab) {
-      case "produtos":
-        return {
-          enabled: hasItems,
-          label:
-            initialTipo === "entrega"
-              ? "Informar Endereço de Entrega"
-              : "Definir Forma de Pagamento",
-        }
-      case "endereco":
-        return {
-          enabled: hasItems && isAddressValid(),
-          label: isAddressValid()
-            ? "Definir Forma de Pagamento"
-            : "Informar Endereço de Entrega",
-        }
-      case "pagamento":
-        const needsAddress =
-          tipo === "entrega" &&
-          !isAddressValid() &&
-          initialTipo === "retirada"
-        return {
-          enabled: hasItems && isPaymentValid() && !needsAddress,
-          label: needsAddress
-            ? "Informar Endereço de Entrega"
-            : isPaymentValid()
-              ? "Finalizar Pedido"
-              : "Informar Forma de Pagamento",
-        }
-      default:
-        return { enabled: false, label: "Carregando..." }
-    }
-  })()
+  const buttonState = {
+    enabled: true,
+    label:
+      currentTab === "pagamento"
+        ? "Finalizar Pedido"
+        : currentTab === "endereco"
+        ? "Definir Forma de Pagamento"
+        : initialTipo === "entrega"
+        ? "Informar Endereço de Entrega"
+        : "Definir Forma de Pagamento",
+  }
 
   const handleAddAcai = () => {
     if (!canAddAcai) {
-      // Retorne modal de erro ou feedback
       alert("Por favor, selecione um copo e os acompanhamentos antes de adicionar.")
       return
     }
 
-    // Adiciona ao carrinho
     onAddAcai()
-    // Abre modal com opções
     setShowModal(true)
+  }
+
+  const handleNextStepClick = () => {
+    if (currentTab === "endereco" && !isAddressValid()) {
+      setShowModal(true)
+      return
+    }
+
+    onNextStep()
   }
 
   return (
@@ -150,13 +138,8 @@ export function OrderSummary({
           {currentTab !== "produtos" && (
             <Button
               size="sm"
-              onClick={onNextStep}
-              disabled={!buttonState.enabled}
-              className={`text-xs sm:text-sm px-4 py-2 w-full rounded-md ${
-                buttonState.enabled
-                  ? "bg-primary hover:bg-primary/90 text-white"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
+              onClick={handleNextStepClick}
+              className="text-xs sm:text-sm px-4 py-2 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
               style={{ borderRadius: "6px" }}
             >
               {buttonState.label}
@@ -165,35 +148,44 @@ export function OrderSummary({
         </CardContent>
       </Card>
 
-      {/* Modal */}
+      {/* Modal de sucesso ou erro */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">
-              Açaí adicionado com sucesso!
+            <DialogTitle className="text-base sm:text-lg text-center">
+              {currentTab === "endereco"
+                ? "Preencha todos os campos obrigatórios"
+                : "Açaí adicionado com sucesso!"}
             </DialogTitle>
           </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setShowModal(false)}
-              className="rounded-md"
-            >
-              Montar outro Açaí
-            </Button>
-            <Button
-              onClick={() => {
-                setShowModal(false)
-                setTab("endereco")
-              }}
-              className="rounded-md"
-            >
-              Ir para Endereço de Entrega
-            </Button>
+          <DialogFooter className="flex justify-center pt-2 gap-2">
+            {currentTab === "endereco" ? (
+              <Button onClick={() => setShowModal(false)} className="rounded-md">
+                OK, entendi
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-md"
+                >
+                  Montar outro Açaí
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowModal(false)
+                    setTab("endereco")
+                  }}
+                  className="rounded-md"
+                >
+                  Ir para Endereço de Entrega
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }
