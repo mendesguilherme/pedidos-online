@@ -20,10 +20,9 @@ export function BottomNavigation() {
     return false
   }
 
-  const isHome = pathname === "/"
-  const iconSize = isHome ? "w-6 h-6" : "w-5 h-5"
-  const textSize = isHome ? "text-xs" : "text-[10px]"
-  const pySize = isHome ? "py-2" : "py-1.5"
+  const iconSize = "w-5 h-5"
+  const textSize = "text-[10px]"
+  const pySize = "py-1.5"
 
   return (
     <div className="bg-primary text-primary-foreground border-t border-accent fixed bottom-0 left-0 right-0 z-50">

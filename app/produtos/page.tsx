@@ -275,13 +275,7 @@ export default function ProdutosPage() {
           subtotal={cart.items.reduce((sum, item) => sum + item.price, 0)}
           deliveryFee={entregaFee}
           total={
-            cart.items.reduce((sum, item) => {
-              const extrasTotal = item.extras.reduce((acc, name) => {
-                const found = addons.find((a) => a.name === name)
-                return found ? acc + found.price : acc
-              }, 0)
-              return sum + item.price + extrasTotal
-            }, 0) + entregaFee
+            cart.items.reduce((sum, item) => sum + item.price, 0) + entregaFee
           }
           itemCount={cart.items.reduce((total, item) => total + item.quantity, 0)}
           currentTab={activeTab}
