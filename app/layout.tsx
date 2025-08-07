@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import { CartProvider } from "@/context/CartContext"
+import { OrderProvider } from "@/context/OrderContext"
 
 export const metadata: Metadata = {
   title: 'Pedido Online - Açaí do Chef',
@@ -29,7 +30,9 @@ export default function RootLayout({
       </head>
       <body>
         <CartProvider>
-          {children}
+          <OrderProvider>
+            {children}
+          </OrderProvider>
         </CartProvider>
       </body>
     </html>

@@ -18,8 +18,10 @@ import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { Router } from "lucide-react"
+import { useOrders } from "@/context/OrderContext"
 
 export default function ProdutosPage() {
+  const { refreshOrders } = useOrders()
   const [isCreatingOrder, setIsCreatingOrder] = useState(false)
   const { saveOrder, clearCart } = useCart()
   const router = useRouter()
@@ -120,10 +122,13 @@ export default function ProdutosPage() {
     }
   }
   
+
+
   const handleCreateOrder = async () => {
     setIsCreatingOrder(true)
 
     saveOrder()
+    refreshOrders()
 
     setTimeout(() => {
       router.push("/pedidos")

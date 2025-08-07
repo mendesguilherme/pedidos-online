@@ -3,9 +3,11 @@
 import { useRouter, usePathname } from "next/navigation"
 import { Home, ShoppingCart, FileText, User } from "lucide-react"
 import { useCart } from "@/context/CartContext"
+import { useOrders } from "@/context/OrderContext"
 
 export function BottomNavigation() {
   const { itemCount } = useCart()
+  const { orderCount } = useOrders()
 
   const router = useRouter()
   const pathname = usePathname()
@@ -64,9 +66,22 @@ export function BottomNavigation() {
             isActive("/pedidos") ? "bg-primary-foreground text-primary" : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
           }`}
         >
-          <FileText className={iconSize} />
+          <div className="relative">
+            <FileText className={iconSize} />
+            {orderCount > 0 && (
+              <span
+                className={`absolute -top-2 -right-2 text-[10px] min-w-[18px] h-[18px] px-[4px] font-bold rounded-full border border-white flex items-center justify-center
+                  ${isActive("/pedidos") ? "bg-primary text-white" : "bg-white text-primary"}
+                `}
+              >
+                {orderCount}
+              </span>
+            )}
+          </div>
+
+          {/* Esse span estava fora! Agora está no lugar certo */}
           <span className={`${textSize} font-medium`}>Pedidos</span>
-        </button>
+        </button>        
 
         <button
           onClick={() => handleNavigation("/perfil")}
