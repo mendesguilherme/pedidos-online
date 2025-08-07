@@ -292,8 +292,7 @@ export default function ProdutosPage() {
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
         />
-
-        <BottomNavigation />
+        
       </div>
 
       {isCreatingOrder && (
@@ -305,6 +304,7 @@ export default function ProdutosPage() {
         </div>
       )}
 
+      <BottomNavigation />
     </div>
   )
 }

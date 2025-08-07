@@ -121,8 +121,7 @@ export default function HomePage() {
 
         </div>
       </div>
-
-      {/* Navegação inferior */}
+      
       <BottomNavigation />
     </div>
   )

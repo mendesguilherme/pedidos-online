@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { BottomNavigation } from "@/components/bottom-navigation"
 import {
   FileText,
   ArrowLeft,
@@ -14,7 +15,6 @@ import {
   ShoppingBag,
   Home,
 } from "lucide-react"
-import { BottomNavigation } from "@/components/bottom-navigation"
 
 interface Order {
   id: string
