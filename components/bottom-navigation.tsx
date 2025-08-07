@@ -25,11 +25,13 @@ export function BottomNavigation() {
   }
 
   const btnClass = (active: boolean) =>
-    `flex-1 h-full flex items-center justify-center transition-colors ${
+    `flex-1 h-full flex items-center justify-center transition-colors select-none ${
       active
         ? "bg-primary-foreground text-primary"
-        : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
+        : // hover só em telas >= md (desktop) + feedback de toque com active
+          "text-primary-foreground/70 md:hover:text-primary-foreground md:hover:bg-primary-foreground/10 active:bg-primary-foreground/15"
     }`
+
 
   // ↑ aumentei altura e removi overflow-hidden; padding-top cria “folga” pro badge
   const innerWrap = "flex flex-col items-center justify-center h-[36px] pt-[6px]"
