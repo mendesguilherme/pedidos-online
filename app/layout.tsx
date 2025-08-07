@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: 'Pedido Online - Açaí do Chef',
   description: 'O melhor açaí da cidade!',
   icons: {
-    icon: '/icon-192x192.avif',
-    apple: '/icon-192x192.avif'
+    icon: '/images/icon-192x192.avif',
+    apple: '/images/icon-192x192.avif'
   },
   manifest: '/manifest.json',
 }

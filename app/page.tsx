@@ -109,7 +109,7 @@ export default function HomePage() {
 
           <Button
             onClick={() => handleNavigation("/sobre")}
-            className="w-full text-xl font-semibold px-3 rounded-xl flex items-center space-x-3 shadow-md transition-all duration-200 min-h-[56px] bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+            className="w-full text-xl font-semibold px-3 rounded-xl flex items-center space-x-3 shadow-md min-h-[56px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:scale-105 transition-all duration-200"
           >
             <div className="bg-white bg-opacity-20 p-2 rounded">
               <Info className="w-8 h-8" />

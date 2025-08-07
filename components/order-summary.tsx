@@ -24,6 +24,7 @@ interface OrderSummaryProps {
   initialTipo: string | null
   hasItems: boolean
   canAddAcai: boolean    
+  hasSelectedCup: boolean
   onNextStep: () => void
   onAddAcai: (force?: boolean) => void
   setTab: (tab: string) => void
@@ -39,6 +40,7 @@ export function OrderSummary({
   initialTipo,
   hasItems,
   canAddAcai,    
+  hasSelectedCup,
   onNextStep,
   onAddAcai,
   setTab,
@@ -157,6 +159,7 @@ export function OrderSummary({
             <Button
               size="sm"
               onClick={handleAddAcai}
+              disabled={!hasSelectedCup}
               className="text-xs sm:text-sm px-4 py-2 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
               style={{ borderRadius: "6px" }}
             >
@@ -182,10 +185,13 @@ export function OrderSummary({
         <DialogContent aria-describedby="descricao-do-modal" className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg text-center">
-              {currentTab === "endereco" || currentTab === "pagamento"
-                ? "Preencha todos os campos obrigatórios"
-                : "Açaí adicionado com sucesso!"}
-            </DialogTitle>
+            {currentTab === "pagamento" && !cart.paymentMethod
+              ? "Selecione uma forma de pagamento!"
+              : currentTab === "endereco"
+              ? "Preencha todos os campos obrigatórios"
+              : "Açaí adicionado com sucesso!"}
+          </DialogTitle>
+
           </DialogHeader>
 
           {currentTab === "endereco" && (
@@ -209,12 +215,13 @@ export function OrderSummary({
               <Button
                 onClick={() => {
                   setShowModal(false)
-                  setTab("endereco")
+                  setTab(tipo === "retirada" ? "pagamento" : "endereco")
                 }}
                 className="rounded-xl px-6 py-2 text-sm"
               >
-                Ir para Endereço de Entrega
+                {tipo === "retirada" ? "Definir Forma de Pagamento" : "Ir para Endereço de Entrega"}
               </Button>
+
             </DialogFooter>
           )}
         </DialogContent>
@@ -226,7 +233,7 @@ export function OrderSummary({
           <DialogHeader>
             <DialogTitle>Seleção Incompleta</DialogTitle>
             <DialogDescription>
-              Você selecionou menos acompanhamentos que o recomendado.
+              Você selecionou menos acompanhamentos que o fornecido.
               Deseja prosseguir mesmo assim?
             </DialogDescription>
           </DialogHeader>

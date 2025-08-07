@@ -19,54 +19,108 @@ import { BottomNavigation } from "@/components/bottom-navigation"
 interface Order {
   id: string
   date: string
-  status: "preparing" | "ready" | "delivered" | "cancelled"
+  status: "pendente" | "em preparo" | "saiu para entrega" | "entregue" | "cancelado"
   type: "entrega" | "retirada"
   items: Array<{
     name: string
     quantity: number
     price: number
+    toppings?: string[]
+    extras?: string[]
   }>
   total: number
+  address?: {
+    street: string
+    number: string
+    complement?: string
+    neighborhood: string
+    city: string
+    zipCode: string
+    reference?: string
+  }
+  paymentMethod: string
 }
 
 export default function PedidosPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
+  const toggleExpand = (id: string) => {
+    setExpandedOrderId((prev) => (prev === id ? null : id))
+  }
+
 
   useEffect(() => {
-    const mockOrders: Order[] = [
-      {
-        id: "PED001",
-        date: "2024-01-15 14:30",
-        status: "delivered",
-        type: "entrega",
-        items: [
-          { name: "Hambúrguer Clássico", quantity: 2, price: 25.9 },
-          { name: "Batata Frita", quantity: 1, price: 12.9 },
-        ],
-        total: 64.7,
-      },
-      {
-        id: "PED002",
-        date: "2024-01-14 19:15",
-        status: "preparing",
-        type: "retirada",
-        items: [{ name: "Pizza Margherita", quantity: 1, price: 32.9 }],
-        total: 32.9,
-      },
-    ]
-    setOrders(mockOrders)
+    const storedOrders = JSON.parse(localStorage.getItem("orders") || "[]")
+
+    type TempOrder = {
+      createdAt: Date
+      [key: string]: any
+    }
+    
+    const mappedOrders = storedOrders.map((order: any) => ({
+      id: order.id,
+      date: new Date(order.createdAt).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: order.status, 
+      type: order.tipo,
+      items: order.items.map((item: any) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        toppings: item.toppings || [],
+        extras: item.extras || [],
+      })),
+      total: order.total,
+      address: order.address || undefined,
+      paymentMethod: order.paymentMethod || "",      
+      createdAt: new Date(order.createdAt) // <- usado para ordenar
+    }))
+      
+    // 🔁 Ordenar do mais recente para o mais antigo (tipado com TempOrder)
+    mappedOrders.sort((a: TempOrder, b: TempOrder) => b.createdAt.getTime() - a.createdAt.getTime())
+
+    // 🧹 Remover o campo extra criadoAt antes de exibir, se quiser
+    const finalOrders = mappedOrders.map((o: any) => {
+      const { createdAt, ...rest } = o
+      return rest
+    })
+
+    setOrders(finalOrders)
   }, [])
+
+  function getPaymentInfo(method: string): string {
+    switch (method.toLowerCase()) {
+      case "pix":
+        return "PIX"
+      case "card":
+      case "credit":
+      case "debit":
+        return "Cartão"
+      case "cash":
+      case "money":
+        return "Dinheiro"
+      default:
+        return "Outro"
+    }
+  }
 
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case "preparing":
-        return { label: "Preparando", color: "bg-yellow-500", icon: Clock }
-      case "ready":
-        return { label: "Pronto", color: "bg-blue-500", icon: CheckCircle }
-      case "delivered":
+      case "pendente":
+        return { label: "Pendente", color: "bg-yellow-500", icon: Clock }
+      case "em preparo":
+        return { label: "Em preparo", color: "bg-blue-500", icon: Clock }
+      case "saiu para entrega":
+        return { label: "Saiu para entrega", color: "bg-purple-500", icon: Truck }
+      case "entregue":
         return { label: "Entregue", color: "bg-green-500", icon: CheckCircle }
-      case "cancelled":
+      case "cancelado":
         return { label: "Cancelado", color: "bg-red-500", icon: CheckCircle }
       default:
         return { label: "Desconhecido", color: "bg-gray-500", icon: Clock }
@@ -137,12 +191,12 @@ export default function PedidosPage() {
 
                 return (
                   <Card key={order.id} className="rounded-xl">
-                    <CardHeader className="pb-2">
+                    <CardHeader className="pb-2">                      
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-sm font-semibold">
                             Pedido #{order.id}
-                          </CardTitle>
+                          </CardTitle>                          
                           <p className="text-xs text-gray-500">{order.date}</p>
                         </div>
                         <div className="flex flex-col items-end space-y-1">
@@ -188,6 +242,61 @@ export default function PedidosPage() {
                           R$ {order.total.toFixed(2).replace(".", ",")}
                         </span>
                       </div>
+                      
+                      {expandedOrderId === order.id && (
+                      <div className="mt-3 space-y-2 text-xs text-gray-700 border-t pt-3">
+                        <div>
+                          <span className="font-semibold">Acompanhamentos:</span>
+                          <ul className="list-disc list-inside">
+                            {order.items.flatMap((item) => item.toppings || []).map((t, i) => (
+                              <li key={i}>{t}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {order.items.some((item) => (item.extras ?? []).length > 0) && (
+                          <div>
+                            <span className="font-semibold">Adicionais:</span>
+                            <ul className="list-disc list-inside">
+                              {order.items.flatMap((item) => item.extras || []).map((e, i) => (
+                                <li key={i}>{e}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {order.type === "entrega" && order.address && (
+                          <div>
+                            <span className="font-semibold">Endereço de Entrega:</span>
+                            <p>
+                              {order.address.street}, {order.address.number}
+                              {order.address.complement && ` - ${order.address.complement}`}
+                              <br />
+                              {order.address.neighborhood}, {order.address.city} - {order.address.zipCode}
+                              {order.address.reference && <br />}
+                              {order.address.reference}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <span className="font-semibold">Forma de Pagamento:</span>
+                          <p>{getPaymentInfo(order.paymentMethod)}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-2 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleExpand(order.id)}
+                        className="rounded-xl text-xs text-gray-600 hover:text-gray-800"
+                      >
+                        {expandedOrderId === order.id ? "Ocultar detalhes" : "Exibir detalhes"}
+                      </Button>
+                    </div>
+
                     </CardContent>
                   </Card>
                 )

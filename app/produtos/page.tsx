@@ -20,7 +20,8 @@ import { useRouter } from "next/navigation"
 import { Router } from "lucide-react"
 
 export default function ProdutosPage() {
-  const { clearCart } = useCart()
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false)
+  const { saveOrder, clearCart } = useCart()
   const router = useRouter()
   const { cart, addItem } = useCart()
   const toppingsRef = useRef<HTMLDivElement | null>(null)
@@ -114,9 +115,19 @@ export default function ProdutosPage() {
       setActiveTab("pagamento")
     } else if (activeTab === "pagamento") {
       if (!cart.paymentMethod) return
-      setShowSuccessModal(true)
+      handleCreateOrder()
       clearCart()
     }
+  }
+  
+  const handleCreateOrder = async () => {
+    setIsCreatingOrder(true)
+
+    saveOrder()
+
+    setTimeout(() => {
+      router.push("/pedidos")
+    }, 3000)
   }
 
   const resetMontagem = () => {
@@ -272,6 +283,7 @@ export default function ProdutosPage() {
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
           canAddAcai={!!selectedCup && selectedToppings.length === selectedCup.maxToppings}                    
+          hasSelectedCup={!!selectedCup}
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
         />
@@ -279,24 +291,14 @@ export default function ProdutosPage() {
         <BottomNavigation />
       </div>
 
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="text-center px-6 pb-6">
-          <DialogTitle className="text-base sm:text-lg font-semibold">
-            Pedido criado com sucesso!
-          </DialogTitle>
-
-          <div className="mt-6 flex justify-center">
-            <Button
-              onClick={() => router.push("/pedidos")}
-              className="rounded-xl px-6 py-2 text-sm"
-            >
-              Ver pedidos
-            </Button>
+      {isCreatingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
+            <p className="text-sm sm:text-base font-medium">Criando pedido...</p>
+            <div className="mt-4 w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           </div>
-        </DialogContent>
-      </Dialog>
-
-
+        </div>
+      )}
 
     </div>
   )

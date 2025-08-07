@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Cart, CartItem, Address } from "@/data/cart"
+import type { Order } from "@/data/orders"
+import { generateUniqueOrderId } from "@/data/orders"
 
 interface CartContextProps {
   cart: Cart
@@ -97,6 +99,36 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(emptyCart))
 }
 
+const saveOrder = () => {
+  if (
+    !cart.deliveryAddress ||
+    !cart.deliveryAddress.street ||
+    !cart.paymentMethod ||
+    cart.items.length === 0
+  ) {
+    throw new Error("Carrinho incompleto. Não é possível criar o pedido.")
+  }
+
+  const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
+  const existingIds = existingOrders.map((order) => order.id)
+
+  const newOrder: Order = {
+    id: generateUniqueOrderId(existingIds),
+    createdAt: new Date().toISOString(),
+    status: "pendente",
+    tipo: cart.tipo,
+    items: cart.items,
+    address: cart.deliveryAddress,
+    paymentMethod: cart.paymentMethod,
+    total:
+      cart.items.reduce((sum, item) => sum + item.price, 0) +
+      (cart.tipo === "entrega" ? 5 : 0),
+  }
+
+  const updatedOrders = [...existingOrders, newOrder]
+  localStorage.setItem("orders", JSON.stringify(updatedOrders))
+}
+
   return (
     <CartContext.Provider
       value={{
@@ -108,7 +140,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         updateAddress,
         updatePaymentMethod, 
         itemCount,
-        clearCart
+        clearCart, 
+        saveOrder
       }}
     >
       {children}
