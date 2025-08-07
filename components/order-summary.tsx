@@ -130,7 +130,7 @@ export function OrderSummary({
   }
 
   return (
-    <div className="fixed bottom-[64px] left-0 right-0 z-50 bg-white border-t shadow-lg">
+    <div className="fixed bottom-[56px] left-0 right-0 z-50 bg-white border-t shadow-lg h-[145]">
       <Card className="rounded-none border-0 shadow-none">
         <CardContent className="p-2 sm:p-4 space-y-2">
           {/* Linha dos dados */}
@@ -153,30 +153,32 @@ export function OrderSummary({
               Total: R$ {total.toFixed(2).replace(".", ",")}
             </p>
           </div>
-
+                    
           {/* Linha do botão */}
-          {currentTab === "produtos" && (
-            <Button
-              size="sm"
-              onClick={handleAddAcai}
-              disabled={!hasSelectedCup}
-              className="text-xs sm:text-sm px-4 py-2 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
-              style={{ borderRadius: "6px" }}
-            >
-              Adicionar ao Carrinho
-            </Button>
-          )}
+          <div className="px-4 pt-1 pb-1"> {/* Container com controle de espaçamento */}
+            {currentTab === "produtos" && (            
+              <Button
+                size="sm"
+                onClick={handleAddAcai}
+                disabled={!hasSelectedCup}
+                className="text-xs sm:text-sm px-4 py-6 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
+                style={{ borderRadius: "6px" }}
+              >
+                Adicionar ao Carrinho
+              </Button>            
+            )}
 
-          {currentTab !== "produtos" && (
-            <Button
-              size="sm"
-              onClick={handleNextStepClick}
-              className="text-xs sm:text-sm px-4 py-2 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
-              style={{ borderRadius: "6px" }}
-            >
-              {buttonState.label}
-            </Button>
-          )}
+            {currentTab !== "produtos" && (
+              <Button
+                size="sm"
+                onClick={handleNextStepClick}
+                className="text-xs sm:text-sm px-4 py-6 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
+                style={{ borderRadius: "6px" }}
+              >
+                {buttonState.label}
+              </Button>
+            )}
+          </div>          
         </CardContent>
       </Card>
 
