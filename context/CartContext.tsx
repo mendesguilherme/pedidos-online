@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import type { Cart, CartItem } from "@/data/cart"
+import type { Cart, CartItem, Address } from "@/data/cart"
 
 interface CartContextProps {
   cart: Cart
@@ -9,7 +9,10 @@ interface CartContextProps {
   addItem: (item: CartItem) => void
   removeItem: (id: number) => void
   updateQuantity: (id: number, quantity: number) => void
-  itemCount: number
+  updateAddress: (address: Address) => void
+  updatePaymentMethod: (method: string) => void // ⬅️ NOVO
+  itemCount: number, 
+  clearCart: () => void 
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined)
@@ -17,7 +20,15 @@ const CartContext = createContext<CartContextProps | undefined>(undefined)
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Cart>({
     items: [],
-    deliveryAddress: null,
+    deliveryAddress: {
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      zipCode: "",
+      reference: "",
+    },
     paymentMethod: "",
     tipo: "entrega",
   })
@@ -45,18 +56,60 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const updateQuantity = (id: number, quantity: number) => {
-    const updatedItems = cart.items.map((item) =>
-      item.id === id ? { ...item, quantity } : item
-    ).filter((item) => item.quantity > 0)
+    const updatedItems = cart.items
+      .map((item) =>
+        item.id === id ? { ...item, quantity } : item
+      )
+      .filter((item) => item.quantity > 0)
 
     updateCart({ ...cart, items: updatedItems })
   }
 
+  const updateAddress = (address: Address) => {
+    updateCart({ ...cart, deliveryAddress: address })
+  }
+
+  const updatePaymentMethod = (method: string) => {
+    updateCart({ ...cart, paymentMethod: method })
+  }
+
   const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+
+  const clearCart = () => {
+    const emptyAddress = {
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      zipCode: "",
+      reference: "",
+    }
+
+  const emptyCart: Cart = {
+      items: [],
+      paymentMethod: "",
+      deliveryAddress: emptyAddress,
+      tipo: "entrega", // ou null, se preferir
+    }
+
+    setCart(emptyCart)
+    localStorage.setItem("cart", JSON.stringify(emptyCart))
+}
 
   return (
     <CartContext.Provider
-      value={{ cart, updateCart, addItem, removeItem, updateQuantity, itemCount }}
+      value={{
+        cart,
+        updateCart,
+        addItem,
+        removeItem,
+        updateQuantity,
+        updateAddress,
+        updatePaymentMethod, 
+        itemCount,
+        clearCart
+      }}
     >
       {children}
     </CartContext.Provider>

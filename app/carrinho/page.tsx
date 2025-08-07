@@ -49,19 +49,23 @@ export default function CarrinhoPage() {
                 <h2 className="text-lg font-semibold text-gray-600 mb-1">Carrinho vazio</h2>
                 <p className="text-gray-500 mb-5">Adicione itens ao seu carrinho para continuar</p>
                 <div className="space-y-2">
-                  <Button onClick={() => router.push("/produtos")} className="text-sm py-2 px-4 rounded-xl">
+                  <Button
+                    onClick={() => router.push("/produtos")}
+                    className="w-full text-sm py-2 px-4 rounded-xl"
+                  >
                     Ver Produtos
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => router.push("/")}
-                    className="text-sm py-2 px-4 rounded-xl"
+                    className="w-full text-sm py-2 px-4 rounded-xl"
                   >
                     Voltar ao Menu Principal
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
           ) : (
             <div className="space-y-3">
               {cartItems.map((item) => (

@@ -54,6 +54,7 @@ export default function HomePage() {
               alt="Logo da empresa"
               width={192}
               height={192}
+              priority
               className="w-full h-full object-cover"
             />
           </div>

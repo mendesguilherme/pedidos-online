@@ -12,7 +12,9 @@ import {
   DialogDescription
 } from "@/components/ui/dialog"
 
-interface OrderSummaryProps {
+import { useCart } from "@/context/CartContext"
+
+interface OrderSummaryProps {  
   subtotal: number
   deliveryFee: number
   total: number
@@ -21,17 +23,7 @@ interface OrderSummaryProps {
   tipo: string | null
   initialTipo: string | null
   hasItems: boolean
-  canAddAcai: boolean
-  deliveryAddress: {
-    street: string
-    number: string
-    neighborhood: string
-    city: string
-    zipCode: string
-    complement: string
-    reference: string
-  }
-  paymentMethod: string
+  canAddAcai: boolean    
   onNextStep: () => void
   onAddAcai: (force?: boolean) => void
   setTab: (tab: string) => void
@@ -46,30 +38,52 @@ export function OrderSummary({
   tipo,
   initialTipo,
   hasItems,
-  canAddAcai,
-  deliveryAddress,
-  paymentMethod,
+  canAddAcai,    
   onNextStep,
   onAddAcai,
   setTab,
 }: OrderSummaryProps) {
   const [showModal, setShowModal] = useState(false)
 
+  const { cart } = useCart()
+  const paymentMethod = cart.paymentMethod
+  const deliveryAddress = cart.deliveryAddress || {
+    street: "",
+    number: "",
+    neighborhood: "",
+    city: "",
+    zipCode: "",
+    complement: "",
+    reference: "",
+  }
+
   const isAddressValid = () => {
     if (tipo === "retirada") return true
+
+    const address = cart.deliveryAddress
+
+    if (!address) return false // <- ESSENCIAL!
+
     return (
-      deliveryAddress.street.trim() !== "" &&
-      deliveryAddress.number.trim() !== "" &&
-      deliveryAddress.neighborhood.trim() !== "" &&
-      deliveryAddress.city.trim() !== "" &&
-      deliveryAddress.zipCode.trim() !== ""
+      address.street?.trim() !== "" &&
+      address.number?.trim() !== "" &&
+      address.neighborhood?.trim() !== "" &&
+      address.city?.trim() !== "" &&
+      address.zipCode?.trim() !== ""
     )
   }
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   const isPaymentValid = () => paymentMethod !== ""
 
   const buttonState = {
-    enabled: true,
+    enabled:
+      currentTab === "pagamento"
+        ? !!cart.paymentMethod
+        : currentTab === "produtos"
+        ? cart.items.length > 0
+        : true,
     label:
       currentTab === "pagamento"
         ? "Finalizar Pedido"
@@ -96,12 +110,21 @@ export function OrderSummary({
   }
 
   const handleNextStepClick = () => {
-    if (currentTab === "endereco" && !isAddressValid()) {
+    const isEnderecoStep = currentTab === "endereco"
+    const isPagamentoStep = currentTab === "pagamento"
+    
+    if (isEnderecoStep && !isAddressValid()) {      
       setShowModal(true)
       return
     }
 
-    onNextStep()
+    if (isPagamentoStep && !isPaymentValid()) {      
+      setShowModal(true)
+      return
+    }
+
+    setShowModal(false)
+    onNextStep()    
   }
 
   return (
@@ -156,45 +179,50 @@ export function OrderSummary({
 
       {/* Modal de sucesso ou erro */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
+        <DialogContent aria-describedby="descricao-do-modal" className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg text-center">
-              {currentTab === "endereco"
+              {currentTab === "endereco" || currentTab === "pagamento"
                 ? "Preencha todos os campos obrigatórios"
                 : "Açaí adicionado com sucesso!"}
             </DialogTitle>
           </DialogHeader>
-          <DialogFooter className="flex justify-center pt-2 gap-2">
-            {currentTab === "endereco" ? (
+
+          {currentTab === "endereco" && (
+            <DialogFooter className="flex justify-center pt-4">
               <Button onClick={() => setShowModal(false)} className="rounded-md">
                 OK, Entendi!
               </Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                  className="rounded-md"
-                >
-                  Montar outro Açaí
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowModal(false)
-                    setTab("endereco")
-                  }}
-                  className="rounded-md"
-                >
-                  Ir para Endereço de Entrega
-                </Button>
-              </>
-            )}
-          </DialogFooter>
+            </DialogFooter>
+          )}
+
+          {currentTab === "produtos" && (
+            <DialogFooter className="flex justify-center pt-4 gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={() => setShowModal(false)}
+                className="rounded-xl px-6 py-2 text-sm"
+              >
+                Montar outro Açaí
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowModal(false)
+                  setTab("endereco")
+                }}
+                className="rounded-xl px-6 py-2 text-sm"
+              >
+                Ir para Endereço de Entrega
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
+
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
-        <DialogContent>
+        <DialogContent aria-describedby="descricao-do-modal">
           <DialogHeader>
             <DialogTitle>Seleção Incompleta</DialogTitle>
             <DialogDescription>
@@ -203,24 +231,25 @@ export function OrderSummary({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex justify-center gap-3 mt-6">
-            <button
+          <div className="flex justify-center gap-3 mt-6 flex-wrap">
+            <Button
               onClick={() => {
                 setShowWarning(false)
                 onAddAcai(true)
                 setShowModal(true)
               }}
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition"
+              className="rounded-xl px-6 py-2 text-sm"
             >
               Sim
-            </button>
+            </Button>
 
-            <button
-              onClick={() => setShowWarning(false)} // Voltar para seleção
-              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            <Button
+              variant="outline"
+              onClick={() => setShowWarning(false)}
+              className="rounded-xl px-6 py-2 text-sm"
             >
               Não
-            </button>            
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -5,21 +5,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MapPin, Loader2, CheckCircle, AlertCircle } from "lucide-react"
-
-interface Address {
-  street: string
-  number: string
-  complement: string
-  neighborhood: string
-  city: string
-  zipCode: string
-  reference: string
-}
+import { useCart } from "@/context/CartContext"
+import type { Address } from "@/data/cart"
 
 interface AddressFormProps {
   tipo: string | null
-  address: Address
-  onAddressChange: (address: Address) => void
   pickupTime?: string
   onPickupTimeChange?: (time: string) => void
 }
@@ -34,13 +24,25 @@ interface ViaCEPResponse {
   erro?: boolean
 }
 
-export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps) {
+export function AddressForm({ tipo }: AddressFormProps) {
+  const { cart, updateAddress } = useCart()
+
   const [isLoadingCEP, setIsLoadingCEP] = useState(false)
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [cepError, setCepError] = useState("")
 
+  const address: Address = cart.deliveryAddress || {
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    zipCode: "",
+    reference: "",
+  }
+
   const handleInputChange = (field: keyof Address, value: string) => {
-    onAddressChange({ ...address, [field]: value })
+    updateAddress({ ...address, [field]: value })
   }
 
   const formatZipCode = (value: string) => {
@@ -71,7 +73,7 @@ export function AddressForm({ tipo, address, onAddressChange }: AddressFormProps
         return
       }
 
-      onAddressChange({
+      updateAddress({
         ...address,
         zipCode: formatZipCode(data.cep),
         street: data.logradouro || address.street,

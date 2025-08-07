@@ -10,74 +10,65 @@ export default function PerfilPage() {
   const router = useRouter()
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col text-sm rounded-b-xl">
       <div className="flex-1">
         {/* Header */}
         <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between p-3">
             <div className="flex items-center">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} className="mr-3">
-                <ArrowLeft className="w-5 h-5" />
+              <Button variant="ghost" size="sm" onClick={() => router.back()} className="mr-2 rounded-xl">
+                <ArrowLeft className="w-4 h-4" />
               </Button>
-              <User className="w-6 h-6 mr-2 text-gray-600" />
-              <h1 className="text-xl font-bold text-gray-800">Perfil</h1>
+              <User className="w-5 h-5 mr-1 text-gray-600" />
+              <h1 className="text-base font-semibold text-gray-800">Perfil</h1>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-800"
+              className="text-gray-600 hover:text-gray-800 rounded-xl"
             >
               <Home className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Menu Principal</span>
+              <span className="hidden sm:inline">Menu</span>
             </Button>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-6 pb-20">
-          <Card>
-            <CardContent className="text-center py-16">
-              <div className="mb-6">
-                <Wrench className="w-20 h-20 mx-auto mb-4 text-gray-400" />
-                <Settings className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+        <div className="container mx-auto px-4 py-4 pb-20">
+          <Card className="rounded-xl">
+            <CardContent className="text-center py-8 px-4 rounded-xl">
+              <div className="mb-4">
+                <Wrench className="w-14 h-14 mx-auto mb-2 text-gray-400" />
+                <Settings className="w-8 h-8 mx-auto mb-3 text-gray-500" />
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-700 mb-3">Página em Construção</h2>
+              <h2 className="text-lg font-semibold text-gray-700 mb-2">Página em Construção</h2>
 
-              <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                Estamos trabalhando para trazer uma experiência incrível para você. Em breve você poderá gerenciar seu
-                perfil, endereços, formas de pagamento e muito mais!
+              <p className="text-gray-500 mb-4 max-w-xs mx-auto text-sm">
+                Em breve você poderá gerenciar seu perfil, endereços, formas de pagamento e mais!
               </p>
 
-              <div className="space-y-3 text-sm text-gray-600 mb-8">
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>Dados pessoais</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>Endereços salvos</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>Formas de pagamento</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>Configurações</span>
-                </div>
+              <div className="space-y-2 text-gray-600 mb-6">
+                {["Dados pessoais", "Endereços salvos", "Formas de pagamento", "Configurações"].map((item, i) => (
+                  <div key={i} className="flex items-center justify-center space-x-2">
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
+                    <span>{item}</span>
+                  </div>
+                ))}
               </div>
 
-              <Button onClick={() => router.push("/")} className="bg-gray-700 hover:bg-gray-800">
+              <Button
+                onClick={() => router.push("/")}
+                className="bg-gray-700 hover:bg-gray-800 rounded-xl px-4 py-2 text-sm"
+              >
                 <Home className="w-4 h-4 mr-2" />
-                Voltar ao Menu Principal
+                Voltar ao Menu
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNavigation />
     </div>
   )

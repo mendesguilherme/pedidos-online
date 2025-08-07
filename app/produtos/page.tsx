@@ -14,8 +14,14 @@ import { toppings } from "@/data/toppings"
 import { addons } from "@/data/addons"
 import { AcaiCupSelector } from "@/components/AcaiCupSelector"
 import { useCart } from "@/context/CartContext"
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { Router } from "lucide-react"
 
 export default function ProdutosPage() {
+  const { clearCart } = useCart()
+  const router = useRouter()
   const { cart, addItem } = useCart()
   const toppingsRef = useRef<HTMLDivElement | null>(null)
   const addonsRef = useRef<HTMLDivElement | null>(null)
@@ -42,6 +48,8 @@ export default function ProdutosPage() {
     expiry: "",
     cvv: "",
   })
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   const handleCupSelect = (cup: CupSizeOption) => {
     setSelectedCup(cup)
@@ -80,7 +88,7 @@ export default function ProdutosPage() {
 
     const newItem = {
       id: Date.now(),
-      name: `Açaí ${selectedCup.name} com ${selectedToppings.length} acompanhamentos`,
+      name: `${selectedCup.name} com ${selectedToppings.length} acompanhamentos`,
       price: selectedCup.price + selectedExtras.reduce((acc, name) => {
         const found = addons.find((a) => a.name === name)
         return found ? acc + found.price : acc
@@ -103,17 +111,11 @@ export default function ProdutosPage() {
       if (cart.items.length === 0) return
       setActiveTab(initialTipo === "retirada" ? "pagamento" : "endereco")
     } else if (activeTab === "endereco") {
-      const valid =
-        deliveryAddress.street &&
-        deliveryAddress.number &&
-        deliveryAddress.neighborhood &&
-        deliveryAddress.city &&
-        deliveryAddress.zipCode
-      if (!valid) return
       setActiveTab("pagamento")
     } else if (activeTab === "pagamento") {
-      if (!paymentMethod) return
-      alert("Pedido finalizado com sucesso!")
+      if (!cart.paymentMethod) return
+      setShowSuccessModal(true)
+      clearCart()
     }
   }
 
@@ -230,11 +232,7 @@ export default function ProdutosPage() {
           {activeTab === "endereco" && initialTipo === "entrega" && (
             <>
               <CartEmptyWarning show={cart.items.length === 0} currentTab={activeTab} />
-              <AddressForm
-                tipo={tipo}
-                address={deliveryAddress}
-                onAddressChange={setDeliveryAddress}
-              />
+              <AddressForm tipo={tipo} />
             </>
           )}
 
@@ -242,8 +240,6 @@ export default function ProdutosPage() {
             <>
               <CartEmptyWarning show={cart.items.length === 0} currentTab={activeTab} />
               <PaymentForm
-                paymentMethod={paymentMethod}
-                onPaymentMethodChange={setPaymentMethod}
                 cardData={cardData}
                 onCardDataChange={setCardData}
                 total={cart.items.reduce((sum, item) => {
@@ -263,7 +259,7 @@ export default function ProdutosPage() {
           )}
         </div>
 
-        <OrderSummary
+        <OrderSummary          
           subtotal={cart.items.reduce((sum, item) => sum + item.price, 0)}
           deliveryFee={entregaFee}
           total={
@@ -275,15 +271,33 @@ export default function ProdutosPage() {
           tipo={tipo}
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
-          canAddAcai={!!selectedCup && selectedToppings.length === selectedCup.maxToppings}
-          deliveryAddress={deliveryAddress}
-          paymentMethod={paymentMethod}
+          canAddAcai={!!selectedCup && selectedToppings.length === selectedCup.maxToppings}                    
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
         />
 
         <BottomNavigation />
       </div>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="text-center px-6 pb-6">
+          <DialogTitle className="text-base sm:text-lg font-semibold">
+            Pedido criado com sucesso!
+          </DialogTitle>
+
+          <div className="mt-6 flex justify-center">
+            <Button
+              onClick={() => router.push("/pedidos")}
+              className="rounded-xl px-6 py-2 text-sm"
+            >
+              Ver pedidos
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+
     </div>
   )
 }

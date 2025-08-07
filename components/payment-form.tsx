@@ -6,13 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { gerarPix } from "@/utils/pix"
-import { Check, Copy } from "lucide-react"
-import {
-  CreditCard,
-  Smartphone,
-  Banknote,
-  QrCode,
-} from "lucide-react"
+import { Check, Copy, CreditCard, Smartphone, Banknote, QrCode } from "lucide-react"
+import { useCart } from "@/context/CartContext"
 
 interface CardData {
   number: string
@@ -32,8 +27,6 @@ interface Address {
 }
 
 interface PaymentFormProps {
-  paymentMethod: string
-  onPaymentMethodChange: (method: string) => void
   cardData: CardData
   onCardDataChange: (data: CardData) => void
   total: number
@@ -55,8 +48,6 @@ interface ViaCEPResponse {
 }
 
 export function PaymentForm({
-  paymentMethod,
-  onPaymentMethodChange,
   cardData,
   onCardDataChange,
   total,
@@ -67,15 +58,17 @@ export function PaymentForm({
   initialTipo,
 }: PaymentFormProps) {
   const formTopRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const [showPixCode, setShowPixCode] = useState(false)
-  const [isLoadingCEP, setIsLoadingCEP] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [changeFor, setChangeFor] = useState("")
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [cepError, setCepError] = useState("")
-  const [selectedCardBrand, setSelectedCardBrand] = useState("")
-  const [changeFor, setChangeFor] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [tipoDropdownOpen, setTipoDropdownOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
+
+  const { cart, updatePaymentMethod } = useCart()
+  const paymentMethod = cart.paymentMethod
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(cart.paymentMethod || "")  
 
   const pixCode = gerarPix(
     "38873758827",
@@ -85,6 +78,10 @@ export function PaymentForm({
     "PedidoOnline"
   )
 
+  const handlePaymentChange = (method: string) => {
+    updatePaymentMethod(method)
+  }
+
   const handleAddressInputChange = (field: keyof Address, value: string) => {
     onDeliveryAddressChange({ ...deliveryAddress, [field]: value })
   }
@@ -92,58 +89,6 @@ export function PaymentForm({
   const formatZipCode = (value: string) => {
     const numbers = value.replace(/\D/g, "")
     return numbers.replace(/(\d{5})(\d{3})/, "$1-$2")
-  }
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(pixCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const searchCEP = async (cep: string) => {
-    const cleanCEP = cep.replace(/\D/g, "")
-    if (cleanCEP.length !== 8) {
-      setCepStatus("idle")
-      setCepError("")
-      return
-    }
-
-    setIsLoadingCEP(true)
-    setCepStatus("loading")
-    setCepError("")
-
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`)
-      const data: ViaCEPResponse = await response.json()
-
-      if (data.erro) {
-        setCepStatus("error")
-        setCepError("CEP não encontrado")
-        setIsLoadingCEP(false)
-        return
-      }
-
-      onDeliveryAddressChange({
-        ...deliveryAddress,
-        zipCode: formatZipCode(data.cep),
-        street: data.logradouro || deliveryAddress.street,
-        neighborhood: data.bairro || deliveryAddress.neighborhood,
-        city: data.localidade || deliveryAddress.city,
-        complement: data.complemento || deliveryAddress.complement,
-      })
-
-      setCepStatus("success")
-      setIsLoadingCEP(false)
-
-      setTimeout(() => {
-        const numberInput = document.getElementById("number-payment")
-        if (numberInput) numberInput.focus()
-      }, 100)
-    } catch (error) {
-      setCepStatus("error")
-      setCepError("Erro ao buscar CEP. Tente novamente.")
-      setIsLoadingCEP(false)
-    }
   }
 
   const handleZipCodeChange = (value: string) => {
@@ -160,8 +105,47 @@ export function PaymentForm({
     }
   }
 
-  const generatePixCode = () => {
-    setShowPixCode(true)
+  const searchCEP = async (cep: string) => {
+    const cleanCEP = cep.replace(/\D/g, "")
+    if (cleanCEP.length !== 8) return
+
+    setCepStatus("loading")
+    setCepError("")
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`)
+      const data: ViaCEPResponse = await response.json()
+
+      if (data.erro) {
+        setCepStatus("error")
+        setCepError("CEP não encontrado")
+        return
+      }
+
+      onDeliveryAddressChange({
+        ...deliveryAddress,
+        zipCode: formatZipCode(data.cep),
+        street: data.logradouro || deliveryAddress.street,
+        neighborhood: data.bairro || deliveryAddress.neighborhood,
+        city: data.localidade || deliveryAddress.city,
+        complement: data.complemento || deliveryAddress.complement,
+      })
+
+      setCepStatus("success")
+
+      setTimeout(() => {
+        document.getElementById("number-payment")?.focus()
+      }, 100)
+    } catch (error) {
+      setCepStatus("error")
+      setCepError("Erro ao buscar CEP. Tente novamente.")
+    }
+  }
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(pixCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const showAddressSection = tipo === "entrega" && initialTipo === "retirada"
@@ -171,6 +155,10 @@ export function PaymentForm({
       formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
   }, [tipo, initialTipo])
+
+  useEffect(() => {
+    updatePaymentMethod(selectedPaymentMethod)
+  }, [selectedPaymentMethod])  
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0 pb-8">
@@ -189,7 +177,7 @@ export function PaymentForm({
         </p>
       </div>
 
-      <RadioGroup value={paymentMethod} onValueChange={onPaymentMethodChange}>
+      <RadioGroup value={selectedPaymentMethod} onValueChange={(value) => setSelectedPaymentMethod(value)}>
         {/* Cartão */}
         <div className="space-y-4">
           <div className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-gray-50">
@@ -237,19 +225,21 @@ export function PaymentForm({
                   <div className="bg-white p-4 rounded-xl border-2 border-dashed border-purple-300">
                     <QrCode className="w-24 h-24 mx-auto mb-4 text-purple-600" />
                     <p className="text-xs text-gray-600 mb-2">Código PIX:</p>
-                    <Button
-                      onClick={copyToClipboard}
-                      variant="outline"
-                      className="w-full text-xs font-mono bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl flex items-center justify-between min-h-[48px]"
-                    >
-                      <span className="break-all text-left flex-1">{pixCode}</span>
-                      {copied ? (
-                        <Check className="w-4 h-4 text-green-600 ml-2" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-gray-500 ml-2" />
-                      )}
-                    </Button>
+                    <div className="relative">
+                      <button
+                        onClick={copyToClipboard}
+                        className="w-full text-xs font-mono bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl flex items-center justify-between min-h-[48px] whitespace-pre-wrap break-words text-left"
+                      >
+                        <span className="break-all text-left flex-1 pr-2">{pixCode}</span>
+                        {copied ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-gray-500" />
+                        )}
+                      </button>
+                    </div>
                   </div>
+
                   <div className="bg-yellow-50 p-3 rounded-xl">
                     <p className="text-sm text-yellow-800">
                       <strong>Importante:</strong> O pagamento deve ser realizado em até 30 minutos.
@@ -259,7 +249,7 @@ export function PaymentForm({
               ) : (
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-4">Clique no botão abaixo para gerar o código PIX</p>
-                  <Button onClick={generatePixCode} className="bg-purple-600 hover:bg-purple-700 rounded-xl">
+                  <Button onClick={() => setShowPixCode(true)} className="bg-purple-600 hover:bg-purple-700 rounded-xl">
                     <QrCode className="w-4 h-4 mr-2" />
                     Gerar Código PIX
                   </Button>
