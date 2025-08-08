@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Home,
 } from "lucide-react"
+import { useOrders as useOrdersContext } from "@/context/OrderContext"
 
 interface Order {
   id: string
@@ -41,61 +42,48 @@ interface Order {
   paymentMethod: string
 }
 
+function dbStatusToUi(status: string): Order["status"] {
+  const map: Record<string, Order["status"]> = {
+    pendente: "pendente",
+    em_preparo: "em preparo",
+    saiu_para_entrega: "saiu para entrega",
+    entregue: "entregue",
+    cancelado: "cancelado",
+  }
+  return (map[status] ?? (status.replaceAll("_", " ") as Order["status"]))
+}
+
 export default function PedidosPage() {
   const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
+  const { orders: ctxOrders } = useOrdersContext()
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const toggleExpand = (id: string) => {
     setExpandedOrderId((prev) => (prev === id ? null : id))
   }
 
-
-  useEffect(() => {
-    const storedOrders = JSON.parse(localStorage.getItem("orders") || "[]")
-
-    type TempOrder = {
-      createdAt: Date
-      [key: string]: any
-    }
-    
-    const mappedOrders = storedOrders.map((order: any) => ({
-      id: order.id,
-      date: new Date(order.createdAt).toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: order.status, 
-      type: order.tipo,
-      items: order.items.map((item: any) => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        toppings: item.toppings || [],
-        extras: item.extras || [],
+  // 🔁 Mapeia do contexto (fonte única) para o shape desta página
+  const orders: Order[] = useMemo(() => {
+    return (ctxOrders ?? []).map((o: any) => ({
+      id: o.id,
+      // no OrderContext, createdAt já vem formatado em GMT-3
+      date: o.createdAt,
+      status: dbStatusToUi(o.status),
+      type: o.tipo,
+      items: (o.items ?? []).map((it: any) => ({
+        name: it.name,
+        quantity: it.quantity ?? 1,
+        price: it.price ?? 0,
+        toppings: it.toppings ?? [],
+        extras: it.extras ?? [],
       })),
-      total: order.total,
-      address: order.address || undefined,
-      paymentMethod: order.paymentMethod || "",      
-      createdAt: new Date(order.createdAt) // <- usado para ordenar
+      total: Number(o.total ?? 0),
+      address: o.address,
+      paymentMethod: o.paymentMethod ?? "",
     }))
-      
-    // 🔁 Ordenar do mais recente para o mais antigo (tipado com TempOrder)
-    mappedOrders.sort((a: TempOrder, b: TempOrder) => b.createdAt.getTime() - a.createdAt.getTime())
-
-    // 🧹 Remover o campo extra criadoAt antes de exibir, se quiser
-    const finalOrders = mappedOrders.map((o: any) => {
-      const { createdAt, ...rest } = o
-      return rest
-    })
-
-    setOrders(finalOrders)
-  }, [])
+  }, [ctxOrders])
 
   function getPaymentInfo(method: string): string {
-    switch (method.toLowerCase()) {
+    switch ((method || "").toLowerCase()) {
       case "pix":
         return "PIX"
       case "card":
@@ -191,12 +179,12 @@ export default function PedidosPage() {
 
                 return (
                   <Card key={order.id} className="rounded-xl">
-                    <CardHeader className="pb-2">                      
+                    <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-sm font-semibold">
                             Pedido #{order.id}
-                          </CardTitle>                          
+                          </CardTitle>
                           <p className="text-xs text-gray-500">{order.date}</p>
                         </div>
                         <div className="flex flex-col items-end space-y-1">
@@ -242,61 +230,64 @@ export default function PedidosPage() {
                           R$ {order.total.toFixed(2).replace(".", ",")}
                         </span>
                       </div>
-                      
-                      {expandedOrderId === order.id && (
-                      <div className="mt-3 space-y-2 text-xs text-gray-700 border-t pt-3">
-                        <div>
-                          <span className="font-semibold">Acompanhamentos:</span>
-                          <ul className="list-disc list-inside">
-                            {order.items.flatMap((item) => item.toppings || []).map((t, i) => (
-                              <li key={i}>{t}</li>
-                            ))}
-                          </ul>
-                        </div>
 
-                        {order.items.some((item) => (item.extras ?? []).length > 0) && (
+                      {expandedOrderId === order.id && (
+                        <div className="mt-3 space-y-2 text-xs text-gray-700 border-t pt-3">
                           <div>
-                            <span className="font-semibold">Adicionais:</span>
+                            <span className="font-semibold">Acompanhamentos:</span>
                             <ul className="list-disc list-inside">
-                              {order.items.flatMap((item) => item.extras || []).map((e, i) => (
-                                <li key={i}>{e}</li>
-                              ))}
+                              {order.items
+                                .flatMap((item) => item.toppings || [])
+                                .map((t, i) => (
+                                  <li key={i}>{t}</li>
+                                ))}
                             </ul>
                           </div>
-                        )}
 
-                        {order.type === "entrega" && order.address && (
+                          {order.items.some((item) => (item.extras ?? []).length > 0) && (
+                            <div>
+                              <span className="font-semibold">Adicionais:</span>
+                              <ul className="list-disc list-inside">
+                                {order.items
+                                  .flatMap((item) => item.extras || [])
+                                  .map((e, i) => (
+                                    <li key={i}>{e}</li>
+                                  ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {order.type === "entrega" && order.address && (
+                            <div>
+                              <span className="font-semibold">Endereço de Entrega:</span>
+                              <p>
+                                {order.address.street}, {order.address.number}
+                                {order.address.complement && ` - ${order.address.complement}`}
+                                <br />
+                                {order.address.neighborhood}, {order.address.city} - {order.address.zipCode}
+                                {order.address.reference && <br />}
+                                {order.address.reference}
+                              </p>
+                            </div>
+                          )}
+
                           <div>
-                            <span className="font-semibold">Endereço de Entrega:</span>
-                            <p>
-                              {order.address.street}, {order.address.number}
-                              {order.address.complement && ` - ${order.address.complement}`}
-                              <br />
-                              {order.address.neighborhood}, {order.address.city} - {order.address.zipCode}
-                              {order.address.reference && <br />}
-                              {order.address.reference}
-                            </p>
+                            <span className="font-semibold">Forma de Pagamento:</span>
+                            <p>{getPaymentInfo(order.paymentMethod)}</p>
                           </div>
-                        )}
-
-                        <div>
-                          <span className="font-semibold">Forma de Pagamento:</span>
-                          <p>{getPaymentInfo(order.paymentMethod)}</p>
                         </div>
+                      )}
+
+                      <div className="mt-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleExpand(order.id)}
+                          className="rounded-xl text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          {expandedOrderId === order.id ? "Ocultar detalhes" : "Exibir detalhes"}
+                        </Button>
                       </div>
-                    )}
-
-                    <div className="mt-2 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleExpand(order.id)}
-                        className="rounded-xl text-xs text-gray-600 hover:text-gray-800"
-                      >
-                        {expandedOrderId === order.id ? "Ocultar detalhes" : "Exibir detalhes"}
-                      </Button>
-                    </div>
-
                     </CardContent>
                   </Card>
                 )

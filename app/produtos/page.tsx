@@ -124,13 +124,16 @@ export default function ProdutosPage() {
 
   const handleCreateOrder = async () => {
     setIsCreatingOrder(true)
-
-    saveOrder()
-    refreshOrders()
-
-    setTimeout(() => {
+    try {
+      await saveOrder()        // agora é async e chama /api/orders
+      await refreshOrders?.()  // se existir
       router.push("/pedidos")
-    }, 2000)
+    } catch (e) {
+      console.error(e)
+      // opcional: toast de erro
+    } finally {
+      setIsCreatingOrder(false)
+    }
   }
 
   const resetMontagem = () => {

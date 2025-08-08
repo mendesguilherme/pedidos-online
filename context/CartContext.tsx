@@ -16,7 +16,7 @@ interface CartContextProps {
   updateTipo: (tipo: "entrega" | "retirada") => void
   itemCount: number, 
   clearCart: () => void, 
-  saveOrder: () => void
+  saveOrder: () => Promise<void>
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined)
@@ -105,18 +105,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(emptyCart))
 }
 
-  const saveOrder = () => {
-    // 1. Validação: tipo precisa estar definido
-    if (!cart.tipo) {
-      throw new Error("Tipo de pedido não definido.")
-    }
-
-    // 2. Validação: precisa ter itens e forma de pagamento
-    if (cart.items.length === 0 || !cart.paymentMethod) {
+  const saveOrder = async () => {
+    // 1. Validações (iguais às suas)
+    if (!cart.tipo) throw new Error("Tipo de pedido não definido.")
+    if (cart.items.length === 0 || !cart.paymentMethod)
       throw new Error("Carrinho incompleto. Não é possível criar o pedido.")
-    }
-
-    // 3. Só valida endereço se for entrega
     if (
       cart.tipo === "entrega" &&
       (!cart.deliveryAddress || !cart.deliveryAddress.street)
@@ -124,17 +117,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Endereço de entrega incompleto.")
     }
 
-    // 4. Buscar pedidos existentes
-    const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
-    const existingIds = existingOrders.map((order) => order.id)
-
-    // 5. Criar novo pedido
-    const newOrder: Order = {
-      id: generateUniqueOrderId(existingIds),
-      createdAt: new Date().toISOString(),
-      status: "pendente",
-      tipo: cart.tipo,
-      items: cart.items,
+    // 2. Monta payload pro endpoint
+    const payload = {
+      cart: {
+        ...cart,
+        // garanta que cada item tenha quantity default
+        items: cart.items.map((it) => ({ ...it, quantity: it.quantity ?? 1 })),
+      },
       address:
         cart.tipo === "entrega"
           ? cart.deliveryAddress
@@ -147,15 +136,48 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               zipCode: "",
               reference: "",
             },
-      paymentMethod: cart.paymentMethod,
-      total:
-        cart.items.reduce((sum, item) => sum + item.price, 0) +
-        (cart.tipo === "entrega" ? 5 : 0),
     }
 
-    // 6. Salvar no localStorage
-    const updatedOrders = [...existingOrders, newOrder]
-    localStorage.setItem("orders", JSON.stringify(updatedOrders))
+    // 3. Chama o endpoint /api/orders (server usa service role)
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || "Erro ao criar pedido")
+
+    const created = data.order
+    // created => { id: UUID, order_code: "PEDXXXXXX", ... }
+
+    // 4. (Opcional) Espelhar no localStorage para manter sua UI atual
+    const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
+
+    const localOrder: Order = {
+      // use o order_code como id para não quebrar telas antigas
+      id: created.order_code ?? created.id,
+      createdAt: created.created_at ?? new Date().toISOString(),
+      status: created.status ?? "pendente",
+      tipo: created.tipo ?? cart.tipo!,
+      items: cart.items,
+      address: payload.address,
+      paymentMethod: cart.paymentMethod,
+      total:
+        created.total ??
+        cart.items.reduce((sum, it) => sum + (it.price ?? 0) * (it.quantity ?? 1), 0) +
+          (cart.tipo === "entrega" ? 5 : 0),
+      // se quiser guardar o UUID real do banco:
+      // @ts-ignore (caso seu tipo Order não tenha esse campo)
+      dbId: created.id,
+      // @ts-ignore
+      orderCode: created.order_code,
+    }
+
+    localStorage.setItem("orders", JSON.stringify([...existingOrders, localOrder]))
+
+    // 5. Limpa o carrinho (se fizer sentido no seu fluxo)
+    clearCart()
   }
 
   return (
