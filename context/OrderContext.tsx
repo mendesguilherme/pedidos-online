@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Order } from "@/data/orders"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 
 interface OrderContextProps {
   orders: Order[]
@@ -107,6 +108,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   // 🔴 Realtime com debounce (coalescing de eventos)
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let pollTimer: ReturnType<typeof setInterval> | null = null
 
     const scheduleReload = () => {
       if (document.visibilityState === "hidden") return
@@ -114,23 +116,41 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       debounceTimer = setTimeout(() => {
         loadFromApi()
         debounceTimer = null
-      }, 300) // delay ajustável
+      }, 300)
     }
 
     const sb = getSupabaseBrowser()
-    if (!sb) return // build/prerender não tem env → sai sem criar canal
+    if (!sb) return
 
     const channel = sb
-      .channel("orders-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        scheduleReload
-      )
-      .subscribe()
+    .channel("orders-realtime")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "orders" },
+      (payload: RealtimePostgresChangesPayload<any>) => {
+        // console.log("[RT] evento:", payload.eventType)
+        scheduleReload()
+      }
+    )
+    .subscribe((status: RealtimeChannel["state"]) => {
+      // status: 'joined' | 'joining' | 'leaving' | 'closed' | 'errored'
+      if (status !== "joined") {
+        if (!pollTimer) {
+          pollTimer = setInterval(() => {
+            if (document.visibilityState === "visible") loadFromApi()
+          }, 10000)
+        }
+      } else {
+        if (pollTimer) {
+          clearInterval(pollTimer)
+          pollTimer = null
+        }
+      }
+    })
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer)
+      if (pollTimer) clearInterval(pollTimer)
       sb.removeChannel(channel)
     }
   }, [])

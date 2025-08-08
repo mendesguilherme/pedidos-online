@@ -1,25 +1,26 @@
-import nextPwa from "next-pwa";
+import nextPwa from "next-pwa"
+import defaultCache from "next-pwa/cache.js"
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev = process.env.NODE_ENV === "development"
 
-const withPWA = nextPwa({
+const runtimeCaching = [
+  { urlPattern: /^\/api\/.*$/, handler: "NetworkOnly" },
+  ...defaultCache,
+]
+
+const pwa = nextPwa({
   dest: "public",
-  register: true,
+  register: true,     // registra só em prod (ver export abaixo)
   skipWaiting: true,
-  disable: isDev, // ✅ ESSA LINHA desativa o PWA no dev (resolve os loops)
-});
+  runtimeCaching,
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-  },
-};
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+  images: { unoptimized: true },
+}
 
-export default withPWA(nextConfig);
+// 👉 Em dev, exporta sem PWA; em prod, com PWA
+export default isDev ? nextConfig : pwa(nextConfig)

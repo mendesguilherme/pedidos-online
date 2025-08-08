@@ -28,7 +28,9 @@ export async function POST(req: Request) {
       .select()
 
     if (error) throw error
-    return NextResponse.json({ success: true, order: data?.[0] })
+    return NextResponse.json({ success: true, order: data?.[0] }, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+    })
   } catch (err: any) {
     console.error("POST /api/orders:", err)
     return NextResponse.json({ error: err.message ?? "Erro interno" }, { status: 500 })
@@ -57,7 +59,9 @@ export async function GET(req: Request) {
       .limit(limit)
 
     if (error) throw error
-    return NextResponse.json({ orders: data })
+    return NextResponse.json({ orders: data }, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+    })
   } catch (err: any) {
     console.error("GET /api/orders:", err)
     return NextResponse.json({ error: err.message ?? "Erro interno" }, { status: 500 })
