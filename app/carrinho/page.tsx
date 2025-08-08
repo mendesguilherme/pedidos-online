@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, ArrowLeft, Minus, Plus, Trash2, Home } from "lucide-react"
+import { isRestaurantOpen } from "@/utils/business-hours"
 
 export default function CarrinhoPage() {
   const router = useRouter()
@@ -15,6 +16,16 @@ export default function CarrinhoPage() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const total = subtotal
+
+  const handleSeeProducts = () => {
+    if (!isRestaurantOpen()) {
+      // fechado → manda pra Home (lá já tem a validação/fluxo certo)
+      router.push("/")
+      return
+    }
+    // aberto → pode ir direto pros produtos
+    router.push("/produtos")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col text-sm">
@@ -50,7 +61,9 @@ export default function CarrinhoPage() {
                 <p className="text-gray-500 mb-5">Adicione itens ao seu carrinho para continuar</p>
                 <div className="space-y-2">
                   <Button
-                    onClick={() => router.push("/produtos")}
+                    onClick={handleSeeProducts}
+                    // opcional: já deixa visualmente desabilitado quando fechado
+                    disabled={!isRestaurantOpen()}
                     className="w-full text-sm py-2 px-4 rounded-xl"
                   >
                     Ver Produtos

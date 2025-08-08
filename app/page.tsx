@@ -48,7 +48,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-start min-h-full p-4 pt-1 space-y-3">
+      <div className="relative z-10 flex flex-col items-center justify-start min-h-full p-4 pt-[35px] space-y-3">
         {/* Logo */}
         <div className="relative mt-2">
           <div className="w-36 h-36 rounded-full shadow-lg border-2 border-muted overflow-hidden">
