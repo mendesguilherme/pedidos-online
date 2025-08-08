@@ -12,9 +12,11 @@ interface CartContextProps {
   removeItem: (id: number) => void
   updateQuantity: (id: number, quantity: number) => void
   updateAddress: (address: Address) => void
-  updatePaymentMethod: (method: string) => void // ⬅️ NOVO
+  updatePaymentMethod: (method: string) => void 
+  updateTipo: (tipo: "entrega" | "retirada") => void
   itemCount: number, 
-  clearCart: () => void 
+  clearCart: () => void, 
+  saveOrder: () => void
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined)
@@ -32,8 +34,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       reference: "",
     },
     paymentMethod: "",
-    tipo: "entrega",
+    tipo: null,
   })
+
+  const updateTipo = (tipo: "entrega" | "retirada") => {
+    updateCart({ ...cart, tipo })
+  }
 
   useEffect(() => {
     const stored = localStorage.getItem("cart")
@@ -92,42 +98,65 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       items: [],
       paymentMethod: "",
       deliveryAddress: emptyAddress,
-      tipo: "entrega", // ou null, se preferir
+      tipo: null, 
     }
 
     setCart(emptyCart)
     localStorage.setItem("cart", JSON.stringify(emptyCart))
 }
 
-const saveOrder = () => {
-  if (
-    !cart.deliveryAddress ||
-    !cart.deliveryAddress.street ||
-    !cart.paymentMethod ||
-    cart.items.length === 0
-  ) {
-    throw new Error("Carrinho incompleto. Não é possível criar o pedido.")
+  const saveOrder = () => {
+    // 1. Validação: tipo precisa estar definido
+    if (!cart.tipo) {
+      throw new Error("Tipo de pedido não definido.")
+    }
+
+    // 2. Validação: precisa ter itens e forma de pagamento
+    if (cart.items.length === 0 || !cart.paymentMethod) {
+      throw new Error("Carrinho incompleto. Não é possível criar o pedido.")
+    }
+
+    // 3. Só valida endereço se for entrega
+    if (
+      cart.tipo === "entrega" &&
+      (!cart.deliveryAddress || !cart.deliveryAddress.street)
+    ) {
+      throw new Error("Endereço de entrega incompleto.")
+    }
+
+    // 4. Buscar pedidos existentes
+    const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
+    const existingIds = existingOrders.map((order) => order.id)
+
+    // 5. Criar novo pedido
+    const newOrder: Order = {
+      id: generateUniqueOrderId(existingIds),
+      createdAt: new Date().toISOString(),
+      status: "pendente",
+      tipo: cart.tipo,
+      items: cart.items,
+      address:
+        cart.tipo === "entrega"
+          ? cart.deliveryAddress
+          : {
+              street: "",
+              number: "",
+              complement: "",
+              neighborhood: "",
+              city: "",
+              zipCode: "",
+              reference: "",
+            },
+      paymentMethod: cart.paymentMethod,
+      total:
+        cart.items.reduce((sum, item) => sum + item.price, 0) +
+        (cart.tipo === "entrega" ? 5 : 0),
+    }
+
+    // 6. Salvar no localStorage
+    const updatedOrders = [...existingOrders, newOrder]
+    localStorage.setItem("orders", JSON.stringify(updatedOrders))
   }
-
-  const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
-  const existingIds = existingOrders.map((order) => order.id)
-
-  const newOrder: Order = {
-    id: generateUniqueOrderId(existingIds),
-    createdAt: new Date().toISOString(),
-    status: "pendente",
-    tipo: cart.tipo,
-    items: cart.items,
-    address: cart.deliveryAddress,
-    paymentMethod: cart.paymentMethod,
-    total:
-      cart.items.reduce((sum, item) => sum + item.price, 0) +
-      (cart.tipo === "entrega" ? 5 : 0),
-  }
-
-  const updatedOrders = [...existingOrders, newOrder]
-  localStorage.setItem("orders", JSON.stringify(updatedOrders))
-}
 
   return (
     <CartContext.Provider
@@ -139,6 +168,7 @@ const saveOrder = () => {
         updateQuantity,
         updateAddress,
         updatePaymentMethod, 
+        updateTipo,
         itemCount,
         clearCart, 
         saveOrder

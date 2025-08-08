@@ -8,9 +8,9 @@ export interface Order {
   id: string
   createdAt: string
   status: OrderStatus
-  tipo: "entrega" | "retirada"
+  tipo: "entrega" | "retirada" | null
   items: CartItem[]
-  address: Address
+  address?: Address | null
   paymentMethod: string
   total: number
 }

@@ -24,5 +24,5 @@ export interface Cart {
   items: CartItem[]
   deliveryAddress: Address | null
   paymentMethod: string  
-  tipo: "entrega" | "retirada"
+  tipo: "entrega" | "retirada" | null
 }

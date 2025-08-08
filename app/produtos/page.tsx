@@ -121,8 +121,6 @@ export default function ProdutosPage() {
       clearCart()
     }
   }
-  
-
 
   const handleCreateOrder = async () => {
     setIsCreatingOrder(true)
@@ -132,7 +130,7 @@ export default function ProdutosPage() {
 
     setTimeout(() => {
       router.push("/pedidos")
-    }, 3000)
+    }, 2000)
   }
 
   const resetMontagem = () => {

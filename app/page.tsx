@@ -7,9 +7,11 @@ import { ShoppingBag, Truck, Info, User, Clock } from "lucide-react"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { RestaurantStatus } from "@/components/restaurant-status"
 import { isRestaurantOpen } from "@/utils/business-hours"
+import { useCart } from "@/context/CartContext"
 
 export default function HomePage() {
   const router = useRouter()
+  const { updateTipo } = useCart()
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function HomePage() {
 
   const handleOptionSelect = (option: "retirada" | "entrega") => {
     if (!isOpen) return
+    updateTipo(option) // <-- define no contexto
     router.push(`/produtos?tipo=${option}`)
   }
 
