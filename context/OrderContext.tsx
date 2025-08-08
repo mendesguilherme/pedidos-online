@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Order } from "@/data/orders"
-import { supabaseBrowser } from "@/lib/supabase/browser"
+import { getSupabaseBrowser } from "@/lib/supabase/browser"
 
 interface OrderContextProps {
   orders: Order[]
@@ -12,10 +12,12 @@ interface OrderContextProps {
 
 const OrderContext = createContext<OrderContextProps | undefined>(undefined)
 
+type OrderWithIso = Order & { __iso: string }
+
 export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   const [orders, setOrders] = useState<Order[]>([])
 
-  // carrega do backend (Supabase via API) — agora ordena por ISO estável
+  // carrega do backend (Supabase via API) — ordena por ISO estável
   const loadFromApi = async () => {
     try {
       const res = await fetch("/api/orders?limit=100", { cache: "no-store" })
@@ -23,7 +25,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       if (!res.ok) throw new Error(json?.error || "Falha ao carregar pedidos")
 
       // mapeia mantendo ISO para ordenar e string formatada para exibir
-      const mappedWithIso = (json.orders ?? []).map((row: any) => {
+      const mappedWithIso: OrderWithIso[] = (json.orders ?? []).map((row: any) => {
         const createdAtIso: string = row.created_at
         const createdAtDisplay = new Date(createdAtIso).toLocaleString("pt-BR", {
           day: "2-digit",
@@ -34,7 +36,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           timeZone: "America/Sao_Paulo",
         })
 
-        const o: Order & { __iso?: string } = {
+        return {
           id: row.order_code ?? row.id,
           createdAt: createdAtDisplay,
           status: row.status,
@@ -61,20 +63,19 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
             },
           paymentMethod: row.payment_method ?? row.cart?.paymentMethod ?? "",
           total: Number(row.total ?? 0),
-          // campo interno para ordenar
           __iso: createdAtIso,
-        }
-        return o
+        } satisfies OrderWithIso
       })
 
       // ordena pelo ISO (estável em todos browsers)
       mappedWithIso.sort(
-        (a: any, b: any) =>
-          new Date(b.__iso!).getTime() - new Date(a.__iso!).getTime()
+        (a, b) => new Date(b.__iso).getTime() - new Date(a.__iso).getTime()
       )
 
       // remove o campo interno antes de setar
-      const cleaned: Order[] = mappedWithIso.map(({ __iso, ...rest }) => rest as Order)
+      const cleaned: Order[] = mappedWithIso.map(
+        ({ __iso, ...rest }: OrderWithIso) => rest
+      )
 
       setOrders(cleaned)
     } catch (e) {
@@ -113,10 +114,13 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       debounceTimer = setTimeout(() => {
         loadFromApi()
         debounceTimer = null
-      }, 300)
+      }, 300) // delay ajustável
     }
 
-    const channel = supabaseBrowser
+    const sb = getSupabaseBrowser()
+    if (!sb) return // build/prerender não tem env → sai sem criar canal
+
+    const channel = sb
       .channel("orders-realtime")
       .on(
         "postgres_changes",
@@ -127,7 +131,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer)
-      supabaseBrowser.removeChannel(channel)
+      sb.removeChannel(channel)
     }
   }, [])
 
