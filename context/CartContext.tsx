@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import type { Cart, CartItem, Address } from "@/data/cart"
 import type { Order } from "@/data/orders"
 import { generateUniqueOrderId } from "@/data/orders"
+import { getOrCreateClientId } from "@/lib/client-id"
 
 interface CartContextProps {
   cart: Cart
@@ -119,34 +120,26 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     // 2. Monta payload pro endpoint
     const payload = {
-      cart: {
-        ...cart,
-        // garanta que cada item tenha quantity default
-        items: cart.items.map((it) => ({ ...it, quantity: it.quantity ?? 1 })),
-      },
-      address:
-        cart.tipo === "entrega"
-          ? cart.deliveryAddress
-          : {
-              street: "",
-              number: "",
-              complement: "",
-              neighborhood: "",
-              city: "",
-              zipCode: "",
-              reference: "",
-            },
+      cart: { ...cart, items: cart.items.map((it) => ({ ...it, quantity: it.quantity ?? 1 })) },
+      address: cart.tipo === "entrega"
+        ? cart.deliveryAddress
+        : { street:"", number:"", complement:"", neighborhood:"", city:"", zipCode:"", reference:"" },
     }
 
-    // 3. Chama o endpoint /api/orders (server usa service role)
+    const clientId = getOrCreateClientId()
+
     const res = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Client-Id": getOrCreateClientId(),
+      },
       body: JSON.stringify(payload),
     })
 
     const data = await res.json()
     if (!res.ok) throw new Error(data?.error || "Erro ao criar pedido")
+    if (!data?.order) throw new Error("API não retornou o objeto do pedido.")
 
     const created = data.order
     // created => { id: UUID, order_code: "PEDXXXXXX", ... }

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import type { Order } from "@/data/orders"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js"
+import { getOrCreateClientId } from "@/lib/client-id"
 
 interface OrderContextProps {
   orders: Order[]
@@ -21,7 +22,11 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   // carrega do backend (Supabase via API) — ordena por ISO estável
   const loadFromApi = async () => {
     try {
-      const res = await fetch("/api/orders?limit=100", { cache: "no-store" })
+      const clientId = getOrCreateClientId()
+      const res = await fetch("/api/orders?limit=100", {
+        cache: "no-store",
+        headers: { "X-Client-Id": clientId },   // 🔴 garante o filtro no server
+      })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Falha ao carregar pedidos")
 
