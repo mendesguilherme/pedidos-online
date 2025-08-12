@@ -16,6 +16,12 @@ const OrderContext = createContext<OrderContextProps | undefined>(undefined)
 
 type OrderWithIso = Order & { __iso: string }
 
+// 🔧 feature flag para Realtime
+const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true"
+// polling adaptativo (quando Realtime desligado ou indisponível)
+const POLL_BASE_MS = 5000
+const POLL_MAX_MS = 30000
+
 export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   const [orders, setOrders] = useState<Order[]>([])
 
@@ -25,7 +31,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       const clientId = getOrCreateClientId()
       const res = await fetch("/api/orders?limit=100", {
         cache: "no-store",
-        headers: { "X-Client-Id": clientId },   // 🔴 garante o filtro no server
+        headers: { "X-Client-Id": clientId }, // garante o filtro no server
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Falha ao carregar pedidos")
@@ -110,11 +116,10 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [])
 
-  // 🔴 Realtime com debounce (coalescing de eventos)
+  // Realtime OU Polling adaptativo (controlado por flag)
   useEffect(() => {
+    // debounce para evitar storm de reloads
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
-    let pollTimer: ReturnType<typeof setInterval> | null = null
-
     const scheduleReload = () => {
       if (document.visibilityState === "hidden") return
       if (debounceTimer) clearTimeout(debounceTimer)
@@ -124,38 +129,59 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       }, 300)
     }
 
+    // quando realtime DESLIGADO: polling adaptativo
+    if (!ENABLE_REALTIME) {
+      let stopped = false
+      let interval = POLL_BASE_MS
+      let timer: ReturnType<typeof setTimeout> | null = null
+
+      const tick = async () => {
+        if (stopped) return
+        await loadFromApi()
+        interval = Math.min(Math.floor(interval * 1.5), POLL_MAX_MS) // 5s -> 7.5s -> ... -> 30s
+        timer = setTimeout(tick, interval)
+      }
+
+      timer = setTimeout(tick, interval)
+
+      return () => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        if (timer) clearTimeout(timer)
+        stopped = true
+      }
+    }
+
+    // quando realtime LIGADO
     const sb = getSupabaseBrowser()
     if (!sb) return
 
+    const clientId = getOrCreateClientId()
+
+    // filtro por client_id para reduzir eventos desnecessários
     const channel = sb
-    .channel("orders-realtime")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "orders" },
-      (payload: RealtimePostgresChangesPayload<any>) => {
-        // console.log("[RT] evento:", payload.eventType)
-        scheduleReload()
-      }
-    )
-    .subscribe((status: RealtimeChannel["state"]) => {
-      // status: 'joined' | 'joining' | 'leaving' | 'closed' | 'errored'
-      if (status !== "joined") {
-        if (!pollTimer) {
-          pollTimer = setInterval(() => {
-            if (document.visibilityState === "visible") loadFromApi()
-          }, 10000)
+      .channel(`orders-realtime-${clientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `client_id=eq.${clientId}`,
+        },
+        (_payload: RealtimePostgresChangesPayload<any>) => {
+          scheduleReload()
         }
-      } else {
-        if (pollTimer) {
-          clearInterval(pollTimer)
-          pollTimer = null
+      )
+      .subscribe((status: RealtimeChannel["state"]) => {
+        // 'joined' | 'joining' | 'leaving' | 'closed' | 'errored'
+        if (status !== "joined") {
+          // fallback rápido caso WS não conecte
+          setTimeout(() => loadFromApi(), 1000)
         }
-      }
-    })
+      })
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer)
-      if (pollTimer) clearInterval(pollTimer)
       sb.removeChannel(channel)
     }
   }, [])
