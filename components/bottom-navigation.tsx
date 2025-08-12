@@ -122,12 +122,15 @@ export function BottomNavigation() {
             className={btnClass(isActive("/perfil"))}
             aria-current={isActive("/perfil") ? "page" : undefined}
           >
-            <div className="h-4 flex items-center justify-center">
-              <User className="w-4 h-4" />
+            <div className={innerWrap}>
+              <div className="h-4 flex items-center justify-center">
+                <User className="w-4 h-4" />
+              </div>
+              <span className={labelClass}>Perfil</span>
             </div>
-            <span className={labelClass}>Perfil</span>
           </Link>
         )}
+
       </div>
     </div>
   )
