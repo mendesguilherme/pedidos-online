@@ -132,7 +132,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Client-Id": getOrCreateClientId(),
+        "X-Client-Id": getOrCreateClientId(),  // 🔴 garante o filtro no server
       },
       body: JSON.stringify(payload),
     })
