@@ -14,8 +14,37 @@ function admin() {
 }
 
 function getClientIdFromHeaders(req: Request) {
-  const h = req.headers.get("x-client-id") || ""
-  return h.trim()
+  return (req.headers.get("x-client-id") || "").trim()
+}
+
+/** Envia payload pro n8n sem quebrar a request principal */
+async function notifyN8n(payload: any) {
+  const url = process.env.N8N_WEBHOOK_URL
+  if (!url) return // sem URL => não tenta
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const token = process.env.N8N_WEBHOOK_TOKEN
+  if (token) headers["X-Webhook-Token"] = token
+
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), 3500) // timeout de ~3.5s
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "")
+      console.error(`[n8n] HTTP ${res.status} ${res.statusText} - ${txt}`)
+    }
+  } catch (err) {
+    console.error("[n8n] Falha ao notificar:", err)
+  } finally {
+    clearTimeout(t)
+  }
 }
 
 export async function POST(req: Request) {
@@ -74,50 +103,23 @@ export async function POST(req: Request) {
 
     // 3) Gera links de ação (JWT) para WhatsApp/Typebot
     const { aceitar, negar } = await buildAcceptDenyLinks(order.id)
-    // Se já quiser os próximos status, descomente:
     // const { saiu, entregue } = await buildProgressLinks(order.id)
 
-    // 4) Notifica o n8n (não bloqueante do fluxo de criação)
-    const n8nUrl = process.env.N8N_WEBHOOK_URL
-    if (n8nUrl) {
-      try {
-        await fetch(n8nUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(process.env.N8N_WEBHOOK_TOKEN
-              ? { "X-Webhook-Token": process.env.N8N_WEBHOOK_TOKEN }
-              : {}),
-          },
-          body: JSON.stringify({
-            source: "orders_api",
-            sentAt: new Date().toISOString(),
-            clientId,
-            order,
-            actionLinks: {
-              aceitar,
-              negar,
-              // saiu,
-              // entregue,
-            },
-          }),
-        })
-      } catch (notifyErr) {
-        // não derruba a criação do pedido
-        console.warn("Falha ao notificar n8n (ignorado):", notifyErr)
-      }
-    }
+    // 4) Dispara o n8n (fire-and-forget, não bloqueia e não quebra a resposta)
+    notifyN8n({
+      source: "orders_api",
+      sentAt: new Date().toISOString(),
+      clientId,
+      order,
+      actionLinks: { aceitar, negar /*, saiu, entregue */ },
+    }).catch(() => {}) // já tem try/catch interno, mas garantimos
 
+    // 5) Responde sucesso imediatamente
     return NextResponse.json(
       {
         success: true,
         order,
-        actionLinks: {
-          aceitar,
-          negar,
-          // saiu,
-          // entregue,
-        },
+        actionLinks: { aceitar, negar /*, saiu, entregue */ },
       },
       { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
     )
