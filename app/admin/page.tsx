@@ -41,6 +41,45 @@ function resumoItens(cart: any): string {
     .join(" • ");
 }
 
+/** Data de hoje em São Paulo no formato YYYY-MM-DD */
+function todayInSaoPaulo(): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const day = parts.find((p) => p.type === "day")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const year = parts.find((p) => p.type === "year")!.value;
+  return `${year}-${month}-${day}`;
+}
+
+/** Converte um ISO UTC do banco para string PT-BR em Brasília */
+function fmtDateBR_SP(iso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(iso));
+}
+
+/** Mapeia método de pagamento para PT-BR */
+function labelPgto(v?: string | null) {
+  if (!v) return "—";
+  const map: Record<string, string> = {
+    card: "Cartão",
+    credit_card: "Cartão",
+    debit_card: "Cartão (débito)",
+    cash: "Dinheiro",
+    money: "Dinheiro",
+    pix: "PIX",
+    boleto: "Boleto",
+  };
+  return map[v] ?? v.charAt(0).toUpperCase() + v.slice(1);
+}
+
 function buildQS(
   current: Record<string, string | undefined>,
   overrides: Record<string, string | undefined | null>
@@ -63,20 +102,22 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
     Object.entries(searchParams ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
   ) as Record<string, string | undefined>;
 
-  // paginação / limites
+  // paginação / limites (máx 50)
   const page = Math.max(1, Number.parseInt(sp.p ?? "1") || 1);
   const perRaw = Number.parseInt(sp.rpp ?? "25") || 25;
   const rpp = Math.max(1, Math.min(perRaw, 50));
 
-  // filtros
+  // filtros vindos da URL
   const f_code = sp.code?.trim();
-  const f_status = sp.status?.trim();
-  const f_tipo = sp.tipo?.trim();
-  const f_pgto = sp.pgto?.trim();
+  const f_status = sp.status?.trim(); // valores: pendente, em_preparo, saiu_para_entrega, entregue, cancelado
+  const f_tipo = sp.tipo?.trim(); // entrega | retirada
+  const f_pgto = sp.pgto?.trim(); // card | cash | pix | ...
   const f_total_min = sp.tmin?.trim();
   const f_total_max = sp.tmax?.trim();
-  const f_created_from = sp.cf?.trim();
-  const f_created_to = sp.ct?.trim();
+  // datas (se não vierem, aplicamos HOJE por padrão)
+  const defaultDay = todayInSaoPaulo();
+  const f_created_from = (sp.cf?.trim() || defaultDay);
+  const f_created_to =   (sp.ct?.trim() || f_created_from);
 
   const supa = adminClient();
 
@@ -91,16 +132,20 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
     );
 
   if (f_code) query = query.ilike("order_code", `%${f_code}%`);
-  if (f_status) query = query.eq("status", f_status);
-  if (f_tipo) query = query.eq("tipo", f_tipo);
-  if (f_pgto) query = query.eq("payment_method", f_pgto);
+  // status: só aplica se não vier "todos" / "all" / vazio
+  if (f_status && !["todos", "all"].includes(f_status)) query = query.eq("status", f_status);
+  if (f_tipo && !["todos", "all"].includes(f_tipo)) query = query.eq("tipo", f_tipo);
+  if (f_pgto && !["todos", "all"].includes(f_pgto)) query = query.eq("payment_method", f_pgto);
 
   if (f_total_min && !Number.isNaN(Number(f_total_min))) query = query.gte("total", Number(f_total_min));
   if (f_total_max && !Number.isNaN(Number(f_total_max))) query = query.lte("total", Number(f_total_max));
 
-  if (f_created_from) query = query.gte("created_at", f_created_from);
-  if (f_created_to) query = query.lte("created_at", f_created_to + "T23:59:59.999Z");
+  // janela do dia em UTC-3 (Brasil sem DST)
+  const fromISO = `${f_created_from}T00:00:00-03:00`;
+  const toISO   = `${f_created_to}T23:59:59.999-03:00`;
+  query = query.gte("created_at", fromISO).lte("created_at", toISO);
 
+  // ordenação + range (paginação)
   const offset = (page - 1) * rpp;
   query = query.order("created_at", { ascending: false }).range(offset, offset + rpp - 1);
 
@@ -126,32 +171,31 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const enriched = await Promise.all(
     orders.map(async (o) => {
       const aceitar = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
-      const negar = await buildActionLink(o.id, "negar", { redirect, v: "html" });
+      const negar   = await buildActionLink(o.id, "negar",   { redirect, v: "html" });
       return { ...o, links: { aceitar, negar } };
     })
   );
 
   const currentQS: Record<string, string | undefined> = {
-    code: f_code,
-    status: f_status,
-    tipo: f_tipo,
-    pgto: f_pgto,
-    tmin: f_total_min,
-    tmax: f_total_max,
-    cf: f_created_from,
-    ct: f_created_to,
+    code: f_code || undefined,
+    status: f_status || undefined,
+    tipo: f_tipo || undefined,
+    pgto: f_pgto || undefined,
+    tmin: f_total_min || undefined,
+    tmax: f_total_max || undefined,
+    cf: f_created_from || undefined,
+    ct: f_created_to || undefined,
     rpp: String(rpp),
   };
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      {/* ativa live-update sem recarregar manual */}
       <RealtimeRefresher />
-      
+
       <h1 className="text-2xl font-bold">Admin • Pedidos</h1>
       <p className="text-sm text-gray-500 mt-2">
         Clique em Aceitar/Negar para atualizar o status. Você retornará a esta página após a ação.
-      </p>      
+      </p>
 
       {/* Filtros — grid responsiva */}
       <form
@@ -165,32 +209,45 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Status</label>
-          <input
+          <select
             name="status"
             defaultValue={f_status ?? ""}
             className="mt-1 w-full rounded-md border px-2 py-1"
-            placeholder="pendente / em_preparo / cancelado"
-          />
+          >
+            <option value="">Todos</option>
+            <option value="pendente">Pendente</option>
+            <option value="em_preparo">Em preparo</option>
+            <option value="saiu_para_entrega">Saiu para entrega</option>
+            <option value="entregue">Entregue</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Tipo</label>
-          <input
+          <select
             name="tipo"
             defaultValue={f_tipo ?? ""}
             className="mt-1 w-full rounded-md border px-2 py-1"
-            placeholder="entrega / retirada"
-          />
+          >
+            <option value="">Todos</option>
+            <option value="entrega">Entrega</option>
+            <option value="retirada">Retirada</option>
+          </select>
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Pagamento</label>
-          <input
+          <select
             name="pgto"
             defaultValue={f_pgto ?? ""}
             className="mt-1 w-full rounded-md border px-2 py-1"
-            placeholder="card / cash / pix ..."
-          />
+          >
+            <option value="">Todos</option>
+            <option value="pix">PIX</option>
+            <option value="card">Cartão</option>
+            <option value="cash">Dinheiro</option>
+          </select>
         </div>
 
         <div className="min-w-0 lg:col-span-1">
@@ -217,12 +274,12 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Criado de</label>
-          <input name="cf" defaultValue={f_created_from ?? ""} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
+          <input name="cf" defaultValue={f_created_from} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Criado até</label>
-          <input name="ct" defaultValue={f_created_to ?? ""} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
+          <input name="ct" defaultValue={f_created_to} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
@@ -259,16 +316,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
             {enriched.map((o) => (
               <tr key={o.id} className="align-top">
                 <td className="px-3 py-2 font-medium">{o.order_code ?? o.id.slice(0, 8)}</td>
-                <td className="px-3 py-2">{new Date(o.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>
                 <td className="px-3 py-2">{o.status}</td>
                 <td className="px-3 py-2">{o.tipo ?? "—"}</td>
                 <td className="px-3 py-2">{fmtBRL(o.total)}</td>
-                <td className="px-3 py-2">{o.payment_method ?? "—"}</td>
+                <td className="px-3 py-2">{labelPgto(o.payment_method)}</td>
                 <td className="px-3 py-2 max-w-[360px]">
                   <div className="text-gray-700">{resumoItens(o.cart)}</div>
                 </td>
                 <td className="px-3 py-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <a
                       href={o.links.aceitar}
                       className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
