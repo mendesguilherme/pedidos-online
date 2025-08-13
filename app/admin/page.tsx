@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
+import { allowedActionsFor } from "@/lib/orders-workflow"; // ⬅️ NOVO
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -97,6 +98,17 @@ function buildQS(
 
 type PageProps = { searchParams?: Record<string, string | string[] | undefined> };
 
+/** Tipo auxiliar só para tipar o que adicionamos em runtime */
+type EnrichedOrder = Order & {
+  actions: string[]; // lista de ações permitidas
+  links: {
+    aceitar: string;
+    negar: string;
+    saiu: string;
+    entregue: string;
+  };
+};
+
 export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const sp = Object.fromEntries(
     Object.entries(searchParams ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
@@ -109,15 +121,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
   // filtros vindos da URL
   const f_code = sp.code?.trim();
-  const f_status = sp.status?.trim(); // valores: pendente, em_preparo, saiu_para_entrega, entregue, cancelado
-  const f_tipo = sp.tipo?.trim(); // entrega | retirada
-  const f_pgto = sp.pgto?.trim(); // card | cash | pix | ...
+  const f_status = sp.status?.trim(); // pendente | em_preparo | saiu_para_entrega | entregue | cancelado
+  const f_tipo = sp.tipo?.trim();     // entrega | retirada
+  const f_pgto = sp.pgto?.trim();     // card | cash | pix | ...
   const f_total_min = sp.tmin?.trim();
   const f_total_max = sp.tmax?.trim();
+
   // datas (se não vierem, aplicamos HOJE por padrão)
   const defaultDay = todayInSaoPaulo();
   const f_created_from = (sp.cf?.trim() || defaultDay);
-  const f_created_to =   (sp.ct?.trim() || f_created_from);
+  const f_created_to   = (sp.ct?.trim() || f_created_from);
 
   const supa = adminClient();
 
@@ -132,7 +145,6 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
     );
 
   if (f_code) query = query.ilike("order_code", `%${f_code}%`);
-  // status: só aplica se não vier "todos" / "all" / vazio
   if (f_status && !["todos", "all"].includes(f_status)) query = query.eq("status", f_status);
   if (f_tipo && !["todos", "all"].includes(f_tipo)) query = query.eq("tipo", f_tipo);
   if (f_pgto && !["todos", "all"].includes(f_pgto)) query = query.eq("payment_method", f_pgto);
@@ -140,7 +152,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   if (f_total_min && !Number.isNaN(Number(f_total_min))) query = query.gte("total", Number(f_total_min));
   if (f_total_max && !Number.isNaN(Number(f_total_max))) query = query.lte("total", Number(f_total_max));
 
-  // janela do dia em UTC-3 (Brasil sem DST)
+  // janela do dia em UTC-3
   const fromISO = `${f_created_from}T00:00:00-03:00`;
   const toISO   = `${f_created_to}T23:59:59.999-03:00`;
   query = query.gte("created_at", fromISO).lte("created_at", toISO);
@@ -168,11 +180,21 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
   const redirect = `${base}/admin`;
 
-  const enriched = await Promise.all(
+  // ⬇️ NOVO: gera links extras e a lista de ações permitidas por linha
+  const enriched: EnrichedOrder[] = await Promise.all(
     orders.map(async (o) => {
       const aceitar = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
       const negar   = await buildActionLink(o.id, "negar",   { redirect, v: "html" });
-      return { ...o, links: { aceitar, negar } };
+      const saiu    = await buildActionLink(o.id, "saiu_para_entrega", { redirect, v: "html" });
+      const entregue= await buildActionLink(o.id, "entregue", { redirect, v: "html" });
+
+      const actions = allowedActionsFor({ status: o.status as any, tipo: o.tipo as any });
+
+      return {
+        ...(o as Order),
+        actions,
+        links: { aceitar, negar, saiu, entregue },
+      };
     })
   );
 
@@ -326,18 +348,38 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-2">
-                    <a
-                      href={o.links.aceitar}
-                      className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
-                    >
-                      Aceitar
-                    </a>
-                    <a
-                      href={o.links.negar}
-                      className="rounded-md bg-rose-600 px-3 py-1 text-white hover:bg-rose-700"
-                    >
-                      Negar
-                    </a>
+                    {o.actions.includes("aceitar") && (
+                      <a
+                        href={o.links.aceitar}
+                        className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
+                      >
+                        Aceitar
+                      </a>
+                    )}
+                    {o.actions.includes("negar") && (
+                      <a
+                        href={o.links.negar}
+                        className="rounded-md bg-rose-600 px-3 py-1 text-white hover:bg-rose-700"
+                      >
+                        Negar
+                      </a>
+                    )}
+                    {o.actions.includes("saiu_para_entrega") && (
+                      <a
+                        href={o.links.saiu}
+                        className="rounded-md bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+                      >
+                        Saiu p/ entrega
+                      </a>
+                    )}
+                    {o.actions.includes("entregue") && (
+                      <a
+                        href={o.links.entregue}
+                        className="rounded-md bg-slate-800 px-3 py-1 text-white hover:bg-slate-900"
+                      >
+                        Entregue
+                      </a>
+                    )}
                   </div>
                 </td>
               </tr>

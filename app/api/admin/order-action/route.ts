@@ -5,27 +5,14 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyActionToken, type OrderAction } from "@/lib/admin-jwt";
+// ✅ novo: usa o workflow centralizado (mapeamento e validação de transições)
+import { mapActionToStatus, canTransition, isOrderAction  } from "@/lib/orders-workflow";
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   if (!url || !key) throw new Error("Supabase envs ausentes");
   return createClient(url, key);
-}
-
-function mapActionToStatus(action: OrderAction | string) {
-  switch (action) {
-    case "aceitar":
-      return "em_preparo";
-    case "negar":
-      return "cancelado";
-    case "saiu_para_entrega":
-      return "saiu_para_entrega";
-    case "entregue":
-      return "entregue";
-    default:
-      return null;
-  }
 }
 
 const HTML_OK = (msg: string) => `<!doctype html>
@@ -114,7 +101,7 @@ function okResponse(
     );
   }
 
-  // 3) HTML (padrão, comportamento antigo)
+  // 3) HTML (padrão)
   return new NextResponse(
     HTML_OK(
       `Pedido ${order.order_code ?? order.id} atualizado para "${order.status}".`
@@ -153,7 +140,30 @@ export async function GET(req: Request) {
       const nextStatus = mapActionToStatus(claims.action as OrderAction);
       if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
 
-      const { data, error } = await admin()
+      const supa = admin();
+
+      // ✅ lê o pedido atual antes de atualizar
+      const { data: current, error: readErr } = await supa
+        .from("orders")
+        .select("id, status, tipo, order_code")
+        .eq("id", claims.sub)
+        .single();
+
+      if (readErr || !current) {
+        return errResponse("Pedido não encontrado.", 404, searchParams);
+      }
+
+      // ✅ valida a transição de status
+      if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        return errResponse(
+          `Transição inválida de "${current.status}" para "${nextStatus}".`,
+          400,
+          searchParams
+        );
+      }
+
+      // segue com o update
+      const { data, error } = await supa
         .from("orders")
         .update({ status: nextStatus })
         .eq("id", claims.sub)
@@ -169,12 +179,38 @@ export async function GET(req: Request) {
       return okResponse(data, searchParams);
     }
 
+    // app/api/admin/order-action/route.ts
     // 2) PLAIN (orderId + action)
     if (orderId && action) {
-      const nextStatus = mapActionToStatus(action);
+      // ✅ valida primeiro a ação recebida (corrige o erro de tipo)
+      if (!isOrderAction(action)) {
+        return errResponse("Ação inválida.", 400, searchParams);
+      }
+
+      const nextStatus = mapActionToStatus(action); // agora 'action' é OrderAction
       if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
 
-      const { data, error } = await admin()
+      const supa = admin();
+
+      const { data: current, error: readErr } = await supa
+        .from("orders")
+        .select("id, status, tipo, order_code")
+        .eq("id", orderId)
+        .single();
+
+      if (readErr || !current) {
+        return errResponse("Pedido não encontrado.", 404, searchParams);
+      }
+
+      if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        return errResponse(
+          `Transição inválida de "${current.status}" para "${nextStatus}".`,
+          400,
+          searchParams
+        );
+      }
+
+      const { data, error } = await supa
         .from("orders")
         .update({ status: nextStatus })
         .eq("id", orderId)
