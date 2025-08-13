@@ -1,6 +1,13 @@
 // lib/admin-actions.ts
 import { signActionToken, OrderAction } from "./admin-jwt";
 
+type BuildOpts = {
+  /** URL para redirecionar depois da ação, ex: https://seuapp.com/admin */
+  redirect?: string;
+  /** Formato de resposta desejado pelo endpoint: "html" (padrão) ou "json" */
+  v?: "html" | "json";
+};
+
 function baseUrl() {
   const v = process.env.APP_BASE_URL;
   if (!v) throw new Error("APP_BASE_URL não definido");
@@ -12,29 +19,43 @@ function linkMode(): "plain" | "jwt" {
   return v === "jwt" ? "jwt" : "plain";
 }
 
-export async function buildActionLink(orderId: string, action: string) {
+/**
+ * Gera link de ação.
+ * Uso antigo continua funcionando:
+ *   buildActionLink(orderId, "aceitar")
+ * Novo (opcional):
+ *   buildActionLink(orderId, "aceitar", { redirect: "https://app/admin", v: "html" })
+ */
+export async function buildActionLink(orderId: string, action: string, opts: BuildOpts = {}) {
   const mode = linkMode();
   const a = String(action).toLowerCase() as OrderAction;
 
+  const qp: string[] = [];
+
   if (mode === "jwt") {
     const token = await signActionToken(orderId, a);
-    return `${baseUrl()}/api/admin/order-action?token=${encodeURIComponent(token)}`;
+    qp.push(`token=${encodeURIComponent(token)}`);
+  } else {
+    qp.push(`orderId=${encodeURIComponent(orderId)}`);
+    qp.push(`action=${encodeURIComponent(a)}`);
   }
 
-  // plain
-  return `${baseUrl()}/api/admin/order-action?orderId=${encodeURIComponent(orderId)}&action=${encodeURIComponent(a)}`;
+  if (opts.redirect) qp.push(`redirect=${encodeURIComponent(opts.redirect)}`);
+  if (opts.v)        qp.push(`v=${encodeURIComponent(opts.v)}`);
+
+  return `${baseUrl()}/api/admin/order-action?${qp.join("&")}`;
 }
 
-export async function buildAcceptDenyLinks(orderId: string) {
+export async function buildAcceptDenyLinks(orderId: string, opts?: BuildOpts) {
   return {
-    aceitar: await buildActionLink(orderId, "aceitar"),
-    negar: await buildActionLink(orderId, "negar"),
+    aceitar: await buildActionLink(orderId, "aceitar", opts),
+    negar:   await buildActionLink(orderId, "negar",   opts),
   };
 }
 
-export async function buildProgressLinks(orderId: string) {
+export async function buildProgressLinks(orderId: string, opts?: BuildOpts) {
   return {
-    saiu: await buildActionLink(orderId, "saiu_para_entrega"),
-    entregue: await buildActionLink(orderId, "entregue"),
+    saiu:     await buildActionLink(orderId, "saiu_para_entrega", opts),
+    entregue: await buildActionLink(orderId, "entregue",          opts),
   };
 }
