@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyActionToken, type OrderAction } from "@/lib/admin-jwt";
-// ✅ novo: usa o workflow centralizado (mapeamento e validação de transições)
-import { mapActionToStatus, canTransition, isOrderAction  } from "@/lib/orders-workflow";
+import { mapActionToStatus, canTransition, isOrderAction } from "@/lib/orders-workflow";
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -55,7 +54,7 @@ function sanitizeRedirect(raw?: string | null) {
   if (!raw) return null;
   const r = raw.trim();
   if (!r) return null;
-  if (r.startsWith("/")) return r; // relativo no mesmo host
+  if (r.startsWith("/")) return r;
 
   try {
     const base = new URL(process.env.APP_BASE_URL!);
@@ -63,9 +62,7 @@ function sanitizeRedirect(raw?: string | null) {
     if (target.host === base.host && target.protocol === base.protocol) {
       return target.toString();
     }
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
   return null;
 }
 
@@ -82,13 +79,11 @@ function okResponse(
     "Content-Type": "text/html; charset=utf-8",
   };
 
-  // 1) redirect tem prioridade
   const redirect = sanitizeRedirect(search.get("redirect"));
   if (redirect) {
     return NextResponse.redirect(redirect, { headers });
   }
 
-  // 2) JSON se solicitado
   if (wantsJson(search)) {
     return NextResponse.json(
       {
@@ -101,11 +96,8 @@ function okResponse(
     );
   }
 
-  // 3) HTML (padrão)
   return new NextResponse(
-    HTML_OK(
-      `Pedido ${order.order_code ?? order.id} atualizado para "${order.status}".`
-    ),
+    HTML_OK(`Pedido ${order.order_code ?? order.id} atualizado para "${order.status}".`),
     { status: 200, headers }
   );
 }
@@ -123,26 +115,65 @@ function errResponse(msg: string, status = 400, search?: URLSearchParams) {
   });
 }
 
+/** Lê o motivo da negação (POST body JSON {reason} ou query ?reason=). */
+async function readReason(req: Request, search: URLSearchParams): Promise<string | null> {
+  let bodyReason = "";
+  try {
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => null);
+      bodyReason = String(body?.reason ?? "").trim();
+    }
+  } catch { /* ignore parse */ }
+
+  const queryReason = String(search.get("reason") ?? "").trim();
+
+  const reason = (bodyReason || queryReason).slice(0, 500);
+  return reason ? reason : null;
+}
+
+/** Atualiza o pedido aplicando status e, se for cancelamento, grava reason/canceled_at. */
+async function updateOrderWithStatus(
+  supa: ReturnType<typeof admin>,
+  orderId: string,
+  nextStatus: string,
+  reason: string | null
+) {
+  const update: Record<string, any> = { status: nextStatus };
+  if (nextStatus === "cancelado") {
+    update.canceled_at = new Date().toISOString();
+    update.cancel_reason = reason ?? null;
+  }
+
+  const { data, error } = await supa
+    .from("orders")
+    .update(update)
+    .eq("id", orderId)
+    .select("id, order_code, status")
+    .single();
+
+  return { data, error };
+}
+
+// -------------------- GET --------------------
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // Normaliza parâmetros
     const tokenRaw = searchParams.get("token");
     const token = tokenRaw && tokenRaw.trim() !== "" ? tokenRaw : null;
 
     const orderId = searchParams.get("orderId")?.trim() || null;
-    const action = searchParams.get("action")?.trim() || null;
+    const actionRaw = searchParams.get("action")?.trim() || null;
 
-    // 1) JWT
+    // 1) Fluxo JWT
     if (token) {
       const claims = await verifyActionToken(token);
-      const nextStatus = mapActionToStatus(claims.action as OrderAction);
+      const action = claims.action as OrderAction;
+      const nextStatus = mapActionToStatus(action);
       if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
 
       const supa = admin();
 
-      // ✅ lê o pedido atual antes de atualizar
       const { data: current, error: readErr } = await supa
         .from("orders")
         .select("id, status, tipo, order_code")
@@ -153,7 +184,6 @@ export async function GET(req: Request) {
         return errResponse("Pedido não encontrado.", 404, searchParams);
       }
 
-      // ✅ valida a transição de status
       if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
         return errResponse(
           `Transição inválida de "${current.status}" para "${nextStatus}".`,
@@ -162,32 +192,24 @@ export async function GET(req: Request) {
         );
       }
 
-      // segue com o update
-      const { data, error } = await supa
-        .from("orders")
-        .update({ status: nextStatus })
-        .eq("id", claims.sub)
-        .select("id, order_code, status")
-        .single();
+      const reason = await readReason(req, searchParams); // pode vir pela query no GET
 
-      if (error) {
-        console.error("order-action update error (jwt):", error);
+      const { data, error } = await updateOrderWithStatus(supa, claims.sub, nextStatus, reason);
+      if (error || !data) {
+        console.error("order-action update error (jwt/get):", error);
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
-      if (!data) return errResponse("Pedido não encontrado.", 404, searchParams);
 
       return okResponse(data, searchParams);
     }
 
-    // app/api/admin/order-action/route.ts
-    // 2) PLAIN (orderId + action)
-    if (orderId && action) {
-      // ✅ valida primeiro a ação recebida (corrige o erro de tipo)
-      if (!isOrderAction(action)) {
+    // 2) Fluxo simples (orderId + action)
+    if (orderId && actionRaw) {
+      if (!isOrderAction(actionRaw)) {
         return errResponse("Ação inválida.", 400, searchParams);
       }
-
-      const nextStatus = mapActionToStatus(action); // agora 'action' é OrderAction
+      const action = actionRaw as OrderAction;
+      const nextStatus = mapActionToStatus(action);
       if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
 
       const supa = admin();
@@ -210,26 +232,115 @@ export async function GET(req: Request) {
         );
       }
 
-      const { data, error } = await supa
-        .from("orders")
-        .update({ status: nextStatus })
-        .eq("id", orderId)
-        .select("id, order_code, status")
-        .single();
+      const reason = await readReason(req, searchParams);
 
-      if (error) {
-        console.error("order-action update error (plain):", error);
+      const { data, error } = await updateOrderWithStatus(supa, orderId, nextStatus, reason);
+      if (error || !data) {
+        console.error("order-action update error (plain/get):", error);
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
-      if (!data) return errResponse("Pedido não encontrado.", 404, searchParams);
 
       return okResponse(data, searchParams);
     }
 
-    // 3) Nada útil veio
     return errResponse("Parâmetros ausentes.", 400, searchParams);
   } catch (e: any) {
     console.error("GET /api/admin/order-action:", e);
+    return errResponse(e?.message || "Erro inesperado.", 400);
+  }
+}
+
+// -------------------- POST --------------------
+// Igual ao GET, mas lê preferencialmente o motivo do corpo JSON {reason}
+export async function POST(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+
+    const tokenRaw = searchParams.get("token");
+    const token = tokenRaw && tokenRaw.trim() !== "" ? tokenRaw : null;
+
+    const orderId = searchParams.get("orderId")?.trim() || null;
+    const actionRaw = searchParams.get("action")?.trim() || null;
+
+    const reason = await readReason(req, searchParams); // corpo JSON ou query
+
+    // 1) Fluxo JWT
+    if (token) {
+      const claims = await verifyActionToken(token);
+      const action = claims.action as OrderAction;
+      const nextStatus = mapActionToStatus(action);
+      if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
+
+      const supa = admin();
+
+      const { data: current, error: readErr } = await supa
+        .from("orders")
+        .select("id, status, tipo, order_code")
+        .eq("id", claims.sub)
+        .single();
+
+      if (readErr || !current) {
+        return errResponse("Pedido não encontrado.", 404, searchParams);
+      }
+
+      if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        return errResponse(
+          `Transição inválida de "${current.status}" para "${nextStatus}".`,
+          400,
+          searchParams
+        );
+      }
+
+      const { data, error } = await updateOrderWithStatus(supa, claims.sub, nextStatus, reason);
+      if (error || !data) {
+        console.error("order-action update error (jwt/post):", error);
+        return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
+      }
+
+      return okResponse(data, searchParams);
+    }
+
+    // 2) Fluxo simples (orderId + action)
+    if (orderId && actionRaw) {
+      if (!isOrderAction(actionRaw)) {
+        return errResponse("Ação inválida.", 400, searchParams);
+      }
+      const action = actionRaw as OrderAction;
+      const nextStatus = mapActionToStatus(action);
+      if (!nextStatus) return errResponse("Ação inválida.", 400, searchParams);
+
+      const supa = admin();
+
+      const { data: current, error: readErr } = await supa
+        .from("orders")
+        .select("id, status, tipo, order_code")
+        .eq("id", orderId)
+        .single();
+
+      if (readErr || !current) {
+        return errResponse("Pedido não encontrado.", 404, searchParams);
+      }
+
+      if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        return errResponse(
+          `Transição inválida de "${current.status}" para "${nextStatus}".`,
+          400,
+          searchParams
+        );
+      }
+
+      const { data, error } = await updateOrderWithStatus(supa, orderId, nextStatus, reason);
+      if (error || !data) {
+        console.error("order-action update error (plain/post):", error);
+        return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
+      }
+
+      return okResponse(data, searchParams);
+    }
+
+    return errResponse("Parâmetros ausentes.", 400, searchParams);
+  } catch (e: any) {
+    console.error("POST /api/admin/order-action:", e);
     return errResponse(e?.message || "Erro inesperado.", 400);
   }
 }

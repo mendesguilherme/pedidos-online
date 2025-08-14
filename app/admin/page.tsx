@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -36,14 +35,13 @@ const btnEntregue =
 
 const btnPager = "h-9 rounded-xl px-3";
 
-
 const baseField =
   "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] \
 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
 
 const inputClass  = baseField;
-const selectClass = `${baseField} leading-[2.5rem] appearance-none pr-8`; 
-const dateClass   = `${baseField} [&_::-webkit-datetime-edit]:leading-[2.5rem]`; 
+const selectClass = `${baseField} leading-[2.5rem] appearance-none pr-8`;
+const dateClass   = `${baseField} [&_::-webkit-datetime-edit]:leading-[2.5rem]`;
 const btnPrimary  = "rounded-xl bg-gray-900 px-3 py-2 text-white hover:bg-black";
 const btnGhost    = "rounded-xl bg-gray-200 px-3 py-2 hover:bg-gray-300";
 
@@ -360,7 +358,6 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-
       {/* Tabela */}
       <div className="mt-6 overflow-x-auto rounded-xl border bg-white">
         <table className="min-w-full text-sm">
@@ -429,9 +426,15 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                       </Button>
                     )}
                     {o.actions.includes("negar") && (
-                      <Button asChild variant="outline" className={btnNegar}>
-                        <a href={o.links.negar}>Negar</a>
-                      </Button>
+                      // ⬇️ Botão que abre o modal nativo para informar motivo
+                      <button
+                        type="button"
+                        className={btnNegar}
+                        data-deny-token={o.links.negar}
+                        data-deny-redirect={redirect}
+                      >
+                        Negar
+                      </button>
                     )}
                     {o.actions.includes("saiu_para_entrega") && (
                       <Button asChild variant="outline" className={btnSaiu}>
@@ -460,6 +463,79 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         </table>
       </div>
+
+      {/* Modal nativo para "Negar" (sem transformar a página em client) */}
+      <dialog id="denyModal" className="rounded-xl border p-0 w-full max-w-md">
+        <form method="dialog" className="p-4 space-y-3">
+          <div className="text-base font-semibold">Negar pedido</div>
+          <p className="text-sm text-gray-600">
+            Informe um motivo (opcional) para registrar no pedido.
+          </p>
+          <textarea
+            id="denyReason"
+            className="w-full h-28 rounded-xl border border-purple-300 p-2 outline-none focus:ring-2 focus:ring-purple-200"
+            maxLength={500}
+            placeholder="Ex.: Endereço fora da área de entrega, item indisponível, etc."
+          />
+          <div className="flex justify-end gap-2 pt-1">
+            <button value="cancel" className="rounded-xl bg-gray-200 px-3 py-2 hover:bg-gray-300">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              data-confirm
+              className="rounded-xl bg-gray-900 text-white px-3 py-2 hover:bg-black"
+            >
+              Confirmar negação
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* Script leve para abrir o dialog e enviar POST com {reason} */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  var dlg = document.getElementById('denyModal');
+  if(!dlg) return;
+  var reasonEl = dlg.querySelector('#denyReason');
+
+  document.addEventListener('click', function(e){
+    var target = e.target;
+    if(!target) return;
+    var btn = target.closest && target.closest('[data-deny-token]');
+    if(!btn) return;
+    e.preventDefault();
+    dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
+    dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/admin';
+    if (reasonEl) reasonEl.value = '';
+    try { dlg.showModal(); } catch(_) { /* ignore */ }
+  });
+
+  var confirmBtn = dlg.querySelector('[data-confirm]');
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', async function(){
+      var token = dlg.dataset.token || '';
+      var redirect = dlg.dataset.redirect || '/admin';
+      var reason = reasonEl ? reasonEl.value : '';
+      try{
+        if (token) {
+          await fetch(token, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: String(reason || '').slice(0,500) })
+          });
+        }
+      }catch(_){} finally {
+        try { dlg.close(); } catch(_) {}
+        window.location.assign(redirect);
+      }
+    });
+  }
+})();`
+        }}
+      />
 
       {/* paginação */}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">

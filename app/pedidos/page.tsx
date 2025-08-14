@@ -48,6 +48,8 @@ interface Order {
     reference?: string
   }
   paymentMethod: string
+  /** Motivo do cancelamento (quando status=cancelado) */
+  deniedReason?: string
 }
 
 function dbStatusToUi(status: string): Order["status"] {
@@ -95,7 +97,10 @@ export default function PedidosPage() {
 
       // Tenta ler frete de múltiplas fontes (DB atual, legado e cart)
       const possibleFrete =
-        o.frete ?? o.delivery_fee ?? o.deliveryFee ?? o.cart?.deliveryFee
+        o.frete ??
+        o.delivery_fee ??
+        o.deliveryFee ??
+        o.cart?.deliveryFee
 
       const rawFrete = isEntrega ? Number(possibleFrete ?? 0) : 0
 
@@ -104,6 +109,15 @@ export default function PedidosPage() {
       const total = round2(
         Number(o.total != null ? o.total : subtotal + frete)
       )
+
+      // Motivo do cancelamento — compatível com nomes antigos
+      const deniedReason = String(
+        o.denied_reason ??
+          o.cancel_reason ??
+          o.reason ??
+          o.motivo ??
+          ""
+      ).trim()
 
       return {
         id: String(o.id),
@@ -117,6 +131,7 @@ export default function PedidosPage() {
         total,
         address: o.address,
         paymentMethod: o.paymentMethod ?? o.payment_method ?? "",
+        deniedReason,
       }
     })
   }, [ctxOrders])
@@ -279,6 +294,14 @@ export default function PedidosPage() {
                           </span>
                         </div>
                       </div>
+
+                      {/* 🔴 Motivo do cancelamento — somente quando cancelado */}
+                      {order.status === "cancelado" && order.deniedReason && (
+                        <div className="mt-2 p-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                          <span className="font-semibold">Motivo do cancelamento:</span>
+                          <p className="mt-1 whitespace-pre-wrap">{order.deniedReason}</p>
+                        </div>
+                      )}
 
                       {expandedOrderId === order.id && (
                         <div className="mt-3 space-y-3 text-xs text-gray-700 border-t pt-3">
