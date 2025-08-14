@@ -5,12 +5,47 @@ import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
 import { allowedActionsFor } from "@/lib/orders-workflow"; // mantém
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   return createClient(url, key);
 }
+
+const btnCellBase = "h-9 min-w-[140px] justify-center rounded-xl whitespace-nowrap";
+const btnChipBase = "rounded-xl whitespace-nowrap justify-center";
+
+const btnNotify =
+  `${btnChipBase} h-8 min-w-[160px] border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`;
+
+const btnAceitar =
+  `${btnCellBase} border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`;
+
+const btnNegar =
+  `${btnCellBase} border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100`;
+
+const btnSaiu =
+  `${btnCellBase} border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`;
+
+const btnEntregue =
+  `${btnCellBase} border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100`;
+
+const btnPager = "h-9 rounded-xl px-3";
+
+
+const baseField =
+  "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] \
+focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
+
+const inputClass  = baseField;
+const selectClass = `${baseField} leading-[2.5rem] appearance-none pr-8`; 
+const dateClass   = `${baseField} [&_::-webkit-datetime-edit]:leading-[2.5rem]`; 
+const btnPrimary  = "rounded-xl bg-gray-900 px-3 py-2 text-white hover:bg-black";
+const btnGhost    = "rounded-xl bg-gray-200 px-3 py-2 hover:bg-gray-300";
 
 type Order = {
   id: string;
@@ -24,9 +59,6 @@ type Order = {
   address: any | null;
   client_id: string | null;
 };
-
-const fieldClass =
-  "mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200";
 
 function fmtBRL(v?: number | null) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
@@ -242,20 +274,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 rounded-xl border p-4 bg-white"
       >
         <div className="min-w-0 lg:col-span-3">
-          <label className="block text-xs text-gray-500">Código</label>
-          <input
-            name="code"
-            defaultValue={f_code ?? ""}
-            className={fieldClass}
-          />
+          <Label className="text-xs text-gray-500">Código</Label>
+          <Input name="code" defaultValue={f_code ?? ""} className={`${inputClass} h-[42px]`} />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Status</label>
+          <Label className="text-xs text-gray-500">Status</Label>
           <select
             name="status"
             defaultValue={f_status ?? ""}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
           >
             <option value="">Todos</option>
             <option value="pendente">Pendente</option>
@@ -267,11 +295,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Tipo</label>
+          <Label className="text-xs text-gray-500">Tipo</Label>
           <select
             name="tipo"
             defaultValue={f_tipo ?? ""}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
           >
             <option value="">Todos</option>
             <option value="entrega">Entrega</option>
@@ -280,11 +308,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Pagamento</label>
+          <Label className="text-xs text-gray-500">Pagamento</Label>
           <select
             name="pgto"
             defaultValue={f_pgto ?? ""}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
           >
             <option value="">Todos</option>
             <option value="pix">PIX</option>
@@ -294,53 +322,31 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
 
         <div className="min-w-0 lg:col-span-1">
-          <label className="block text-xs text-gray-500">Total Mín</label>
-          <input
-            name="tmin"
-            defaultValue={f_total_min ?? ""}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            type="number"
-            step="0.01"
-          />
+          <Label className="text-xs text-gray-500">Total Mín</Label>
+          <Input type="number" step="0.01" name="tmin" defaultValue={f_total_min ?? ""} className={`${inputClass} h-[42px]`} />
         </div>
 
         <div className="min-w-0 lg:col-span-1">
-          <label className="block text-xs text-gray-500">Total Máx</label>
-          <input
-            name="tmax"
-            defaultValue={f_total_max ?? ""}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            type="number"
-            step="0.01"
-          />
+          <Label className="text-xs text-gray-500">Total Máx</Label>
+          <Input type="number" step="0.01" name="tmax" defaultValue={f_total_max ?? ""} className={`${inputClass} h-[42px]`} />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Criado de</label>
-          <input
-            name="cf"
-            defaultValue={f_created_from}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            type="date"
-          />
+          <Label className="text-xs text-gray-500">Criado de</Label>
+          <Input type="date" name="cf" defaultValue={f_created_from} className={`${inputClass} h-[42px]`} />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Criado até</label>
-          <input
-            name="ct"
-            defaultValue={f_created_to}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            type="date"
-          />
+          <Label className="text-xs text-gray-500">Criado até</Label>
+          <Input type="date" name="ct" defaultValue={f_created_to} className={`${inputClass} h-[42px]`} />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
-          <label className="block text-xs text-gray-500">Linhas por página</label>
+          <Label className="text-xs text-gray-500">Linhas por página</Label>
           <select
             name="rpp"
             defaultValue={String(rpp)}
-            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
           >
             <option value="10">10</option>
             <option value="25">25</option>
@@ -349,12 +355,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
 
         <div className="sm:col-span-2 lg:col-span-12 flex gap-2 pt-1">
-          <button className="rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-black">Aplicar filtros</button>
-          <a href="/admin" className="rounded-lg bg-gray-200 px-3 py-2 hover:bg-gray-300">
-            Limpar
-          </a>
+          <button className={btnPrimary}>Aplicar filtros</button>
+          <a href="/admin" className={btnGhost}>Limpar</a>
         </div>
       </form>
+
 
       {/* Tabela */}
       <div className="mt-6 overflow-x-auto rounded-xl border bg-white">
@@ -372,6 +377,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
+
           <tbody className="divide-y">
             {enriched.map((o) => (
               <tr
@@ -388,13 +394,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                   <div className="flex items-center gap-2">
                     <span>{o.status}</span>
                     {o.status !== "pendente" && o.status !== "cancelado" && (
-                      <a
-                        href={o.links.notify}
-                        className="rounded-md border border-emerald-500/40 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100"
-                        title="Enviar os detalhes no WhatsApp"
-                      >
-                        Enviar WhatsApp
-                      </a>
+                      <Button asChild variant="outline" className={btnNotify}>
+                        <a href={o.links.notify} title="Enviar os detalhes no WhatsApp">
+                          Enviar WhatsApp
+                        </a>
+                      </Button>
                     )}
                   </div>
                 </td>
@@ -414,27 +418,28 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-2">
                     {o.actions.includes("aceitar") && (
-                      <a href={o.links.aceitar} className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700">
-                        Aceitar
-                      </a>
+                      <Button asChild variant="outline" className={btnAceitar}>
+                        <a href={o.links.aceitar}>Aceitar</a>
+                      </Button>
                     )}
                     {o.actions.includes("negar") && (
-                      <a href={o.links.negar} className="rounded-md bg-rose-600 px-3 py-1 text-white hover:bg-rose-700">
-                        Negar
-                      </a>
+                      <Button asChild variant="outline" className={btnNegar}>
+                        <a href={o.links.negar}>Negar</a>
+                      </Button>
                     )}
                     {o.actions.includes("saiu_para_entrega") && (
-                      <a href={o.links.saiu} className="rounded-md bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700">
-                        Saiu p/ entrega
-                      </a>
+                      <Button asChild variant="outline" className={btnSaiu}>
+                        <a href={o.links.saiu}>Saiu p/ entrega</a>
+                      </Button>
                     )}
                     {o.actions.includes("entregue") && (
-                      <a href={o.links.entregue} className="rounded-md bg-slate-800 px-3 py-1 text-white hover:bg-slate-900">
-                        Entregue
-                      </a>
+                      <Button asChild variant="outline" className={btnEntregue}>
+                        <a href={o.links.entregue}>Entregue</a>
+                      </Button>
                     )}
                   </div>
                 </td>
+
               </tr>
             ))}
 
@@ -446,6 +451,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
               </tr>
             )}
           </tbody>
+
         </table>
       </div>
 
@@ -453,24 +459,28 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
         <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
         <div className="flex gap-2">
-          <a
-            className={`rounded-lg border px-3 py-1 ${
-              page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
-            }`}
-            href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}
+          <Button
+            asChild
+            variant="outline"
+            className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
           >
-            ← Anterior
-          </a>
-          <a
-            className={`rounded-lg border px-3 py-1 ${
-              page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
-            }`}
-            href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}
+            <a href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}>
+              ← Anterior
+            </a>
+          </Button>
+
+          <Button
+            asChild
+            variant="outline"
+            className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
           >
-            Próxima →
-          </a>
+            <a href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}>
+              Próxima →
+            </a>
+          </Button>
         </div>
       </div>
+
     </main>
   );
 }

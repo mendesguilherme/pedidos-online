@@ -100,3 +100,11 @@
 .address-fields select {
   @apply bg-yellow-50;
 }
+
+.select-like-chevron{
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='hsl(278,100%,27%)' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right .65rem center;
+  background-size:1rem 1rem;
+  padding-right:2rem; /* bate com o pr-8 do selectClass */
+}
