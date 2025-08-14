@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
+import DenyWithReasonButton from "./_components/DenyWithReasonButton";
 import { allowedActionsFor } from "@/lib/orders-workflow"; // mantém
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -425,16 +426,8 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                         <a href={o.links.aceitar}>Aceitar</a>
                       </Button>
                     )}
-                    {o.actions.includes("negar") && (
-                      // ⬇️ Botão que abre o modal nativo para informar motivo
-                      <button
-                        type="button"
-                        className={btnNegar}
-                        data-deny-token={o.links.negar}
-                        data-deny-redirect={redirect}
-                      >
-                        Negar
-                      </button>
+                    { o.actions.includes("negar") && (
+                      <DenyWithReasonButton orderId={o.id} className={btnNegar} />
                     )}
                     {o.actions.includes("saiu_para_entrega") && (
                       <Button asChild variant="outline" className={btnSaiu}>

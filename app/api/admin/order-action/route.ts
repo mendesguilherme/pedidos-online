@@ -115,18 +115,22 @@ function errResponse(msg: string, status = 400, search?: URLSearchParams) {
   });
 }
 
-/** Lê o motivo da negação (POST body JSON {reason} ou query ?reason=). */
-async function readReason(req: Request, search: URLSearchParams): Promise<string | null> {
+/** Lê o motivo da negação (usa body JSON do POST se fornecido, ou query ?reason=). */
+async function readReason(
+  req: Request,
+  search: URLSearchParams,
+  bodyParsed?: any
+): Promise<string | null> {
   let bodyReason = "";
   try {
     if (req.method === "POST") {
-      const body = await req.json().catch(() => null);
+      // Evita ler o body duas vezes
+      const body = bodyParsed ?? (await req.json().catch(() => null));
       bodyReason = String(body?.reason ?? "").trim();
     }
   } catch { /* ignore parse */ }
 
   const queryReason = String(search.get("reason") ?? "").trim();
-
   const reason = (bodyReason || queryReason).slice(0, 500);
   return reason ? reason : null;
 }
@@ -251,18 +255,34 @@ export async function GET(req: Request) {
 }
 
 // -------------------- POST --------------------
-// Igual ao GET, mas lê preferencialmente o motivo do corpo JSON {reason}
+// Aceita token OU (orderId + action) — e lê reason do body JSON (preferencial) ou da query.
 export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
+    // Parse do body (uma vez só) — pode trazer orderId, action e reason
+    let body: any = null;
+    try {
+      body = await req.json();
+    } catch {
+      body = null;
+    }
+
     const tokenRaw = searchParams.get("token");
     const token = tokenRaw && tokenRaw.trim() !== "" ? tokenRaw : null;
 
-    const orderId = searchParams.get("orderId")?.trim() || null;
-    const actionRaw = searchParams.get("action")?.trim() || null;
+    // orderId e action podem vir por query OU pelo corpo
+    const orderId =
+      (searchParams.get("orderId") ?? body?.orderId ?? "")
+        .toString()
+        .trim() || null;
 
-    const reason = await readReason(req, searchParams); // corpo JSON ou query
+    const actionRaw =
+      (searchParams.get("action") ?? body?.action ?? "")
+        .toString()
+        .trim() || null;
+
+    const reason = await readReason(req, searchParams, body); // usa o body já parseado
 
     // 1) Fluxo JWT
     if (token) {
