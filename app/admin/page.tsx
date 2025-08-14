@@ -394,7 +394,13 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                   <div className="flex items-center gap-2">
                     <span>{o.status}</span>
                     {o.status !== "pendente" && o.status !== "cancelado" && (
-                      <Button asChild variant="outline" className={btnNotify}>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="h-8 rounded-xl px-2 text-xs leading-none whitespace-nowrap
+                                  bg-emerald-600 hover:bg-emerald-600/90 text-white
+                                  border border-emerald-600 focus-visible:ring-emerald-600/30"
+                      >
                         <a href={o.links.notify} title="Enviar os detalhes no WhatsApp">
                           Enviar WhatsApp
                         </a>
