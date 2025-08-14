@@ -3,10 +3,21 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Order as BaseOrder } from "@/data/orders"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
-import type { RealtimeChannel, RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js"
+import type {
+  RealtimeChannel,
+  RealtimePostgresChangesPayload,
+  REALTIME_SUBSCRIBE_STATES
+} from "@supabase/supabase-js"
 import { getOrCreateClientId } from "@/lib/client-id"
 
-type Order = BaseOrder & { subtotal: number; frete: number } // ⬅️ estende com os novos campos
+type Order = BaseOrder & {
+  subtotal: number
+  frete: number
+  /** campos para cancelamento/motivo (expostos para a página) */
+  cancel_reason?: string | null
+  denied_reason?: string | null
+  canceled_at?: string | null
+}
 
 interface OrderContextProps {
   orders: Order[]
@@ -97,6 +108,10 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           subtotal,   // ⬅️ agora vem do DB/fallback
           frete,      // ⬅️ agora vem do DB/fallback
           total,      // ⬅️ total consistente
+          /** ⬇️ repassa os campos para a página poder exibir o motivo */
+          cancel_reason: row.cancel_reason ?? null,
+          denied_reason: row.denied_reason ?? null,
+          canceled_at: row.canceled_at ?? null,
           __iso: createdAtIso,
         } satisfies OrderWithIso
       })
@@ -170,7 +185,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 
     const clientId = getOrCreateClientId()
 
-    const channel = sb
+    const channel: RealtimeChannel = sb
       .channel(`orders-realtime-${clientId}`)
       .on(
         "postgres_changes",
@@ -184,11 +199,9 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           scheduleReload();
         }
       )
-      // ⬇️ aqui estava (status: RealtimeChannel["state"]) e comparando com "joined"
-      .subscribe((status: REALTIME_SUBSCRIBE_STATES, err?: Error) => {
+      .subscribe((status: REALTIME_SUBSCRIBE_STATES, _err?: Error) => {
         // status: "SUBSCRIBED" | "TIMED_OUT" | "CHANNEL_ERROR" | "CLOSED"
         if (status !== "SUBSCRIBED") {
-          // fallback rápido caso WS não conecte
           setTimeout(() => loadFromApi(), 1000);
         }
       })

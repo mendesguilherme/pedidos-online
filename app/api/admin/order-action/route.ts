@@ -153,7 +153,6 @@ async function updateOrderWithStatus(
     .single();
 
   if (upd1.error || !upd1.data) {
-    console.error("[order-action] update status erro:", upd1.error);
     return { data: null as any, error: upd1.error };
   }
 
@@ -174,15 +173,10 @@ async function updateOrderWithStatus(
           wrote = true;
           break;
         }
-
-        // Se a coluna não existir, PostgREST retorna 400/500; registramos e tentamos a próxima
-        console.warn(`[order-action] coluna inexistente? '${col}' •`, upd2.error?.message);
-      } catch (e: any) {
-        console.warn(`[order-action] falha ao escrever '${col}':`, e?.message || e);
-      }
+      } catch { /* ignore */ }
     }
     if (!wrote) {
-      console.warn("[order-action] motivo não salvo — nenhuma coluna candidata existe em 'orders'.");
+      // motivo não salvo — nenhuma coluna candidata existe; segue sem erro
     }
   }
 
@@ -276,7 +270,6 @@ export async function GET(req: Request) {
 
     return errResponse("Parâmetros ausentes.", 400, searchParams);
   } catch (e: any) {
-    console.error("GET /api/admin/order-action:", e);
     return errResponse(e?.message || "Erro inesperado.", 400);
   }
 }
@@ -382,7 +375,6 @@ export async function POST(req: Request) {
 
     return errResponse("Parâmetros ausentes.", 400, searchParams);
   } catch (e: any) {
-    console.error("POST /api/admin/order-action:", e);
     return errResponse(e?.message || "Erro inesperado.", 400);
   }
 }

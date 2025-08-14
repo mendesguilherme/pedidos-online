@@ -110,10 +110,12 @@ export default function PedidosPage() {
         Number(o.total != null ? o.total : subtotal + frete)
       )
 
-      // Motivo do cancelamento — compatível com nomes antigos
+      // Motivo do cancelamento — compatível com nomes antigos/variantes
       const deniedReason = String(
-        o.denied_reason ??
-          o.cancel_reason ??
+        o.cancel_reason ??
+          o.denied_reason ??
+          o.deny_reason ??
+          o.rejection_reason ??
           o.reason ??
           o.motivo ??
           ""

@@ -64,30 +64,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cliente não identificado" }, { status: 400 })
     }
 
-    // ✅ lê o body inteiro para usar 'frete' enviado pelo cliente (já validado abaixo)
-    const body = await req.json()
-    const { cart, address, paymentMethod, tipo } = body as {
-      cart: any
-      address: any
-      paymentMethod?: string
-      tipo?: "entrega" | "retirada"
-      frete?: number
-    }
-
-    // validações básicas
+    const { cart, address } = await req.json()
     if (!cart?.items?.length) {
       return NextResponse.json({ error: "Carrinho vazio" }, { status: 400 })
     }
-    const finalTipo = (tipo ?? cart?.tipo) as "entrega" | "retirada" | undefined
-    if (!finalTipo) {
+    if (!cart?.tipo) {
       return NextResponse.json({ error: "Tipo de pedido não definido" }, { status: 400 })
     }
-    const finalPayment = paymentMethod ?? cart?.paymentMethod
-    if (!finalPayment) {
+    if (!cart?.paymentMethod) {
       return NextResponse.json({ error: "Forma de pagamento não definida" }, { status: 400 })
     }
     if (
-      finalTipo === "entrega" &&
+      cart.tipo === "entrega" &&
       (!address?.street || !address?.number || !address?.neighborhood || !address?.city || !address?.zipCode)
     ) {
       return NextResponse.json({ error: "Endereço de entrega incompleto" }, { status: 400 })
@@ -95,17 +83,9 @@ export async function POST(req: Request) {
 
     // 🔹 Calcular no servidor para evitar duplicidade/erros do cliente
     const subtotal = calcItemsSubtotal(cart.items) // SOMENTE itens
-
-    // 🔹 FRETE: preferir body.frete; se ausente, tentar legados do cart; para 'retirada' força 0
-    const freteFromBody = Number((body as any)?.frete)
-    const frete =
-      finalTipo === "entrega"
-        ? round2(
-            Number.isFinite(freteFromBody)
-              ? freteFromBody
-              : Number(cart?.deliveryFee ?? cart?.cartDeliveryFee ?? 0)
-          )
-        : 0
+    const frete = cart.tipo === "entrega"
+      ? round2(Math.max(0, Number(cart?.deliveryFee ?? 0))) // aceita deliveryFee do cart, mas normaliza
+      : 0
 
     const supa = admin()
 
@@ -114,18 +94,19 @@ export async function POST(req: Request) {
       .from("orders")
       .insert([{
         client_id: clientId,
-        tipo: finalTipo,
+        tipo: cart.tipo,
         cart,
         address,
-        payment_method: finalPayment,
-        subtotal,      // ✅ grava subtotal
-        frete,         // ✅ grava frete
-        // ⚠️ NÃO envie total: trigger no DB calcula (total = subtotal + frete)
+        payment_method: cart.paymentMethod,
+        subtotal,      // ✅ novo
+        frete,         // ✅ novo
+        // não envie total; DB calcula (trigger: total = subtotal + frete)
       }])
       .select(`
         id, order_code, created_at, status, tipo,
         subtotal, frete, total,
-        payment_method, cart, address, client_id
+        payment_method, cart, address, client_id,
+        cancel_reason, canceled_at
       `)
       .maybeSingle()
 
@@ -140,7 +121,8 @@ export async function POST(req: Request) {
         .select(`
           id, order_code, created_at, status, tipo,
           subtotal, frete, total,
-          payment_method, cart, address, client_id
+          payment_method, cart, address, client_id,
+          cancel_reason, canceled_at
         `)
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
@@ -206,7 +188,9 @@ export async function GET(req: Request) {
         payment_method,
         cart,
         address,
-        client_id
+        client_id,
+        cancel_reason,
+        canceled_at
       `)
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
