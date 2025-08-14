@@ -95,10 +95,7 @@ export default function PedidosPage() {
 
       // Tenta ler frete de múltiplas fontes (DB atual, legado e cart)
       const possibleFrete =
-        o.frete ??
-        o.delivery_fee ??
-        o.deliveryFee ??
-        o.cart?.deliveryFee
+        o.frete ?? o.delivery_fee ?? o.deliveryFee ?? o.cart?.deliveryFee
 
       const rawFrete = isEntrega ? Number(possibleFrete ?? 0) : 0
 
@@ -284,33 +281,40 @@ export default function PedidosPage() {
                       </div>
 
                       {expandedOrderId === order.id && (
-                        <div className="mt-3 space-y-2 text-xs text-gray-700 border-t pt-3">
-                          <div>
-                            <span className="font-semibold">Acompanhamentos:</span>
-                            <ul className="list-disc list-inside">
-                              {order.items
-                                .flatMap((item) => item.toppings || [])
-                                .map((t, i) => (
-                                  <li key={i}>{t}</li>
-                                ))}
-                            </ul>
-                          </div>
+                        <div className="mt-3 space-y-3 text-xs text-gray-700 border-t pt-3">
+                          {/* 🔹 Detalhes por item (não mistura acompanhamentos/adic.) */}
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="space-y-1">
+                              <p className="font-semibold">
+                                {item.quantity}x {item.name}
+                              </p>
 
-                          {order.items.some((item) => (item.extras ?? []).length > 0) && (
-                            <div>
-                              <span className="font-semibold">Adicionais:</span>
-                              <ul className="list-disc list-inside">
-                                {order.items
-                                  .flatMap((item) => item.extras || [])
-                                  .map((e, i) => (
-                                    <li key={i}>{e}</li>
-                                  ))}
-                              </ul>
+                              {Array.isArray(item.toppings) && item.toppings.length > 0 && (
+                                <div className="pl-2">
+                                  <span className="font-semibold">Acompanhamentos:</span>
+                                  <ul className="list-disc list-inside">
+                                    {item.toppings.map((t, i) => (
+                                      <li key={i}>{t}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {Array.isArray(item.extras) && item.extras.length > 0 && (
+                                <div className="pl-2">
+                                  <span className="font-semibold">Adicionais:</span>
+                                  <ul className="list-disc list-inside">
+                                    {item.extras.map((e, i) => (
+                                      <li key={i}>{e}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          ))}
 
                           {order.type === "entrega" && order.address && (
-                            <div>
+                            <div className="pt-1">
                               <span className="font-semibold">Endereço de Entrega:</span>
                               <p>
                                 {order.address.street}, {order.address.number}
@@ -323,7 +327,7 @@ export default function PedidosPage() {
                             </div>
                           )}
 
-                          <div>
+                          <div className="pt-1">
                             <span className="font-semibold">Forma de Pagamento:</span>
                             <p>{getPaymentInfo(order.paymentMethod)}</p>
                           </div>
