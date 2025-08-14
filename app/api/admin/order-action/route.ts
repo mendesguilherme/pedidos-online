@@ -14,6 +14,7 @@ function admin() {
   return createClient(url, key);
 }
 
+/* ---------------------------- helpers de resposta --------------------------- */
 const HTML_OK = (msg: string) => `<!doctype html>
 <html lang="pt-BR"><head>
 <meta charset="utf-8" />
@@ -115,6 +116,25 @@ function errResponse(msg: string, status = 400, search?: URLSearchParams) {
   });
 }
 
+/* ------------------------------- logs auxiliares ------------------------------ */
+function trimForLog(s: string, n = 140) {
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+function logCtx(tag: string, obj: Record<string, any>) {
+  try {
+    console.log(`[order-action] ${tag}:`, JSON.stringify(obj));
+  } catch {
+    console.log(`[order-action] ${tag}:`, obj);
+  }
+}
+
+/* ------------------------------- motivo (reason) ------------------------------ */
+function sanitizeReason(raw: unknown): string {
+  const txt = String(raw ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim();
+  // limite defensivo; ajuste se quiser maior
+  return txt.slice(0, 1000);
+}
+
 /** Lê o motivo da negação (usa body JSON do POST se fornecido, ou query ?reason=). */
 async function readReason(
   req: Request,
@@ -126,63 +146,66 @@ async function readReason(
     if (req.method === "POST") {
       // Evita ler o body duas vezes
       const body = bodyParsed ?? (await req.json().catch(() => null));
-      bodyReason = String(body?.reason ?? "").trim();
+      bodyReason = sanitizeReason(body?.reason);
     }
   } catch { /* ignore parse */ }
 
-  const queryReason = String(search.get("reason") ?? "").trim();
-  const reason = (bodyReason || queryReason).slice(0, 500);
+  const queryReason = sanitizeReason(search.get("reason"));
+  const reason = (bodyReason || queryReason).trim();
   return reason ? reason : null;
 }
 
-/** Detecta erro por coluna inexistente (cancel_reason / canceled_at). */
-function looksLikeMissingColumn(err: any) {
-  const msg = String(err?.message || "");
-  const code = String(err?.code || "");
-  return code === "42703" || /column .* (cancel_reason|canceled_at)/i.test(msg);
-}
-
-/** Atualiza o pedido aplicando status e, se for cancelamento, grava reason/canceled_at.
- *  Caso as colunas não existam, faz retry apenas com status (evita 500). */
+/* ------------------------------ update no pedido ------------------------------ */
 async function updateOrderWithStatus(
   supa: ReturnType<typeof admin>,
   orderId: string,
   nextStatus: string,
   reason: string | null
 ) {
-  const includeCancelFields = nextStatus === "cancelado";
-
   const update: Record<string, any> = { status: nextStatus };
-  if (includeCancelFields) {
+  if (nextStatus === "cancelado") {
     update.canceled_at = new Date().toISOString();
-    if (reason) update.cancel_reason = reason.slice(0, 500);
+    update.cancel_reason = reason && reason.length ? reason : null;
   }
 
-  let { data, error } = await supa
+  logCtx("updateOrderWithStatus.input", {
+    orderId,
+    nextStatus,
+    reason_len: reason?.length ?? 0,
+    reason_preview: reason ? trimForLog(reason) : null,
+    update_keys: Object.keys(update),
+  });
+
+  const query = supa
     .from("orders")
     .update(update)
     .eq("id", orderId)
-    .select("id, order_code, status")
+    .select("id, order_code, status, cancel_reason, canceled_at")
     .single();
 
-  // Se deu erro por coluna inexistente, tenta novamente apenas com status
-  if (error && includeCancelFields && looksLikeMissingColumn(error)) {
-    console.warn("[order-action] cancel_reason/canceled_at inexistentes. Retentando sem esses campos.");
-    ({ data, error } = await supa
-      .from("orders")
-      .update({ status: nextStatus })
-      .eq("id", orderId)
-      .select("id, order_code, status")
-      .single());
-  }
+  const { data, error } = await query;
+
+  logCtx("updateOrderWithStatus.result", {
+    hasData: !!data,
+    error: error ?? null,
+  });
 
   return { data, error };
 }
 
-// -------------------- GET --------------------
+/* ------------------------------------ GET ------------------------------------ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
+
+    logCtx("GET.begin", {
+      method: "GET",
+      contentType: req.headers.get("content-type"),
+      token_present: !!searchParams.get("token"),
+      action: searchParams.get("action"),
+      orderId: searchParams.get("orderId"),
+      has_reason_qs: !!(searchParams.get("reason") || "").trim(),
+    });
 
     const tokenRaw = searchParams.get("token");
     const token = tokenRaw && tokenRaw.trim() !== "" ? tokenRaw : null;
@@ -206,10 +229,12 @@ export async function GET(req: Request) {
         .single();
 
       if (readErr || !current) {
+        logCtx("GET.jwt.readError", { readErr });
         return errResponse("Pedido não encontrado.", 404, searchParams);
       }
 
       if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        logCtx("GET.jwt.invalidTransition", { from: current.status, to: nextStatus, tipo: current.tipo });
         return errResponse(
           `Transição inválida de "${current.status}" para "${nextStatus}".`,
           400,
@@ -217,11 +242,10 @@ export async function GET(req: Request) {
         );
       }
 
-      const reason = await readReason(req, searchParams); // pode vir pela query no GET
-
+      const reason = await readReason(req, searchParams); // query no GET
       const { data, error } = await updateOrderWithStatus(supa, claims.sub, nextStatus, reason);
       if (error || !data) {
-        console.error("order-action update error (jwt/get):", error);
+        logCtx("GET.jwt.updateError", { error });
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
 
@@ -246,10 +270,12 @@ export async function GET(req: Request) {
         .single();
 
       if (readErr || !current) {
+        logCtx("GET.plain.readError", { readErr });
         return errResponse("Pedido não encontrado.", 404, searchParams);
       }
 
       if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        logCtx("GET.plain.invalidTransition", { from: current.status, to: nextStatus, tipo: current.tipo });
         return errResponse(
           `Transição inválida de "${current.status}" para "${nextStatus}".`,
           400,
@@ -258,10 +284,9 @@ export async function GET(req: Request) {
       }
 
       const reason = await readReason(req, searchParams);
-
       const { data, error } = await updateOrderWithStatus(supa, orderId, nextStatus, reason);
       if (error || !data) {
-        console.error("order-action update error (plain/get):", error);
+        logCtx("GET.plain.updateError", { error });
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
 
@@ -275,7 +300,7 @@ export async function GET(req: Request) {
   }
 }
 
-// -------------------- POST --------------------
+/* ------------------------------------ POST ----------------------------------- */
 // Aceita token OU (orderId + action) — e lê reason do body JSON (preferencial) ou da query.
 export async function POST(req: Request) {
   try {
@@ -288,6 +313,17 @@ export async function POST(req: Request) {
     } catch {
       body = null;
     }
+
+    logCtx("POST.begin", {
+      method: "POST",
+      contentType: req.headers.get("content-type"),
+      token_present: !!searchParams.get("token"),
+      action_qs: searchParams.get("action"),
+      orderId_qs: searchParams.get("orderId"),
+      action_body: body?.action ?? null,
+      orderId_body: body?.orderId ?? null,
+      has_reason_body: typeof body?.reason === "string" && body?.reason.trim().length > 0,
+    });
 
     const tokenRaw = searchParams.get("token");
     const token = tokenRaw && tokenRaw.trim() !== "" ? tokenRaw : null;
@@ -321,10 +357,12 @@ export async function POST(req: Request) {
         .single();
 
       if (readErr || !current) {
+        logCtx("POST.jwt.readError", { readErr });
         return errResponse("Pedido não encontrado.", 404, searchParams);
       }
 
       if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        logCtx("POST.jwt.invalidTransition", { from: current.status, to: nextStatus, tipo: current.tipo });
         return errResponse(
           `Transição inválida de "${current.status}" para "${nextStatus}".`,
           400,
@@ -334,7 +372,7 @@ export async function POST(req: Request) {
 
       const { data, error } = await updateOrderWithStatus(supa, claims.sub, nextStatus, reason);
       if (error || !data) {
-        console.error("order-action update error (jwt/post):", error);
+        logCtx("POST.jwt.updateError", { error });
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
 
@@ -359,10 +397,12 @@ export async function POST(req: Request) {
         .single();
 
       if (readErr || !current) {
+        logCtx("POST.plain.readError", { readErr });
         return errResponse("Pedido não encontrado.", 404, searchParams);
       }
 
       if (!canTransition({ from: current.status, to: nextStatus, tipo: current.tipo })) {
+        logCtx("POST.plain.invalidTransition", { from: current.status, to: nextStatus, tipo: current.tipo });
         return errResponse(
           `Transição inválida de "${current.status}" para "${nextStatus}".`,
           400,
@@ -372,7 +412,7 @@ export async function POST(req: Request) {
 
       const { data, error } = await updateOrderWithStatus(supa, orderId, nextStatus, reason);
       if (error || !data) {
-        console.error("order-action update error (plain/post):", error);
+        logCtx("POST.plain.updateError", { error });
         return errResponse("Falha ao atualizar o pedido.", 500, searchParams);
       }
 
