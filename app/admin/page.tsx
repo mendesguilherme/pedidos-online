@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
-import { allowedActionsFor } from "@/lib/orders-workflow"; // ⬅️ NOVO
+import { allowedActionsFor } from "@/lib/orders-workflow"; // mantém
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -106,6 +106,7 @@ type EnrichedOrder = Order & {
     negar: string;
     saiu: string;
     entregue: string;
+    notify: string; // ⬅️ NOVO
   };
 };
 
@@ -176,24 +177,25 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const totalPages = Math.max(1, Math.ceil(totalRows / rpp));
   const orders = (data ?? []) as Order[];
 
-  // links de ação com redirect a /admin
+  // links com redirect a /admin
   const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
   const redirect = `${base}/admin`;
 
-  // ⬇️ NOVO: gera links extras e a lista de ações permitidas por linha
+  // monta ações e links (inclui notify do n8n)
   const enriched: EnrichedOrder[] = await Promise.all(
     orders.map(async (o) => {
-      const aceitar = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
-      const negar   = await buildActionLink(o.id, "negar",   { redirect, v: "html" });
-      const saiu    = await buildActionLink(o.id, "saiu_para_entrega", { redirect, v: "html" });
-      const entregue= await buildActionLink(o.id, "entregue", { redirect, v: "html" });
+      const aceitar  = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
+      const negar    = await buildActionLink(o.id, "negar",   { redirect, v: "html" });
+      const saiu     = await buildActionLink(o.id, "saiu_para_entrega", { redirect, v: "html" });
+      const entregue = await buildActionLink(o.id, "entregue", { redirect, v: "html" });
+      const notify   = `${base}/api/admin/notify-order?id=${encodeURIComponent(o.id)}&redirect=${encodeURIComponent(redirect)}&v=html`;
 
       const actions = allowedActionsFor({ status: o.status as any, tipo: o.tipo as any });
 
       return {
         ...(o as Order),
         actions,
-        links: { aceitar, negar, saiu, entregue },
+        links: { aceitar, negar, saiu, entregue, notify },
       };
     })
   );
@@ -336,10 +338,32 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           </thead>
           <tbody className="divide-y">
             {enriched.map((o) => (
-              <tr key={o.id} className="align-top">
+              <tr
+                key={o.id}
+                className={`align-top ${
+                  o.status === "entregue" ? "bg-gray-100" :
+                  o.status === "cancelado" ? "bg-red-100" : ""
+                }`}
+              >
                 <td className="px-3 py-2 font-medium">{o.order_code ?? o.id.slice(0, 8)}</td>
                 <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>
-                <td className="px-3 py-2">{o.status}</td>
+
+                {/* Status + botão Enviar WhatsApp (condicional) */}
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span>{o.status}</span>
+                    {o.status !== "pendente" && o.status !== "cancelado" && (
+                      <a
+                        href={o.links.notify}
+                        className="rounded-md border border-emerald-500/40 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100"
+                        title="Enviar os detalhes no WhatsApp"
+                      >
+                        Enviar WhatsApp
+                      </a>
+                    )}
+                  </div>
+                </td>
+
                 <td className="px-3 py-2">{o.tipo ?? "—"}</td>
                 <td className="px-3 py-2">{fmtBRL(o.total)}</td>
                 <td className="px-3 py-2">{labelPgto(o.payment_method)}</td>
