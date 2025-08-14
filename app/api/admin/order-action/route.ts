@@ -135,25 +135,46 @@ async function readReason(
   return reason ? reason : null;
 }
 
-/** Atualiza o pedido aplicando status e, se for cancelamento, grava reason/canceled_at. */
+/** Detecta erro por coluna inexistente (cancel_reason / canceled_at). */
+function looksLikeMissingColumn(err: any) {
+  const msg = String(err?.message || "");
+  const code = String(err?.code || "");
+  return code === "42703" || /column .* (cancel_reason|canceled_at)/i.test(msg);
+}
+
+/** Atualiza o pedido aplicando status e, se for cancelamento, grava reason/canceled_at.
+ *  Caso as colunas não existam, faz retry apenas com status (evita 500). */
 async function updateOrderWithStatus(
   supa: ReturnType<typeof admin>,
   orderId: string,
   nextStatus: string,
   reason: string | null
 ) {
+  const includeCancelFields = nextStatus === "cancelado";
+
   const update: Record<string, any> = { status: nextStatus };
-  if (nextStatus === "cancelado") {
+  if (includeCancelFields) {
     update.canceled_at = new Date().toISOString();
-    update.cancel_reason = reason ?? null;
+    if (reason) update.cancel_reason = reason.slice(0, 500);
   }
 
-  const { data, error } = await supa
+  let { data, error } = await supa
     .from("orders")
     .update(update)
     .eq("id", orderId)
     .select("id, order_code, status")
     .single();
+
+  // Se deu erro por coluna inexistente, tenta novamente apenas com status
+  if (error && includeCancelFields && looksLikeMissingColumn(error)) {
+    console.warn("[order-action] cancel_reason/canceled_at inexistentes. Retentando sem esses campos.");
+    ({ data, error } = await supa
+      .from("orders")
+      .update({ status: nextStatus })
+      .eq("id", orderId)
+      .select("id, order_code, status")
+      .single());
+  }
 
   return { data, error };
 }
