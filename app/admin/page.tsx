@@ -25,6 +25,9 @@ type Order = {
   client_id: string | null;
 };
 
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200";
+
 function fmtBRL(v?: number | null) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 }
@@ -40,6 +43,16 @@ function resumoItens(cart: any): string {
       return `${q}x ${it?.name ?? "item"} (${fmtBRL(it?.price)})${tops}${extras}`;
     })
     .join(" • ");
+}
+
+/** Endereço curto para listagem */
+function resumoEndereco(address: any, tipo?: string | null): string {
+  if (tipo !== "entrega") return "Retirada no local";
+  const a = address ?? {};
+  const linha1 = [a.street, a.number].filter(Boolean).join(", ");
+  const linha2 = [a.neighborhood].filter(Boolean).join("");
+  const linha3 = [a.city, a.zipCode].filter(Boolean).join(" - ");
+  return [linha1, linha2, linha3].filter(Boolean).join(" • ");
 }
 
 /** Data de hoje em São Paulo no formato YYYY-MM-DD */
@@ -100,13 +113,13 @@ type PageProps = { searchParams?: Record<string, string | string[] | undefined> 
 
 /** Tipo auxiliar só para tipar o que adicionamos em runtime */
 type EnrichedOrder = Order & {
-  actions: string[]; // lista de ações permitidas
+  actions: string[];
   links: {
     aceitar: string;
     negar: string;
     saiu: string;
     entregue: string;
-    notify: string; // ⬅️ NOVO
+    notify: string;
   };
 };
 
@@ -122,16 +135,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
   // filtros vindos da URL
   const f_code = sp.code?.trim();
-  const f_status = sp.status?.trim(); // pendente | em_preparo | saiu_para_entrega | entregue | cancelado
-  const f_tipo = sp.tipo?.trim();     // entrega | retirada
-  const f_pgto = sp.pgto?.trim();     // card | cash | pix | ...
+  const f_status = sp.status?.trim();
+  const f_tipo = sp.tipo?.trim();
+  const f_pgto = sp.pgto?.trim();
   const f_total_min = sp.tmin?.trim();
   const f_total_max = sp.tmax?.trim();
 
-  // datas (se não vierem, aplicamos HOJE por padrão)
+  // datas (se não vierem, HOJE por padrão)
   const defaultDay = todayInSaoPaulo();
-  const f_created_from = (sp.cf?.trim() || defaultDay);
-  const f_created_to   = (sp.ct?.trim() || f_created_from);
+  const f_created_from = sp.cf?.trim() || defaultDay;
+  const f_created_to = sp.ct?.trim() || f_created_from;
 
   const supa = adminClient();
 
@@ -155,7 +168,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
   // janela do dia em UTC-3
   const fromISO = `${f_created_from}T00:00:00-03:00`;
-  const toISO   = `${f_created_to}T23:59:59.999-03:00`;
+  const toISO = `${f_created_to}T23:59:59.999-03:00`;
   query = query.gte("created_at", fromISO).lte("created_at", toISO);
 
   // ordenação + range (paginação)
@@ -184,11 +197,13 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   // monta ações e links (inclui notify do n8n)
   const enriched: EnrichedOrder[] = await Promise.all(
     orders.map(async (o) => {
-      const aceitar  = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
-      const negar    = await buildActionLink(o.id, "negar",   { redirect, v: "html" });
-      const saiu     = await buildActionLink(o.id, "saiu_para_entrega", { redirect, v: "html" });
+      const aceitar = await buildActionLink(o.id, "aceitar", { redirect, v: "html" });
+      const negar = await buildActionLink(o.id, "negar", { redirect, v: "html" });
+      const saiu = await buildActionLink(o.id, "saiu_para_entrega", { redirect, v: "html" });
       const entregue = await buildActionLink(o.id, "entregue", { redirect, v: "html" });
-      const notify   = `${base}/api/admin/notify-order?id=${encodeURIComponent(o.id)}&redirect=${encodeURIComponent(redirect)}&v=html`;
+      const notify = `${base}/api/admin/notify-order?id=${encodeURIComponent(o.id)}&redirect=${encodeURIComponent(
+        redirect
+      )}&v=html`;
 
       const actions = allowedActionsFor({ status: o.status as any, tipo: o.tipo as any });
 
@@ -228,7 +243,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       >
         <div className="min-w-0 lg:col-span-3">
           <label className="block text-xs text-gray-500">Código</label>
-          <input name="code" defaultValue={f_code ?? ""} className="mt-1 w-full rounded-md border px-2 py-1" />
+          <input
+            name="code"
+            defaultValue={f_code ?? ""}
+            className={fieldClass}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
@@ -236,7 +255,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="status"
             defaultValue={f_status ?? ""}
-            className="mt-1 w-full rounded-md border px-2 py-1"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
           >
             <option value="">Todos</option>
             <option value="pendente">Pendente</option>
@@ -252,7 +271,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="tipo"
             defaultValue={f_tipo ?? ""}
-            className="mt-1 w-full rounded-md border px-2 py-1"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
           >
             <option value="">Todos</option>
             <option value="entrega">Entrega</option>
@@ -265,7 +284,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="pgto"
             defaultValue={f_pgto ?? ""}
-            className="mt-1 w-full rounded-md border px-2 py-1"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
           >
             <option value="">Todos</option>
             <option value="pix">PIX</option>
@@ -279,7 +298,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <input
             name="tmin"
             defaultValue={f_total_min ?? ""}
-            className="mt-1 w-full rounded-md border px-2 py-1"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
             type="number"
             step="0.01"
           />
@@ -290,7 +309,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <input
             name="tmax"
             defaultValue={f_total_max ?? ""}
-            className="mt-1 w-full rounded-md border px-2 py-1"
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
             type="number"
             step="0.01"
           />
@@ -298,17 +317,31 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Criado de</label>
-          <input name="cf" defaultValue={f_created_from} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
+          <input
+            name="cf"
+            defaultValue={f_created_from}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            type="date"
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Criado até</label>
-          <input name="ct" defaultValue={f_created_to} className="mt-1 w-full rounded-md border px-2 py-1" type="date" />
+          <input
+            name="ct"
+            defaultValue={f_created_to}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            type="date"
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <label className="block text-xs text-gray-500">Linhas por página</label>
-          <select name="rpp" defaultValue={String(rpp)} className="mt-1 w-full rounded-md border px-2 py-1">
+          <select
+            name="rpp"
+            defaultValue={String(rpp)}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-200"
+          >
             <option value="10">10</option>
             <option value="25">25</option>
             <option value="50">50</option>
@@ -316,8 +349,10 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
         </div>
 
         <div className="sm:col-span-2 lg:col-span-12 flex gap-2 pt-1">
-          <button className="rounded-md bg-gray-900 px-3 py-2 text-white hover:bg-black">Aplicar filtros</button>
-          <a href="/admin" className="rounded-md bg-gray-200 px-3 py-2 hover:bg-gray-300">Limpar</a>
+          <button className="rounded-lg bg-gray-900 px-3 py-2 text-white hover:bg-black">Aplicar filtros</button>
+          <a href="/admin" className="rounded-lg bg-gray-200 px-3 py-2 hover:bg-gray-300">
+            Limpar
+          </a>
         </div>
       </form>
 
@@ -333,6 +368,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
               <th className="px-3 py-2 text-left">Total</th>
               <th className="px-3 py-2 text-left">Pagamento</th>
               <th className="px-3 py-2 text-left">Itens</th>
+              <th className="px-3 py-2 text-left">Endereço</th>
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
@@ -341,8 +377,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
               <tr
                 key={o.id}
                 className={`align-top ${
-                  o.status === "entregue" ? "bg-gray-100" :
-                  o.status === "cancelado" ? "bg-red-100" : ""
+                  o.status === "entregue" ? "bg-gray-100" : o.status === "cancelado" ? "bg-red-100" : ""
                 }`}
               >
                 <td className="px-3 py-2 font-medium">{o.order_code ?? o.id.slice(0, 8)}</td>
@@ -367,40 +402,34 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 <td className="px-3 py-2">{o.tipo ?? "—"}</td>
                 <td className="px-3 py-2">{fmtBRL(o.total)}</td>
                 <td className="px-3 py-2">{labelPgto(o.payment_method)}</td>
+
                 <td className="px-3 py-2 max-w-[360px]">
                   <div className="text-gray-700">{resumoItens(o.cart)}</div>
                 </td>
+
+                <td className="px-3 py-2 max-w-[320px]">
+                  <div className="text-gray-700">{resumoEndereco(o.address ?? o.cart?.deliveryAddress, o.tipo)}</div>
+                </td>
+
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-2">
                     {o.actions.includes("aceitar") && (
-                      <a
-                        href={o.links.aceitar}
-                        className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700"
-                      >
+                      <a href={o.links.aceitar} className="rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700">
                         Aceitar
                       </a>
                     )}
                     {o.actions.includes("negar") && (
-                      <a
-                        href={o.links.negar}
-                        className="rounded-md bg-rose-600 px-3 py-1 text-white hover:bg-rose-700"
-                      >
+                      <a href={o.links.negar} className="rounded-md bg-rose-600 px-3 py-1 text-white hover:bg-rose-700">
                         Negar
                       </a>
                     )}
                     {o.actions.includes("saiu_para_entrega") && (
-                      <a
-                        href={o.links.saiu}
-                        className="rounded-md bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
-                      >
+                      <a href={o.links.saiu} className="rounded-md bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700">
                         Saiu p/ entrega
                       </a>
                     )}
                     {o.actions.includes("entregue") && (
-                      <a
-                        href={o.links.entregue}
-                        className="rounded-md bg-slate-800 px-3 py-1 text-white hover:bg-slate-900"
-                      >
+                      <a href={o.links.entregue} className="rounded-md bg-slate-800 px-3 py-1 text-white hover:bg-slate-900">
                         Entregue
                       </a>
                     )}
@@ -411,7 +440,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
             {!enriched.length && (
               <tr>
-                <td colSpan={8} className="px-3 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
                   Nenhum pedido encontrado.
                 </td>
               </tr>
@@ -422,18 +451,20 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
       {/* paginação */}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
-        <div>
-          {totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}
-        </div>
+        <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
         <div className="flex gap-2">
           <a
-            className={`rounded-md border px-3 py-1 ${page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+            className={`rounded-lg border px-3 py-1 ${
+              page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
+            }`}
             href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}
           >
             ← Anterior
           </a>
           <a
-            className={`rounded-md border px-3 py-1 ${page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"}`}
+            className={`rounded-lg border px-3 py-1 ${
+              page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-gray-50"
+            }`}
             href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}
           >
             Próxima →
