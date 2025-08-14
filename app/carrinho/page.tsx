@@ -5,27 +5,51 @@ export const dynamic = "force-dynamic"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/CartContext"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { useEffect, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, ArrowLeft, Minus, Plus, Trash2, Home } from "lucide-react"
 import { isRestaurantOpen } from "@/utils/business-hours"
+
+const DEFAULT_DELIVERY_FEE = 5 // ⚙️ ajuste o fallback se necessário
+const round2 = (n: number) => Math.round(n * 100) / 100
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
 export default function CarrinhoPage() {
   const router = useRouter()
   const { cart, removeItem, updateQuantity } = useCart()
   const cartItems = cart.items
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const total = subtotal
+  // Subtotal = soma dos itens (price * quantity) — sem frete
+  const subtotal = useMemo(
+    () =>
+      round2(
+        (cartItems ?? []).reduce(
+          (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+          0
+        )
+      ),
+    [cartItems]
+  )
+
+  // Frete: se "entrega", usa cart.deliveryFee quando existir; senão fallback.
+  // Em "retirada" ou tipo indefinido -> 0
+  const deliveryFee = useMemo(() => {
+    if (cart?.tipo !== "entrega") return 0
+    const feeFromCart = (cart as any)?.deliveryFee
+    const fee = feeFromCart != null ? Number(feeFromCart) : DEFAULT_DELIVERY_FEE
+    return round2(Math.max(0, fee))
+  }, [cart?.tipo, (cart as any)?.deliveryFee])
+
+  // Total = subtotal + frete
+  const total = useMemo(() => round2(subtotal + deliveryFee), [subtotal, deliveryFee])
 
   const handleSeeProducts = () => {
     if (!isRestaurantOpen()) {
-      // fechado → manda pra Home (lá já tem a validação/fluxo certo)
       router.push("/")
       return
     }
-    // aberto → pode ir direto pros produtos
     router.push("/produtos")
   }
 
@@ -64,7 +88,6 @@ export default function CarrinhoPage() {
                 <div className="space-y-2">
                   <Button
                     onClick={handleSeeProducts}
-                    // opcional: já deixa visualmente desabilitado quando fechado
                     disabled={!isRestaurantOpen()}
                     className="w-full text-sm py-2 px-4 rounded-xl"
                   >
@@ -80,7 +103,6 @@ export default function CarrinhoPage() {
                 </div>
               </CardContent>
             </Card>
-
           ) : (
             <div className="space-y-3">
               {cartItems.map((item) => (
@@ -101,7 +123,7 @@ export default function CarrinhoPage() {
                           <strong>Adicionais:</strong> {item.extras?.join(", ") || "Nenhum"}
                         </p>
                         <p className="text-green-600 font-bold text-sm mt-1">
-                          R$ {item.price.toFixed(2).replace(".", ",")}
+                          {fmtBRL(item.price)}
                         </p>
                       </div>
                       <div className="flex items-center space-x-1">
@@ -144,11 +166,15 @@ export default function CarrinhoPage() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal:</span>
-                      <span>R$ {subtotal.toFixed(2).replace(".", ",")}</span>
+                      <span>{fmtBRL(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Taxa de entrega:</span>
+                      <span>{fmtBRL(deliveryFee)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base">
                       <span>Total:</span>
-                      <span className="text-green-600">R$ {total.toFixed(2).replace(".", ",")}</span>
+                      <span className="text-green-600">{fmtBRL(total)}</span>
                     </div>
                   </div>
                   <div className="space-y-2 mt-3">

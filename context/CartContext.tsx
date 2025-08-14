@@ -22,6 +22,9 @@ interface CartContextProps {
 
 const CartContext = createContext<CartContextProps | undefined>(undefined)
 
+const round2 = (n:number) => Math.round(n*100)/100
+const DEFAULT_DELIVERY_FEE = 5 // mantém seu fallback atual
+
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Cart>({
     items: [],
@@ -107,32 +110,36 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 }
 
   const saveOrder = async () => {
-    // 1. Validações (iguais às suas)
     if (!cart.tipo) throw new Error("Tipo de pedido não definido.")
     if (cart.items.length === 0 || !cart.paymentMethod)
       throw new Error("Carrinho incompleto. Não é possível criar o pedido.")
-    if (
-      cart.tipo === "entrega" &&
-      (!cart.deliveryAddress || !cart.deliveryAddress.street)
-    ) {
+    if (cart.tipo === "entrega" && (!cart.deliveryAddress || !cart.deliveryAddress.street))
       throw new Error("Endereço de entrega incompleto.")
-    }
 
-    // 2. Monta payload pro endpoint
+    // 🔹 subtotal = SOMA DOS ITENS (sem frete)
+    const subtotal = round2(
+      cart.items.reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity ?? 1), 0)
+    )
+
+    // 🔹 frete separado (0 em retirada)
+    const frete = cart.tipo === "entrega" ? round2(DEFAULT_DELIVERY_FEE) : 0
+
     const payload = {
-      cart: { ...cart, items: cart.items.map((it) => ({ ...it, quantity: it.quantity ?? 1 })) },
+      cart: { ...cart, items: cart.items.map(it => ({ ...it, quantity: it.quantity ?? 1 })) },
       address: cart.tipo === "entrega"
         ? cart.deliveryAddress
         : { street:"", number:"", complement:"", neighborhood:"", city:"", zipCode:"", reference:"" },
+      paymentMethod: cart.paymentMethod, // ✅ mande explícito
+      tipo: cart.tipo,                   // ✅ mande explícito
+      subtotal,                          // ✅ separado
+      frete,                             // ✅ separado
     }
-
-    const clientId = getOrCreateClientId()
 
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Client-Id": getOrCreateClientId(),  // 🔴 garante o filtro no server
+        "X-Client-Id": getOrCreateClientId(),
       },
       body: JSON.stringify(payload),
     })
@@ -142,34 +149,35 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (!data?.order) throw new Error("API não retornou o objeto do pedido.")
 
     const created = data.order
-    // created => { id: UUID, order_code: "PEDXXXXXX", ... }
 
-    // 4. (Opcional) Espelhar no localStorage para manter sua UI atual
+    // espelho local (não duplica frete!)
     const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
 
     const localOrder: Order = {
-      // use o order_code como id para não quebrar telas antigas
       id: created.order_code ?? created.id,
       createdAt: created.created_at ?? new Date().toISOString(),
       status: created.status ?? "pendente",
       tipo: created.tipo ?? cart.tipo!,
       items: cart.items,
       address: payload.address,
-      paymentMethod: cart.paymentMethod,
-      total:
-        created.total ??
-        cart.items.reduce((sum, it) => sum + (it.price ?? 0) * (it.quantity ?? 1), 0) +
-          (cart.tipo === "entrega" ? 5 : 0),
-      // se quiser guardar o UUID real do banco:
-      // @ts-ignore (caso seu tipo Order não tenha esse campo)
+      paymentMethod: payload.paymentMethod,
+
+      // se seu tipo Order já tiver campos novos, preencha:
+      // @ts-ignore se ainda não adicionou subtotal/frete no tipo
+      subtotal: created.subtotal ?? subtotal,
+      // @ts-ignore
+      frete: created.frete ?? frete,
+
+      total: created.total ?? round2(subtotal + frete),
+
+      // opcionais:
+      // @ts-ignore
       dbId: created.id,
       // @ts-ignore
       orderCode: created.order_code,
     }
 
     localStorage.setItem("orders", JSON.stringify([...existingOrders, localOrder]))
-
-    // 5. Limpa o carrinho (se fizer sentido no seu fluxo)
     clearCart()
   }
 

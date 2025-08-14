@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +30,9 @@ interface OrderSummaryProps {
   setTab: (tab: string) => void
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+
 export function OrderSummary({
   subtotal,
   deliveryFee,
@@ -46,6 +49,9 @@ export function OrderSummary({
   setTab,
 }: OrderSummaryProps) {
   const [showModal, setShowModal] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showWarning, setShowWarning] = useState(false)
+  const [forceAdd, setForceAdd] = useState(false)
 
   const { cart } = useCart()
   const paymentMethod = cart.paymentMethod
@@ -59,13 +65,51 @@ export function OrderSummary({
     reference: "",
   }
 
+  // ---------- BLINDA VALORES (props vs cart) ----------
+  const itemsSubtotal = useMemo(() =>
+    round2(
+      (cart.items ?? []).reduce<number>(
+        (s, it: any) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1),
+        0
+      )
+    ),
+  [cart.items])
+
+  const effectiveTipo = (tipo ?? cart.tipo ?? "retirada").toString().toLowerCase()
+  const feeFromCart = useMemo(
+    () => (effectiveTipo === "entrega" ? round2(Number((cart as any)?.deliveryFee ?? 0)) : 0),
+    [effectiveTipo, (cart as any)?.deliveryFee]
+  )
+
+  // Preferir props quando válidas; se não, usar fallbacks do cart
+  const safeSubtotal = useMemo(
+    () => Number.isFinite(subtotal) ? round2(Number(subtotal)) : itemsSubtotal,
+    [subtotal, itemsSubtotal]
+  )
+  const safeDeliveryFee = useMemo(() => {
+    if (effectiveTipo !== "entrega") return 0
+    return Number.isFinite(deliveryFee) ? round2(Number(deliveryFee)) : feeFromCart
+  }, [effectiveTipo, deliveryFee, feeFromCart])
+
+  // Total coerente: se prop total bate com subtotal+frete, usa-a; senão, recalcula
+  const computedTotal = useMemo(
+    () => round2(safeSubtotal + safeDeliveryFee),
+    [safeSubtotal, safeDeliveryFee]
+  )
+  const safeTotal = useMemo(() => {
+    if (Number.isFinite(total)) {
+      const t = round2(Number(total))
+      const eps = 0.005
+      return Math.abs(t - computedTotal) < eps ? t : computedTotal
+    }
+    return computedTotal
+  }, [total, computedTotal])
+
+  // ---------- validações ----------
   const isAddressValid = () => {
-    if (tipo === "retirada") return true
-
+    if (effectiveTipo === "retirada") return true
     const address = cart.deliveryAddress
-
-    if (!address) return false // <- ESSENCIAL!
-
+    if (!address) return false
     return (
       address.street?.trim() !== "" &&
       address.number?.trim() !== "" &&
@@ -74,8 +118,6 @@ export function OrderSummary({
       address.zipCode?.trim() !== ""
     )
   }
-
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   const isPaymentValid = () => paymentMethod !== ""
 
@@ -96,19 +138,14 @@ export function OrderSummary({
         : "Definir Forma de Pagamento",
   }
 
-  const [showWarning, setShowWarning] = useState(false)
-
-  const [forceAdd, setForceAdd] = useState(false)
-
   const handleAddAcai = () => {
     if (!canAddAcai && !forceAdd) {
       setShowWarning(true)
       return
     }
-
     onAddAcai()
     setShowModal(true)
-    setForceAdd(false) // Resetar após adicionar
+    setForceAdd(false)
   }
 
   const handleNextStepClick = () => {
@@ -119,12 +156,10 @@ export function OrderSummary({
       setShowModal(true)
       return
     }
-
     if (isPagamentoStep && !isPaymentValid()) {      
       setShowModal(true)
       return
     }
-
     setShowModal(false)
     onNextStep()    
   }
@@ -140,22 +175,22 @@ export function OrderSummary({
                 {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
               </p>
               <p className="whitespace-nowrap">
-                Subtotal: R$ {subtotal.toFixed(2).replace(".", ",")}
+                Subtotal: {fmtBRL(safeSubtotal)}
               </p>
-              {deliveryFee > 0 && (
+              {safeDeliveryFee > 0 && (
                 <p className="whitespace-nowrap">
-                  Taxa de entrega: R$ {deliveryFee.toFixed(2).replace(".", ",")}
+                  Taxa de entrega: {fmtBRL(safeDeliveryFee)}
                 </p>
               )}
             </div>
 
             <p className="text-sm sm:text-base font-bold text-primary whitespace-nowrap self-end">
-              Total: R$ {total.toFixed(2).replace(".", ",")}
+              Total: {fmtBRL(safeTotal)}
             </p>
           </div>
                     
           {/* Linha do botão */}
-          <div className="px-4 pt-1 pb-1"> {/* Container com controle de espaçamento */}
+          <div className="px-4 pt-1 pb-1">
             {currentTab === "produtos" && (            
               <Button
                 size="sm"
@@ -187,13 +222,12 @@ export function OrderSummary({
         <DialogContent aria-describedby="descricao-do-modal" className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg text-center">
-            {currentTab === "pagamento" && !cart.paymentMethod
-              ? "Selecione uma forma de pagamento!"
-              : currentTab === "endereco"
-              ? "Preencha todos os campos obrigatórios"
-              : "Açaí adicionado com sucesso!"}
-          </DialogTitle>
-
+              {currentTab === "pagamento" && !cart.paymentMethod
+                ? "Selecione uma forma de pagamento!"
+                : currentTab === "endereco"
+                ? "Preencha todos os campos obrigatórios"
+                : "Açaí adicionado com sucesso!"}
+            </DialogTitle>
           </DialogHeader>
 
           {currentTab === "endereco" && (
@@ -217,18 +251,16 @@ export function OrderSummary({
               <Button
                 onClick={() => {
                   setShowModal(false)
-                  setTab(tipo === "retirada" ? "pagamento" : "endereco")
+                  setTab(effectiveTipo === "retirada" ? "pagamento" : "endereco")
                 }}
                 className="rounded-xl px-6 py-2 text-sm"
               >
-                {tipo === "retirada" ? "Definir Forma de Pagamento" : "Ir para Endereço de Entrega"}
+                {effectiveTipo === "retirada" ? "Definir Forma de Pagamento" : "Ir para Endereço de Entrega"}
               </Button>
-
             </DialogFooter>
           )}
         </DialogContent>
       </Dialog>
-
 
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
         <DialogContent aria-describedby="descricao-do-modal">
@@ -262,7 +294,6 @@ export function OrderSummary({
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

@@ -52,6 +52,10 @@ async function postToN8n(payload: any) {
   }
 }
 
+// ------- helpers -------
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -68,36 +72,96 @@ export async function GET(req: Request) {
     }
 
     const supa = admin();
-    const { data: order, error } = await supa
+    const { data: orderRow, error } = await supa
       .from("orders")
       .select(`
-        id, order_code, created_at, status, tipo, total, payment_method, cart, address, client_id
+        id, order_code, created_at, status, tipo,
+        subtotal, frete, total,
+        payment_method, cart, address, client_id
       `)
       .eq("id", id)
       .single();
 
-    if (error || !order) {
+    if (error || !orderRow) {
       const m = { success: false, error: "Pedido não encontrado." };
       return mode === "json"
         ? NextResponse.json(m, { status: 404 })
         : NextResponse.redirect(redirect);
     }
 
+    // ---- normalização dos valores (fallbacks para pedidos antigos) ----
+    const items: Array<{ price?: number; quantity?: number }> =
+      (orderRow.cart?.items as any[]) ?? [];
+
+    const computedSubtotal = round2(
+      items.reduce(
+        (s, it) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1),
+        0
+      )
+    );
+
+    const isEntrega = String(orderRow.tipo || "").toLowerCase() === "entrega";
+
+    const normalizedSubtotal = round2(
+      Number.isFinite(Number(orderRow.subtotal))
+        ? Number(orderRow.subtotal)
+        : computedSubtotal
+    );
+
+    const normalizedFrete = isEntrega
+      ? round2(
+          Number(
+            orderRow.frete ??
+              orderRow.cart?.deliveryFee ?? // legado no cart
+              0
+          )
+        )
+      : 0;
+
+    const normalizedTotal = round2(
+      Number.isFinite(Number(orderRow.total))
+        ? Number(orderRow.total)
+        : normalizedSubtotal + normalizedFrete
+    );
+
+    // objeto enriquecido (mantém compat com o que já era enviado)
+    const order = {
+      ...orderRow,
+      subtotal: normalizedSubtotal,
+      frete: normalizedFrete,
+      total: normalizedTotal,
+    };
+
     // gera links úteis p/ mensagem do WhatsApp (com redirect de volta ao /admin)
     const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
     const back = `${base}/admin`;
-    const aceitar   = await buildActionLink(order.id, "aceitar", { redirect: back, v: "html" });
-    const negar     = await buildActionLink(order.id, "negar",   { redirect: back, v: "html" });
-    const saiu      = await buildActionLink(order.id, "saiu_para_entrega", { redirect: back, v: "html" });
-    const entregue  = await buildActionLink(order.id, "entregue", { redirect: back, v: "html" });
+    const aceitar  = await buildActionLink(order.id, "aceitar",              { redirect: back, v: "html" });
+    const negar    = await buildActionLink(order.id, "negar",                { redirect: back, v: "html" });
+    const saiu     = await buildActionLink(order.id, "saiu_para_entrega",    { redirect: back, v: "html" });
+    const entregue = await buildActionLink(order.id, "entregue",             { redirect: back, v: "html" });
 
-    // dispara n8n (fire-and-forget)
+    // dispara n8n (fire-and-forget) — envia ORIGINAL + valores normalizados + strings BRL
     postToN8n({
       source: "admin_notify",
       sentAt: new Date().toISOString(),
-      order,
-      actionLinks: { aceitar, negar, saiu, entregue },
       executionMode: "admin",
+
+      // row enriquecido (contém tudo que já era enviado + novos campos numéricos)
+      order,
+
+      // blocos dedicados (fáceis de consumir no fluxo do n8n)
+      amounts: {
+        subtotal: normalizedSubtotal,
+        frete: normalizedFrete,
+        total: normalizedTotal,
+        brl: {
+          subtotal: fmtBRL(normalizedSubtotal),
+          frete: fmtBRL(normalizedFrete),
+          total: fmtBRL(normalizedTotal),
+        },
+      },
+
+      actionLinks: { aceitar, negar, saiu, entregue },
     }).catch(() => {});
 
     // volta ao /admin (ou responde JSON)

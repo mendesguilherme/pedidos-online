@@ -47,6 +47,16 @@ async function notifyN8n(payload: any) {
   }
 }
 
+// ---- helpers de cálculo (fonte da verdade no server) ----
+const round2 = (n: number) => Math.round(n * 100) / 100
+function calcItemsSubtotal(items: any[] = []) {
+  const sum = items.reduce(
+    (s, it) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1),
+    0
+  )
+  return round2(sum)
+}
+
 export async function POST(req: Request) {
   try {
     const clientId = getClientIdFromHeaders(req)
@@ -54,30 +64,68 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cliente não identificado" }, { status: 400 })
     }
 
-    const { cart, address } = await req.json()
+    // ✅ lê o body inteiro para usar 'frete' enviado pelo cliente (já validado abaixo)
+    const body = await req.json()
+    const { cart, address, paymentMethod, tipo } = body as {
+      cart: any
+      address: any
+      paymentMethod?: string
+      tipo?: "entrega" | "retirada"
+      frete?: number
+    }
+
+    // validações básicas
     if (!cart?.items?.length) {
       return NextResponse.json({ error: "Carrinho vazio" }, { status: 400 })
     }
+    const finalTipo = (tipo ?? cart?.tipo) as "entrega" | "retirada" | undefined
+    if (!finalTipo) {
+      return NextResponse.json({ error: "Tipo de pedido não definido" }, { status: 400 })
+    }
+    const finalPayment = paymentMethod ?? cart?.paymentMethod
+    if (!finalPayment) {
+      return NextResponse.json({ error: "Forma de pagamento não definida" }, { status: 400 })
+    }
+    if (
+      finalTipo === "entrega" &&
+      (!address?.street || !address?.number || !address?.neighborhood || !address?.city || !address?.zipCode)
+    ) {
+      return NextResponse.json({ error: "Endereço de entrega incompleto" }, { status: 400 })
+    }
 
-    const total =
-      cart.items.reduce((s: number, it: any) => s + (it.price ?? 0) * (it.quantity ?? 1), 0) +
-      (cart.tipo === "entrega" ? (cart.deliveryFee ?? 0) : 0)
+    // 🔹 Calcular no servidor para evitar duplicidade/erros do cliente
+    const subtotal = calcItemsSubtotal(cart.items) // SOMENTE itens
+
+    // 🔹 FRETE: preferir body.frete; se ausente, tentar legados do cart; para 'retirada' força 0
+    const freteFromBody = Number((body as any)?.frete)
+    const frete =
+      finalTipo === "entrega"
+        ? round2(
+            Number.isFinite(freteFromBody)
+              ? freteFromBody
+              : Number(cart?.deliveryFee ?? cart?.cartDeliveryFee ?? 0)
+          )
+        : 0
 
     const supa = admin()
 
-    // 1) insere o pedido
+    // 1) insere o pedido — total será calculado no DB (trigger/gerada)
     const { data: inserted, error: insErr } = await supa
       .from("orders")
       .insert([{
         client_id: clientId,
-        tipo: cart.tipo,
+        tipo: finalTipo,
         cart,
         address,
-        payment_method: cart.paymentMethod,
-        total,
+        payment_method: finalPayment,
+        subtotal,      // ✅ grava subtotal
+        frete,         // ✅ grava frete
+        // ⚠️ NÃO envie total: trigger no DB calcula (total = subtotal + frete)
       }])
       .select(`
-        id, order_code, created_at, status, tipo, total, payment_method, cart, address, client_id
+        id, order_code, created_at, status, tipo,
+        subtotal, frete, total,
+        payment_method, cart, address, client_id
       `)
       .maybeSingle()
 
@@ -90,7 +138,9 @@ export async function POST(req: Request) {
       const { data: fetched, error: selErr } = await supa
         .from("orders")
         .select(`
-          id, order_code, created_at, status, tipo, total, payment_method, cart, address, client_id
+          id, order_code, created_at, status, tipo,
+          subtotal, frete, total,
+          payment_method, cart, address, client_id
         `)
         .eq("client_id", clientId)
         .order("created_at", { ascending: false })
@@ -150,6 +200,8 @@ export async function GET(req: Request) {
         created_at,
         status,
         tipo,
+        subtotal,
+        frete,
         total,
         payment_method,
         cart,

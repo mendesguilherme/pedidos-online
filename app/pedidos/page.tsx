@@ -19,6 +19,10 @@ import {
 } from "lucide-react"
 import { useOrders as useOrdersContext } from "@/context/OrderContext"
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+
 interface Order {
   id: string
   date: string
@@ -31,6 +35,8 @@ interface Order {
     toppings?: string[]
     extras?: string[]
   }>
+  subtotal: number
+  frete: number
   total: number
   address?: {
     street: string
@@ -65,23 +71,57 @@ export default function PedidosPage() {
 
   // 🔁 Mapeia do contexto (fonte única) para o shape desta página
   const orders: Order[] = useMemo(() => {
-    return (ctxOrders ?? []).map((o: any) => ({
-      id: o.id,
-      // no OrderContext, createdAt já vem formatado em GMT-3
-      date: o.createdAt,
-      status: dbStatusToUi(o.status),
-      type: o.tipo,
-      items: (o.items ?? []).map((it: any) => ({
-        name: it.name,
-        quantity: it.quantity ?? 1,
-        price: it.price ?? 0,
-        toppings: it.toppings ?? [],
-        extras: it.extras ?? [],
-      })),
-      total: Number(o.total ?? 0),
-      address: o.address,
-      paymentMethod: o.paymentMethod ?? "",
-    }))
+    return (ctxOrders ?? []).map((o: any) => {
+      // Tipar itens para evitar 'any'
+      const items: Order["items"] = (o.items ?? []).map((it: any) => ({
+        name: String(it?.name ?? ""),
+        quantity: Number(it?.quantity ?? 1),
+        price: Number(it?.price ?? 0),
+        toppings: Array.isArray(it?.toppings) ? it.toppings : [],
+        extras: Array.isArray(it?.extras) ? it.extras : [],
+      }))
+
+      // Subtotal calculado (fallback para pedidos antigos)
+      const computedSubtotal = round2(
+        items.reduce((s: number, it) => s + it.price * it.quantity, 0)
+      )
+
+      const rawSubtotal = Number(
+        o.subtotal != null ? o.subtotal : computedSubtotal
+      )
+
+      const isEntrega =
+        (o.tipo ?? o.type)?.toString().toLowerCase() === "entrega"
+
+      // Tenta ler frete de múltiplas fontes (DB atual, legado e cart)
+      const possibleFrete =
+        o.frete ??
+        o.delivery_fee ??
+        o.deliveryFee ??
+        o.cart?.deliveryFee
+
+      const rawFrete = isEntrega ? Number(possibleFrete ?? 0) : 0
+
+      const subtotal = round2(rawSubtotal)
+      const frete = round2(Math.max(0, rawFrete))
+      const total = round2(
+        Number(o.total != null ? o.total : subtotal + frete)
+      )
+
+      return {
+        id: String(o.id),
+        // no OrderContext, createdAt já vem formatado em GMT-3
+        date: o.createdAt ?? o.created_at ?? "",
+        status: dbStatusToUi(String(o.status ?? "")),
+        type: (o.tipo ?? o.type) as Order["type"],
+        items,
+        subtotal,
+        frete,
+        total,
+        address: o.address,
+        paymentMethod: o.paymentMethod ?? o.payment_method ?? "",
+      }
+    })
   }, [ctxOrders])
 
   function getPaymentInfo(method: string): string {
@@ -220,17 +260,27 @@ export default function PedidosPage() {
                             <span>
                               {item.quantity}x {item.name}
                             </span>
-                            <span>
-                              R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}
-                            </span>
+                            <span>{fmtBRL(item.price * item.quantity)}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="border-t pt-2 flex justify-between font-semibold text-sm">
-                        <span>Total:</span>
-                        <span className="text-green-600">
-                          R$ {order.total.toFixed(2).replace(".", ",")}
-                        </span>
+
+                      {/* Subtotal, Frete e Total (mantendo posição) */}
+                      <div className="border-t pt-2 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>Subtotal:</span>
+                          <span>{fmtBRL(order.subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span>Frete:</span>
+                          <span>{fmtBRL(order.frete)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-sm">
+                          <span>Total:</span>
+                          <span className="text-green-600">
+                            {fmtBRL(order.total)}
+                          </span>
+                        </div>
                       </div>
 
                       {expandedOrderId === order.id && (
@@ -297,7 +347,10 @@ export default function PedidosPage() {
 
               {/* Botão para novo pedido */}
               <div className="pt-4">
-                <Button className="w-full rounded-xl text-sm py-2" onClick={() => router.push("/")}>
+                <Button
+                  className="w-full rounded-xl text-sm py-2"
+                  onClick={() => router.push("/")}
+                >
                   <Home className="w-4 h-4 mr-2" />
                   Fazer Novo Pedido
                 </Button>

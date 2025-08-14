@@ -1,10 +1,12 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import type { Order } from "@/data/orders"
+import type { Order as BaseOrder } from "@/data/orders"
 import { getSupabaseBrowser } from "@/lib/supabase/browser"
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js"
+import type { RealtimeChannel, RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from "@supabase/supabase-js"
 import { getOrCreateClientId } from "@/lib/client-id"
+
+type Order = BaseOrder & { subtotal: number; frete: number } // ⬅️ estende com os novos campos
 
 interface OrderContextProps {
   orders: Order[]
@@ -22,6 +24,8 @@ const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true"
 const POLL_BASE_MS = 5000
 const POLL_MAX_MS = 30000
 
+const round2 = (n:number) => Math.round(n*100)/100
+
 export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   const [orders, setOrders] = useState<Order[]>([])
 
@@ -31,12 +35,11 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       const clientId = getOrCreateClientId()
       const res = await fetch("/api/orders?limit=100", {
         cache: "no-store",
-        headers: { "X-Client-Id": clientId }, // garante o filtro no server
+        headers: { "X-Client-Id": clientId },
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || "Falha ao carregar pedidos")
 
-      // mapeia mantendo ISO para ordenar e string formatada para exibir
       const mappedWithIso: OrderWithIso[] = (json.orders ?? []).map((row: any) => {
         const createdAtIso: string = row.created_at
         const createdAtDisplay = new Date(createdAtIso).toLocaleString("pt-BR", {
@@ -48,11 +51,28 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           timeZone: "America/Sao_Paulo",
         })
 
+        // fallbacks para pedidos antigos
+        const items = (row.cart?.items ?? []) as Array<{ price:number; quantity:number }>
+        const computedSubtotal = round2(
+          items.reduce((s, it) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1), 0)
+        )
+
+        const tipo = row.tipo
+        const subtotal = round2(Number(row.subtotal ?? computedSubtotal))
+        const frete = round2(
+          Number(
+            tipo === "entrega"
+              ? (row.frete ?? row.delivery_fee ?? row.cart?.deliveryFee ?? 0)
+              : 0
+          )
+        )
+        const total = round2(Number(row.total ?? (subtotal + frete)))
+
         return {
           id: row.order_code ?? row.id,
           createdAt: createdAtDisplay,
           status: row.status,
-          tipo: row.tipo,
+          tipo,
           items: (row.cart?.items ?? []).map((it: any) => ({
             id: it.id,
             name: it.name,
@@ -74,25 +94,21 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
               reference: "",
             },
           paymentMethod: row.payment_method ?? row.cart?.paymentMethod ?? "",
-          total: Number(row.total ?? 0),
+          subtotal,   // ⬅️ agora vem do DB/fallback
+          frete,      // ⬅️ agora vem do DB/fallback
+          total,      // ⬅️ total consistente
           __iso: createdAtIso,
         } satisfies OrderWithIso
       })
 
-      // ordena pelo ISO (estável em todos browsers)
       mappedWithIso.sort(
         (a, b) => new Date(b.__iso).getTime() - new Date(a.__iso).getTime()
       )
 
-      // remove o campo interno antes de setar
-      const cleaned: Order[] = mappedWithIso.map(
-        ({ __iso, ...rest }: OrderWithIso) => rest
-      )
-
+      const cleaned: Order[] = mappedWithIso.map(({ __iso, ...rest }) => rest)
       setOrders(cleaned)
     } catch (e) {
       console.error("OrderContext: erro ao carregar pedidos:", e)
-      // mantém a lista atual (não zera em erro transitório)
     }
   }
 
@@ -118,7 +134,6 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Realtime OU Polling adaptativo (controlado por flag)
   useEffect(() => {
-    // debounce para evitar storm de reloads
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
     const scheduleReload = () => {
       if (document.visibilityState === "hidden") return
@@ -129,7 +144,6 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       }, 300)
     }
 
-    // quando realtime DESLIGADO: polling adaptativo
     if (!ENABLE_REALTIME) {
       let stopped = false
       let interval = POLL_BASE_MS
@@ -138,7 +152,7 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       const tick = async () => {
         if (stopped) return
         await loadFromApi()
-        interval = Math.min(Math.floor(interval * 1.5), POLL_MAX_MS) // 5s -> 7.5s -> ... -> 30s
+        interval = Math.min(Math.floor(interval * 1.5), POLL_MAX_MS)
         timer = setTimeout(tick, interval)
       }
 
@@ -151,13 +165,11 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    // quando realtime LIGADO
     const sb = getSupabaseBrowser()
     if (!sb) return
 
     const clientId = getOrCreateClientId()
 
-    // filtro por client_id para reduzir eventos desnecessários
     const channel = sb
       .channel(`orders-realtime-${clientId}`)
       .on(
@@ -169,14 +181,15 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           filter: `client_id=eq.${clientId}`,
         },
         (_payload: RealtimePostgresChangesPayload<any>) => {
-          scheduleReload()
+          scheduleReload();
         }
       )
-      .subscribe((status: RealtimeChannel["state"]) => {
-        // 'joined' | 'joining' | 'leaving' | 'closed' | 'errored'
-        if (status !== "joined") {
+      // ⬇️ aqui estava (status: RealtimeChannel["state"]) e comparando com "joined"
+      .subscribe((status: REALTIME_SUBSCRIBE_STATES, err?: Error) => {
+        // status: "SUBSCRIBED" | "TIMED_OUT" | "CHANNEL_ERROR" | "CLOSED"
+        if (status !== "SUBSCRIBED") {
           // fallback rápido caso WS não conecte
-          setTimeout(() => loadFromApi(), 1000)
+          setTimeout(() => loadFromApi(), 1000);
         }
       })
 
