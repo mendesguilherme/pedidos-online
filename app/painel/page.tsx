@@ -391,7 +391,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="sm:col-span-2 lg:col-span-12 flex gap-2 pt-1">
           <button className={btnPrimary}>Aplicar filtros</button>
-          <Link href="/admin" className={btnGhost}>Limpar</Link>
+          <Link href="/painel" className={btnGhost}>Limpar</Link>
         </div>
       </form>
 
@@ -537,7 +537,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
     if(!btn) return;
     e.preventDefault();
     dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
-    dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/admin';
+    dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/painel';
     if (reasonEl) reasonEl.value = '';
     try { dlg.showModal(); } catch(_) { /* ignore */ }
   });
@@ -546,7 +546,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   if (confirmBtn) {
     confirmBtn.addEventListener('click', async function(){
       var token = dlg.dataset.token || '';
-      var redirect = dlg.dataset.redirect || '/admin';
+      var redirect = dlg.dataset.redirect || '/painel';
       var reason = reasonEl ? reasonEl.value : '';
       try{
         if (token) {

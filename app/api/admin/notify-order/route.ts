@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = (searchParams.get("id") || "").trim();
     const redirectRaw = searchParams.get("redirect");
-    const redirect = sanitizeRedirect(redirectRaw) || "/admin";
+    const redirect = sanitizeRedirect(redirectRaw) || "/painel";
     const mode = (searchParams.get("v") || "html").toLowerCase(); // json|html
 
     if (!id) {
@@ -134,7 +134,7 @@ export async function GET(req: Request) {
 
     // gera links úteis p/ mensagem do WhatsApp (com redirect de volta ao /admin)
     const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
-    const back = `${base}/admin`;
+    const back = `${base}/painel`;
     const aceitar  = await buildActionLink(order.id, "aceitar",              { redirect: back, v: "html" });
     const negar    = await buildActionLink(order.id, "negar",                { redirect: back, v: "html" });
     const saiu     = await buildActionLink(order.id, "saiu_para_entrega",    { redirect: back, v: "html" });
