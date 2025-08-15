@@ -230,8 +230,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const orders = (data ?? []) as Order[];
 
   // links com redirect a /admin
-  const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
-  const redirect = `${base}/admin`;
+  const redirect = "/admin";
 
   // monta ações e links (inclui notify do n8n)
   const enriched: EnrichedOrder[] = await Promise.all(

@@ -74,7 +74,6 @@ export default function PedidosPage() {
   // 🔁 Mapeia do contexto (fonte única) para o shape desta página
   const orders: Order[] = useMemo(() => {
     return (ctxOrders ?? []).map((o: any) => {
-      // Tipar itens para evitar 'any'
       const items: Order["items"] = (o.items ?? []).map((it: any) => ({
         name: String(it?.name ?? ""),
         quantity: Number(it?.quantity ?? 1),
@@ -83,7 +82,6 @@ export default function PedidosPage() {
         extras: Array.isArray(it?.extras) ? it.extras : [],
       }))
 
-      // Subtotal calculado (fallback para pedidos antigos)
       const computedSubtotal = round2(
         items.reduce((s: number, it) => s + it.price * it.quantity, 0)
       )
@@ -95,7 +93,6 @@ export default function PedidosPage() {
       const isEntrega =
         (o.tipo ?? o.type)?.toString().toLowerCase() === "entrega"
 
-      // Tenta ler frete de múltiplas fontes (DB atual, legado e cart)
       const possibleFrete =
         o.frete ??
         o.delivery_fee ??
@@ -110,7 +107,6 @@ export default function PedidosPage() {
         Number(o.total != null ? o.total : subtotal + frete)
       )
 
-      // Motivo do cancelamento — compatível com nomes antigos/variantes
       const deniedReason = String(
         o.cancel_reason ??
           o.denied_reason ??
@@ -123,7 +119,6 @@ export default function PedidosPage() {
 
       return {
         id: String(o.id),
-        // no OrderContext, createdAt já vem formatado em GMT-3
         date: o.createdAt ?? o.created_at ?? "",
         status: dbStatusToUi(String(o.status ?? "")),
         type: (o.tipo ?? o.type) as Order["type"],
@@ -154,7 +149,14 @@ export default function PedidosPage() {
     }
   }
 
-  const getStatusInfo = (status: string) => {
+  // ⬇️ ALTERADO: recebe também o tipo para ajustar o label quando for retirada
+  const getStatusInfo = (status: string, type?: Order["type"]) => {
+    // quando o status do banco for "saiu_para_entrega" e o pedido for retirada,
+    // mostramos "Pronto para retirada" só na UI (sem mudar nada no banco)
+    if (status === "saiu para entrega" && type === "retirada") {
+      return { label: "Pronto para retirada", color: "bg-purple-500", icon: ShoppingBag }
+    }
+
     switch (status) {
       case "pendente":
         return { label: "Pendente", color: "bg-yellow-500", icon: Clock }
@@ -230,7 +232,8 @@ export default function PedidosPage() {
           ) : (
             <div className="space-y-3">
               {orders.map((order) => {
-                const statusInfo = getStatusInfo(order.status)
+                // ⬇️ passa também o tipo
+                const statusInfo = getStatusInfo(order.status, order.type)
                 const StatusIcon = statusInfo.icon
 
                 return (
@@ -307,7 +310,6 @@ export default function PedidosPage() {
 
                       {expandedOrderId === order.id && (
                         <div className="mt-3 space-y-3 text-xs text-gray-700 border-t pt-3">
-                          {/* 🔹 Detalhes por item (não mistura acompanhamentos/adic.) */}
                           {order.items.map((item, idx) => (
                             <div key={idx} className="space-y-1">
                               <p className="font-semibold">
