@@ -23,7 +23,7 @@ interface CartContextProps {
 const CartContext = createContext<CartContextProps | undefined>(undefined)
 
 const round2 = (n:number) => Math.round(n*100)/100
-const DEFAULT_DELIVERY_FEE = 5 // mantém seu fallback atual
+const DEFAULT_DELIVERY_FEE = 0 // mantém seu fallback atual
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Cart>({
