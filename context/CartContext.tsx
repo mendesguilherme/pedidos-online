@@ -116,7 +116,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (cart.tipo === "entrega" && (!cart.deliveryAddress || !cart.deliveryAddress.street))
       throw new Error("Endereço de entrega incompleto.")
 
-    // 🔹 subtotal = SOMA DOS ITENS (sem frete)
+    // 🔹 subtotal = itens
     const subtotal = round2(
       cart.items.reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity ?? 1), 0)
     )
@@ -125,14 +125,20 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const frete = cart.tipo === "entrega" ? round2(DEFAULT_DELIVERY_FEE) : 0
 
     const payload = {
-      cart: { ...cart, items: cart.items.map(it => ({ ...it, quantity: it.quantity ?? 1 })) },
+      // ✅ inclui deliveryFee no cart para o servidor reconhecer
+      cart: {
+        ...cart,
+        deliveryFee: frete,
+        items: cart.items.map(it => ({ ...it, quantity: it.quantity ?? 1 })),
+      },
       address: cart.tipo === "entrega"
         ? cart.deliveryAddress
         : { street:"", number:"", complement:"", neighborhood:"", city:"", zipCode:"", reference:"" },
-      paymentMethod: cart.paymentMethod, // ✅ mande explícito
-      tipo: cart.tipo,                   // ✅ mande explícito
-      subtotal,                          // ✅ separado
-      frete,                             // ✅ separado
+      paymentMethod: cart.paymentMethod,
+      tipo: cart.tipo,
+      // ✅ também envia campos explícitos (servidor prioriza, mas recalcula)
+      subtotal,
+      frete,
     }
 
     const res = await fetch("/api/orders", {
@@ -150,7 +156,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     const created = data.order
 
-    // espelho local (não duplica frete!)
+    // espelho local
     const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
 
     const localOrder: Order = {
@@ -161,16 +167,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       items: cart.items,
       address: payload.address,
       paymentMethod: payload.paymentMethod,
-
-      // se seu tipo Order já tiver campos novos, preencha:
-      // @ts-ignore se ainda não adicionou subtotal/frete no tipo
+      // @ts-ignore: seu tipo Order local pode ainda não ter estes campos
       subtotal: created.subtotal ?? subtotal,
       // @ts-ignore
       frete: created.frete ?? frete,
-
       total: created.total ?? round2(subtotal + frete),
-
-      // opcionais:
       // @ts-ignore
       dbId: created.id,
       // @ts-ignore

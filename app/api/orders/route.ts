@@ -20,14 +20,14 @@ function getClientIdFromHeaders(req: Request) {
 /** Envia payload pro n8n sem quebrar a request principal */
 async function notifyN8n(payload: any) {
   const url = process.env.N8N_WEBHOOK_URL
-  if (!url) return // sem URL => não tenta
+  if (!url) return
 
   const headers: Record<string, string> = { "Content-Type": "application/json" }
   const token = process.env.N8N_WEBHOOK_TOKEN
   if (token) headers["X-Webhook-Token"] = token
 
   const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), 3500) // timeout de ~3.5s
+  const t = setTimeout(() => ctrl.abort(), 3500)
 
   try {
     const res = await fetch(url, {
@@ -64,7 +64,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cliente não identificado" }, { status: 400 })
     }
 
-    const { cart, address } = await req.json()
+    // corpo completo (pode trazer frete e deliveryFee)
+    const incoming = await req.json()
+    const cart = incoming?.cart
+    const address = incoming?.address
+
     if (!cart?.items?.length) {
       return NextResponse.json({ error: "Carrinho vazio" }, { status: 400 })
     }
@@ -81,26 +85,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Endereço de entrega incompleto" }, { status: 400 })
     }
 
-    // 🔹 Calcular no servidor para evitar duplicidade/erros do cliente
+    // 🔹 Calcular sempre no servidor
     const subtotal = calcItemsSubtotal(cart.items) // SOMENTE itens
-    const frete = cart.tipo === "entrega"
-      ? round2(Math.max(0, Number(cart?.deliveryFee ?? 0))) // aceita deliveryFee do cart, mas normaliza
-      : 0
+
+    // 🔹 frete: prioriza 'incoming.frete' -> 'cart.deliveryFee' -> 0 (se entrega)
+    let frete = 0
+    if (cart.tipo === "entrega") {
+      const raw =
+        Number(incoming?.frete ?? NaN) ??
+        Number(cart?.deliveryFee ?? NaN)
+      const safe = Number.isFinite(raw) ? raw : Number(cart?.deliveryFee ?? 0)
+      frete = round2(Math.max(0, Number.isFinite(safe) ? safe : 0))
+    }
+
+    // 🔹 garantir que o histórico do carrinho salve o deliveryFee
+    const cartWithFee = { ...cart, deliveryFee: frete }
 
     const supa = admin()
 
-    // 1) insere o pedido — total será calculado no DB (trigger/gerada)
+    // 1) insere o pedido — total pode ser trigger no DB
     const { data: inserted, error: insErr } = await supa
       .from("orders")
       .insert([{
         client_id: clientId,
         tipo: cart.tipo,
-        cart,
+        cart: cartWithFee,
         address,
         payment_method: cart.paymentMethod,
-        subtotal,      // ✅ novo
-        frete,         // ✅ novo
-        // não envie total; DB calcula (trigger: total = subtotal + frete)
+        subtotal,      // ✅ agora garantido
+        frete,         // ✅ agora garantido
       }])
       .select(`
         id, order_code, created_at, status, tipo,
@@ -114,7 +127,7 @@ export async function POST(req: Request) {
 
     let order = inserted
 
-    // 2) fallback (raro): se vier null, busca o último do client_id
+    // 2) fallback (raro)
     if (!order) {
       const { data: fetched, error: selErr } = await supa
         .from("orders")
@@ -133,20 +146,20 @@ export async function POST(req: Request) {
       order = fetched
     }
 
-    // 3) Gera links de ação (JWT) para WhatsApp/Typebot
+    // 3) links de ação
     const { aceitar, negar } = await buildAcceptDenyLinks(order.id)
     // const { saiu, entregue } = await buildProgressLinks(order.id)
 
-    // 4) Dispara o n8n (fire-and-forget, não bloqueia e não quebra a resposta)
+    // 4) webhook n8n
     notifyN8n({
       source: "orders_api",
       sentAt: new Date().toISOString(),
       clientId,
       order,
       actionLinks: { aceitar, negar /*, saiu, entregue */ },
-    }).catch(() => {}) // já tem try/catch interno, mas garantimos
+    }).catch(() => {})
 
-    // 5) Responde sucesso imediatamente
+    // 5) resposta
     return NextResponse.json(
       {
         success: true,
