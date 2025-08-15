@@ -270,11 +270,15 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       {/* Filtros — grid responsiva */}
       <form
         method="get"
-        className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 rounded-xl border p-4 bg-white"
+        className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 rounded-xl border p-4 bg-white [--border:0_0%85%]"
       >
         <div className="min-w-0 lg:col-span-3">
           <Label className="text-xs text-gray-500">Código</Label>
-          <Input name="code" defaultValue={f_code ?? ""} className={`${inputClass} h-[42px]`} />
+          <Input
+            name="code"
+            defaultValue={f_code ?? ""}
+            className={`${inputClass} h-[42px] border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
@@ -282,7 +286,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="status"
             defaultValue={f_status ?? ""}
-            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8 border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
           >
             <option value="">Todos</option>
             <option value="pendente">Pendente</option>
@@ -298,7 +302,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="tipo"
             defaultValue={f_tipo ?? ""}
-            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8 border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
           >
             <option value="">Todos</option>
             <option value="entrega">Entrega</option>
@@ -311,7 +315,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="pgto"
             defaultValue={f_pgto ?? ""}
-            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8 border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
           >
             <option value="">Todos</option>
             <option value="pix">PIX</option>
@@ -322,22 +326,44 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="min-w-0 lg:col-span-1">
           <Label className="text-xs text-gray-500">Total Mín</Label>
-          <Input type="number" step="0.01" name="tmin" defaultValue={f_total_min ?? ""} className={`${inputClass} h-[42px]`} />
+          <Input
+            type="number"
+            step="0.01"
+            name="tmin"
+            defaultValue={f_total_min ?? ""}
+            className={`${inputClass} h-[42px] border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-1">
           <Label className="text-xs text-gray-500">Total Máx</Label>
-          <Input type="number" step="0.01" name="tmax" defaultValue={f_total_max ?? ""} className={`${inputClass} h-[42px]`} />
+          <Input
+            type="number"
+            step="0.01"
+            name="tmax"
+            defaultValue={f_total_max ?? ""}
+            className={`${inputClass} h-[42px] border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <Label className="text-xs text-gray-500">Criado de</Label>
-          <Input type="date" name="cf" defaultValue={f_created_from} className={`${inputClass} h-[42px]`} />
+          <Input
+            type="date"
+            name="cf"
+            defaultValue={f_created_from}
+            className={`${inputClass} h-[42px] border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
           <Label className="text-xs text-gray-500">Criado até</Label>
-          <Input type="date" name="ct" defaultValue={f_created_to} className={`${inputClass} h-[42px]`} />
+          <Input
+            type="date"
+            name="ct"
+            defaultValue={f_created_to}
+            className={`${inputClass} h-[42px] border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
+          />
         </div>
 
         <div className="min-w-0 lg:col-span-2">
@@ -345,13 +371,14 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <select
             name="rpp"
             defaultValue={String(rpp)}
-            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8`}
+            className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8 border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
           >
             <option value="10">10</option>
             <option value="25">25</option>
             <option value="50">50</option>
           </select>
         </div>
+
 
         <div className="sm:col-span-2 lg:col-span-12 flex gap-2 pt-1">
           <button className={btnPrimary}>Aplicar filtros</button>
@@ -360,10 +387,10 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       </form>
 
       {/* Tabela */}
-      <div className="mt-6 overflow-x-auto rounded-xl border bg-white">
+      <div className="mt-6 overflow-x-auto rounded-xl border bg-white [--border:0_0%85%]">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
+          <thead className="bg-[hsl(var(--primary))] text-white">
+            <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Código</th>
               <th className="px-3 py-2 text-left">Criado</th>
               <th className="px-3 py-2 text-left">Status</th>
@@ -376,13 +403,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
             </tr>
           </thead>
 
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-slate-200">
             {enriched.map((o) => (
               <tr
                 key={o.id}
-                className={`align-top ${
-                  o.status === "entregue" ? "bg-gray-100" : o.status === "cancelado" ? "bg-red-100" : ""
-                }`}
+                className={`align-top ${o.status === "entregue" ? "bg-gray-100" : o.status === "cancelado" ? "bg-red-100" : ""} divide-x divide-slate-200`}
               >
                 <td className="px-3 py-2 font-medium">{o.order_code ?? o.id.slice(0, 8)}</td>
                 <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>
