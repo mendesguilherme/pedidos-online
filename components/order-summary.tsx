@@ -81,6 +81,8 @@ export function OrderSummary({
     [effectiveTipo, (cart as any)?.deliveryFee]
   )
 
+  const shouldShowDeliveryRow = effectiveTipo === "entrega";
+
   // Preferir props quando válidas; se não, usar fallbacks do cart
   const safeSubtotal = useMemo(
     () => Number.isFinite(subtotal) ? round2(Number(subtotal)) : itemsSubtotal,
@@ -177,7 +179,7 @@ export function OrderSummary({
               <p className="whitespace-nowrap">
                 Subtotal: {fmtBRL(safeSubtotal)}
               </p>
-              {safeDeliveryFee > 0 && (
+              {shouldShowDeliveryRow && (
                 <p className="whitespace-nowrap">
                   Taxa de entrega: {fmtBRL(safeDeliveryFee)}
                 </p>

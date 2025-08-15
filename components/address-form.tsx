@@ -184,7 +184,7 @@ export function AddressForm({ tipo }: AddressFormProps) {
 
           <div className="bg-green-50 p-3 rounded-xl border border-green-200">
             <h3 className="font-semibold text-green-800 mb-1">Taxa de Entrega:</h3>
-            <p className="text-green-700 text-sm sm:text-base">R$ 5,00 - Tempo estimado: 30-45 minutos</p>
+            <p className="text-green-700 text-sm sm:text-base">R$ 0,00 (Gratuita) - Tempo estimado: 45-60 minutos</p>
           </div>
         </div>
       </div>
