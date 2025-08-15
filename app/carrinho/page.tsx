@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ShoppingCart, ArrowLeft, Minus, Plus, Trash2, Home } from "lucide-react"
 import { isRestaurantOpen } from "@/utils/business-hours"
 
-const DEFAULT_DELIVERY_FEE = 5 // ⚙️ ajuste o fallback se necessário
+const DEFAULT_DELIVERY_FEE = 0 // ⚙️ ajuste o fallback se necessário
 const round2 = (n: number) => Math.round(n * 100) / 100
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })

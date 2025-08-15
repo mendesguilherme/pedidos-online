@@ -107,7 +107,7 @@ export default function ProdutosPage() {
     document.getElementById("acai-cup-selector")?.scrollIntoView({ behavior: "smooth" })
   }
 
-  const entregaFee = tipo === "entrega" ? 5.0 : 0
+  const entregaFee = tipo === "entrega" ? 0 : 0
 
   const handleNextStep = () => {
     if (activeTab === "produtos") {
