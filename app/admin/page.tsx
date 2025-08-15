@@ -154,6 +154,14 @@ type EnrichedOrder = Order & {
   };
 };
 
+/** Label amigável do status para exibição na tabela */
+function uiStatusLabel(status: string, tipo?: string | null) {
+  const isEntrega = (tipo ?? "").toLowerCase() === "entrega";
+  if (status === "saiu_para_entrega" && !isEntrega) return "Pronto p/ retirada";
+  // opcional: melhorar legibilidade nos demais
+  return status.replaceAll("_", " ");
+}
+
 export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const sp = Object.fromEntries(
     Object.entries(searchParams ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
@@ -415,7 +423,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 {/* Status + botão Enviar WhatsApp (condicional) */}
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <span>{o.status}</span>
+                    <span>{uiStatusLabel(o.status, o.tipo)}</span>
                     {o.status !== "pendente" && o.status !== "cancelado" && (
                       <Button
                         asChild
@@ -456,7 +464,9 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                     )}
                     {o.actions.includes("saiu_para_entrega") && (
                       <Button asChild variant="outline" className={btnSaiu}>
-                        <a href={o.links.saiu}>Saiu p/ entrega</a>
+                        <a href={o.links.saiu}>
+                          {(o.tipo ?? "").toLowerCase() === "entrega" ? "Saiu p/ entrega" : "Pronto p/ retirada"}
+                        </a>
                       </Button>
                     )}
                     {o.actions.includes("entregue") && (
