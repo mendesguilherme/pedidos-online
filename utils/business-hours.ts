@@ -10,7 +10,7 @@ export const BUSINESS_HOURS: BusinessHours = {
   monday: { open: "14:00", close: "23:00", isOpen: true },
   tuesday: { open: "08:00", close: "23:59", isOpen: true },
   wednesday: { open: "00:01", close: "23:59", isOpen: true },
-  thursday: { open: "00:01", close: "23:00", isOpen: true },
+  thursday: { open: "00:01", close: "23:59", isOpen: true },
   friday: { open: "14:00", close: "23:00", isOpen: true },
   saturday: { open: "14:00", close: "23:00", isOpen: true },
   sunday: { open: "14:00", close: "23:00", isOpen: true },
