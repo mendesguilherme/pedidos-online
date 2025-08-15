@@ -1,4 +1,4 @@
-// app/admin/page.tsx
+// app/painel/page.tsx
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
@@ -230,9 +230,9 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const totalPages = Math.max(1, Math.ceil(totalRows / rpp));
   const orders = (data ?? []) as Order[];
 
-  // links com redirect a /admin
+  // links com redirect a /painel
   const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
-  const redirect = `${base}/admin`;
+  const redirect = `${base}/painel`;
 
   // monta ações e links (inclui notify do n8n)
   const enriched: EnrichedOrder[] = await Promise.all(
