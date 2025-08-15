@@ -9,6 +9,7 @@ import { allowedActionsFor } from "@/lib/orders-workflow"; // mantém
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -390,7 +391,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
         <div className="sm:col-span-2 lg:col-span-12 flex gap-2 pt-1">
           <button className={btnPrimary}>Aplicar filtros</button>
-          <a href="/admin" className={btnGhost}>Limpar</a>
+          <Link href="/admin" className={btnGhost}>Limpar</Link>
         </div>
       </form>
 
@@ -569,24 +570,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
         <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
         <div className="flex gap-2">
-          <Button
-            asChild
-            variant="outline"
-            className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
-          >
-            <a href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}>
+          <Button asChild variant="outline" className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}>
+            <Link href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}>
               ← Anterior
-            </a>
+            </Link>
           </Button>
 
-          <Button
-            asChild
-            variant="outline"
-            className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
-          >
-            <a href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}>
+          <Button asChild variant="outline" className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}>
+            <Link href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}>
               Próxima →
-            </a>
+            </Link>
           </Button>
         </div>
       </div>
