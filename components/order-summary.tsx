@@ -265,37 +265,28 @@ export function OrderSummary({
       </Dialog>
 
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
-        <DialogContent aria-describedby="descricao-do-modal">
+        <DialogContent
+          aria-describedby="descricao-do-modal"
+          className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto"
+        >
           <DialogHeader>
-            <DialogTitle>Seleção Incompleta</DialogTitle>
-            <DialogDescription>
-              Você selecionou menos acompanhamentos que o fornecido.
-              Deseja prosseguir mesmo assim?
+            <DialogTitle className="text-base sm:text-lg text-center">
+              Seleção incompleta
+            </DialogTitle>
+            <DialogDescription id="descricao-do-modal" className="text-center">
+              Para continuar, selecione todos os acompanhamentos obrigatórios.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex justify-center gap-3 mt-6 flex-wrap">
-            <Button
-              onClick={() => {
-                setShowWarning(false)
-                onAddAcai(true)
-                setShowModal(true)
-              }}
-              className="rounded-xl px-6 py-2 text-sm"
-            >
-              Sim
+          {/* sobrescreve o padrão do shadcn: sm:justify-end */}
+          <DialogFooter className="flex flex-col sm:flex-row justify-center sm:justify-center pt-4">
+            <Button onClick={() => setShowWarning(false)} className="rounded-xl px-6 py-2 text-sm">
+              OK, Entendi!
             </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => setShowWarning(false)}
-              className="rounded-xl px-6 py-2 text-sm"
-            >
-              Não
-            </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }
