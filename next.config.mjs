@@ -15,10 +15,8 @@ const withPWA = nextPwa({
   skipWaiting: true,
   runtimeCaching,
   disable: isDev, // não registra SW em dev
-  workboxOptions: {
-    // impede fallback do app-shell no admin/painel
-    navigateFallbackDenylist: [/^\/admin($|\/)/, /^\/painel($|\/)/],
-  },
+  // ⬇️ esta opção deve ficar na raiz (não dentro de workboxOptions)
+  navigateFallbackDenylist: [/^\/admin($|\/)/, /^\/painel($|\/)/],
 })
 
 /** @type {import('next').NextConfig} */
@@ -30,11 +28,6 @@ const baseConfig = {
     return [
       {
         source: '/painel/:path*',
-        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
-      },
-      {
-        // opcional, mas ajuda enquanto o /admin estiver “aposentado”
-        source: '/admin/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
       },
     ]
