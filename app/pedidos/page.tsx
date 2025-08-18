@@ -32,8 +32,9 @@ interface Order {
     name: string
     quantity: number
     price: number
-    toppings?: string[]
-    extras?: string[]
+    toppings: string[]
+    cremes: string[]
+    extras: string[]
   }>
   subtotal: number
   frete: number
@@ -48,7 +49,6 @@ interface Order {
     reference?: string
   }
   paymentMethod: string
-  /** Motivo do cancelamento (quando status=cancelado) */
   deniedReason?: string
 }
 
@@ -71,14 +71,20 @@ export default function PedidosPage() {
     setExpandedOrderId((prev) => (prev === id ? null : id))
   }
 
-  // 🔁 Mapeia do contexto (fonte única) para o shape desta página
+  // 🔁 Normaliza origem dos dados (orders.items ou cart.items) + fallbacks
   const orders: Order[] = useMemo(() => {
     return (ctxOrders ?? []).map((o: any) => {
-      const items: Order["items"] = (o.items ?? []).map((it: any) => ({
+      const rawItems =
+        (Array.isArray(o?.items) && o.items.length)
+          ? o.items
+          : (Array.isArray(o?.cart?.items) ? o.cart.items : [])
+
+      const items: Order["items"] = rawItems.map((it: any) => ({
         name: String(it?.name ?? ""),
         quantity: Number(it?.quantity ?? 1),
         price: Number(it?.price ?? 0),
         toppings: Array.isArray(it?.toppings) ? it.toppings : [],
+        cremes: Array.isArray(it?.cremes) ? it.cremes : [],
         extras: Array.isArray(it?.extras) ? it.extras : [],
       }))
 
@@ -87,47 +93,45 @@ export default function PedidosPage() {
       )
 
       const rawSubtotal = Number(
-        o.subtotal != null ? o.subtotal : computedSubtotal
+        o?.subtotal != null ? o.subtotal : computedSubtotal
       )
 
-      const isEntrega =
-        (o.tipo ?? o.type)?.toString().toLowerCase() === "entrega"
+      const tipoRaw = (o?.tipo ?? o?.type ?? o?.cart?.tipo)?.toString().toLowerCase()
+      const isEntrega = tipoRaw === "entrega"
 
       const possibleFrete =
-        o.frete ??
-        o.delivery_fee ??
-        o.deliveryFee ??
-        o.cart?.deliveryFee
+        o?.frete ?? o?.delivery_fee ?? o?.deliveryFee ?? o?.cart?.deliveryFee
 
       const rawFrete = isEntrega ? Number(possibleFrete ?? 0) : 0
 
       const subtotal = round2(rawSubtotal)
       const frete = round2(Math.max(0, rawFrete))
       const total = round2(
-        Number(o.total != null ? o.total : subtotal + frete)
+        Number(o?.total != null ? o.total : subtotal + frete)
       )
 
       const deniedReason = String(
-        o.cancel_reason ??
-          o.denied_reason ??
-          o.deny_reason ??
-          o.rejection_reason ??
-          o.reason ??
-          o.motivo ??
+        o?.cancel_reason ??
+          o?.denied_reason ??
+          o?.deny_reason ??
+          o?.rejection_reason ??
+          o?.reason ??
+          o?.motivo ??
           ""
       ).trim()
 
       return {
         id: String(o.id),
-        date: o.createdAt ?? o.created_at ?? "",
-        status: dbStatusToUi(String(o.status ?? "")),
-        type: (o.tipo ?? o.type) as Order["type"],
+        date: o?.createdAt ?? o?.created_at ?? "",
+        status: dbStatusToUi(String(o?.status ?? "")),
+        type: (tipoRaw === "entrega" ? "entrega" : "retirada"),
         items,
         subtotal,
         frete,
         total,
-        address: o.address,
-        paymentMethod: o.paymentMethod ?? o.payment_method ?? "",
+        // 🧭 endereço e pagamento também com fallback do cart
+        address: o?.address ?? o?.cart?.deliveryAddress,
+        paymentMethod: o?.paymentMethod ?? o?.payment_method ?? o?.cart?.paymentMethod ?? "",
         deniedReason,
       }
     })
@@ -149,14 +153,11 @@ export default function PedidosPage() {
     }
   }
 
-  // ⬇️ ALTERADO: recebe também o tipo para ajustar o label quando for retirada
+  // Ajusta label quando retirada estiver em "saiu para entrega"
   const getStatusInfo = (status: string, type?: Order["type"]) => {
-    // quando o status do banco for "saiu_para_entrega" e o pedido for retirada,
-    // mostramos "Pronto para retirada" só na UI (sem mudar nada no banco)
     if (status === "saiu para entrega" && type === "retirada") {
       return { label: "Pronto para retirada", color: "bg-purple-500", icon: ShoppingBag }
     }
-
     switch (status) {
       case "pendente":
         return { label: "Pendente", color: "bg-yellow-500", icon: Clock }
@@ -232,7 +233,6 @@ export default function PedidosPage() {
           ) : (
             <div className="space-y-3">
               {orders.map((order) => {
-                // ⬇️ passa também o tipo
                 const statusInfo = getStatusInfo(order.status, order.type)
                 const StatusIcon = statusInfo.icon
 
@@ -282,7 +282,7 @@ export default function PedidosPage() {
                         ))}
                       </div>
 
-                      {/* Subtotal, Frete e Total (mantendo posição) */}
+                      {/* Subtotal, Frete e Total */}
                       <div className="border-t pt-2 space-y-1">
                         <div className="flex justify-between text-xs">
                           <span>Subtotal:</span>
@@ -300,7 +300,7 @@ export default function PedidosPage() {
                         </div>
                       </div>
 
-                      {/* 🔴 Motivo do cancelamento — somente quando cancelado */}
+                      {/* Motivo do cancelamento */}
                       {order.status === "cancelado" && order.deniedReason && (
                         <div className="mt-2 p-2 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                           <span className="font-semibold">Motivo do cancelamento:</span>
@@ -316,7 +316,7 @@ export default function PedidosPage() {
                                 {item.quantity}x {item.name}
                               </p>
 
-                              {Array.isArray(item.toppings) && item.toppings.length > 0 && (
+                              {item.toppings.length > 0 && (
                                 <div className="pl-2">
                                   <span className="font-semibold">Acompanhamentos:</span>
                                   <ul className="list-disc list-inside">
@@ -327,7 +327,18 @@ export default function PedidosPage() {
                                 </div>
                               )}
 
-                              {Array.isArray(item.extras) && item.extras.length > 0 && (
+                              {item.cremes.length > 0 && (
+                                <div className="pl-2">
+                                  <span className="font-semibold">Cremes:</span>
+                                  <ul className="list-disc list-inside">
+                                    {item.cremes.map((c, i) => (
+                                      <li key={i}>{c}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {item.extras.length > 0 && (
                                 <div className="pl-2">
                                   <span className="font-semibold">Adicionais:</span>
                                   <ul className="list-disc list-inside">

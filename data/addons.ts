@@ -42,5 +42,8 @@ export const addons: Extras[] = [
 
   // R$ 3,00
   { id: 17, name: "Morango", price: 3.0, imageUrl: "/images/addons/morango.avif" },
-  { id: 18, name: "Kiwi", price: 3.0, imageUrl: "/images/addons/kiwi.avif" }
+  { id: 18, name: "Kiwi", price: 3.0, imageUrl: "/images/addons/kiwi.avif" },
+
+  { id: 26, name: "Creme de Amendoim", price: 4.0, imageUrl: "/images/addons/creme-pacoca-amendoim.avif" },
+  { id: 27, name: "Creme de Trufa ao Leite", price: 4.0, imageUrl: "/images/addons/creme-trufa-leite.avif" }
 ]

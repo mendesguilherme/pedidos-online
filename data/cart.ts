@@ -8,6 +8,7 @@ export interface CartItem {
   image: string
   toppings: string[]   // Acompanhamentos obrigatórios
   extras: string[]     // Adicionais opcionais
+  cremes?: string[]
 }
 
 export interface Address {

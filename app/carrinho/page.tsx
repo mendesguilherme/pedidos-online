@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/CartContext"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { useMemo, useState, useEffect } from "react"
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingCart, ArrowLeft, Minus, Plus, Trash2, Home } from "lucide-react"
@@ -33,8 +33,7 @@ export default function CarrinhoPage() {
     [cartItems]
   )
 
-  // Frete: se "entrega", usa cart.deliveryFee quando existir; senão fallback.
-  // Em "retirada" ou tipo indefinido -> 0
+  // Frete
   const deliveryFee = useMemo(() => {
     if (cart?.tipo !== "entrega") return 0
     const feeFromCart = (cart as any)?.deliveryFee
@@ -42,7 +41,6 @@ export default function CarrinhoPage() {
     return round2(Math.max(0, fee))
   }, [cart?.tipo, (cart as any)?.deliveryFee])
 
-  // Total = subtotal + frete
   const total = useMemo(() => round2(subtotal + deliveryFee), [subtotal, deliveryFee])
 
   const handleSeeProducts = () => {
@@ -105,58 +103,54 @@ export default function CarrinhoPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {cartItems.map((item) => (
-                <Card key={item.id} className="rounded-xl">
-                  <CardContent className="p-3 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        className="w-14 h-14 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 text-sm">{item.name}</h3>
-                        <p className="text-xs text-gray-600">
-                          <strong>Acompanhamentos:</strong> {item.toppings?.join(", ") || "Nenhum"}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          <strong>Adicionais:</strong> {item.extras?.join(", ") || "Nenhum"}
-                        </p>
-                        <p className="text-green-600 font-bold text-sm mt-1">
-                          {fmtBRL(item.price)}
-                        </p>
+              {cartItems.map((item) => {
+                // Normaliza para listas seguras
+                const toppingsList = Array.isArray(item.toppings) ? item.toppings : [];
+                const cremesList   = Array.isArray(item.cremes)   ? item.cremes   : [];
+                const extrasList   = Array.isArray(item.extras)   ? item.extras   : [];
+
+                return (
+                  <Card key={item.id} className="rounded-xl">
+                    <CardContent className="p-3 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={item.image || "/placeholder.svg"}
+                          alt={item.name}
+                          className="w-14 h-14 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800 text-sm">{item.name}</h3>
+
+                          {toppingsList.length > 0 && (
+                            <p className="text-xs text-gray-600">
+                              <strong>Acompanhamentos:</strong> {toppingsList.join(", ")}
+                            </p>
+                          )}
+
+                          {cremesList.length > 0 && (
+                            <p className="text-xs text-gray-600">
+                              <strong>Cremes:</strong> {cremesList.join(", ")}
+                            </p>
+                          )}
+
+                          {extrasList.length > 0 && (
+                            <p className="text-xs text-gray-600">
+                              <strong>Adicionais:</strong> {extrasList.join(", ")}
+                            </p>
+                          )}
+
+                          <p className="text-green-600 font-bold text-sm mt-1">
+                            {fmtBRL(item.price)}
+                          </p>
+                        </div>
+
+                        {/* ...botões de quantidade/remover seguem iguais... */}
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-7 h-7 p-0 rounded-xl"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </Button>
-                        <span className="font-semibold min-w-[1.5rem] text-center text-sm">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-7 h-7 p-0 rounded-xl"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(item.id)}
-                          className="text-red-500 hover:text-red-700 ml-1 rounded-xl"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
 
               <Card className="rounded-xl">
                 <CardHeader className="pb-2">

@@ -1,4 +1,5 @@
-// data/acaiCups.ts
+// src/data/products.ts  (ou o arquivo onde você define `acaiCups`)
+
 export interface CupSizeOption {
   id: number
   name: string
@@ -9,12 +10,19 @@ export interface CupSizeOption {
   volumeMl: number
 }
 
-export interface CupSizeOptionWithChoices extends CupSizeOption {
-  toppings: string[]
-  extras: string[]
+/** Versão com whitelists por ID (opcionais) */
+export interface CupSizeOptionWithLimits extends CupSizeOption {
+  allowedToppingIds?: number[]
+  allowedAddonIds?: number[]
+  /** nº de cremes obrigatórios para este copo (0 = não exige) */
+  requiredCreams?: number
+  /** se definido, restringe os cremes possíveis por ID */
+  allowedCreamIds?: number[]
 }
 
-export const acaiCups: CupSizeOption[] = [
+export type AcaiCup = CupSizeOption | CupSizeOptionWithLimits
+
+export const acaiCups: AcaiCup[] = [
   {
     id: 1,
     name: "Copo de Açaí 330ml",
@@ -41,5 +49,20 @@ export const acaiCups: CupSizeOption[] = [
     image: "/images/770.webp",
     maxToppings: 4,
     volumeMl: 770,
+  },
+  {
+    id: 4,
+    name: "Copo de Fondue 330ml",
+    description: "Monte com até 3 acompanhamentos",
+    price: 24.0,
+    image: "/images/330.webp",
+    maxToppings: 3,
+    volumeMl: 330,
+    
+    allowedToppingIds: [12, 13, 14, 15],
+    allowedAddonIds:   [],
+    
+    requiredCreams: 2,
+    allowedCreamIds: [1, 2, 3, 4], 
   },
 ]

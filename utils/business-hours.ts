@@ -7,7 +7,7 @@ export interface BusinessHours {
 }
 
 export const BUSINESS_HOURS: BusinessHours = {
-  monday: { open: "14:00", close: "23:00", isOpen: true },
+  monday: { open: "08:00", close: "23:00", isOpen: true },
   tuesday: { open: "08:00", close: "23:59", isOpen: true },
   wednesday: { open: "00:01", close: "23:59", isOpen: true },
   thursday: { open: "00:01", close: "23:59", isOpen: true },
