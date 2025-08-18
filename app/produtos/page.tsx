@@ -40,6 +40,7 @@ export default function ProdutosPage() {
   const [selectedToppingIds, setSelectedToppingIds] = useState<number[]>([])
   const [selectedExtraIds, setSelectedExtraIds] = useState<number[]>([])
   const [selectedCreamIds, setSelectedCreamIds] = useState<number[]>([])      // 👈 cremes obrigatórios
+  const maxToppings = selectedCup?.maxToppings ?? 0
 
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
@@ -252,7 +253,7 @@ export default function ProdutosPage() {
                 <>
                   {/* Acompanhamentos (obrigatórios) */}
                   <div className="mt-2" ref={toppingsRef}>
-                    <h2 className="text-sm font-semibold mb-1">Acompanhamentos (obrigatórios)</h2>
+                    <h2 className="text-sm font-semibold mb-1">Acompanhamentos ({selectedToppingIds.length}/{maxToppings})</h2>
                     <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {visibleToppings.map((t) => (
                         <button
@@ -285,8 +286,8 @@ export default function ProdutosPage() {
                   {/* Cremes (obrigatórios por copo) */}
                   {requiredCreams > 0 && (
                     <div className="mt-2" ref={creamsRef}>
-                      <h2 className="text-sm font-semibold mb-1">
-                        Cremes (obrigatórios) — selecione {requiredCreams}
+                       <h2 className="text-sm font-semibold mb-1">
+                        Cremes ({selectedCreamIds.length}/{requiredCreams})
                       </h2>
                       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                         {visibleCreams.map((c) => {
@@ -398,7 +399,6 @@ export default function ProdutosPage() {
           tipo={tipo}
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
-          // ✅ só habilita quando toppings completos E cremes (se exigidos)
           canAddAcai={
             !!selectedCup &&
             selectedToppingIds.length === (selectedCup?.maxToppings ?? 0) &&
@@ -407,6 +407,10 @@ export default function ProdutosPage() {
           hasSelectedCup={!!selectedCup}
           onNextStep={handleNextStep}
           onAddAcai={handleAddToCart}
+
+          // 👇 novos props para o cálculo em tempo real
+          draftCupPrice={selectedCup?.price ?? 0}
+          draftExtraIds={selectedCup ? selectedExtraIds : []}
         />
       </div>
 

@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/dialog"
 
 import { useCart } from "@/context/CartContext"
+import { addons } from "@/data/addons"
 
-interface OrderSummaryProps {  
+interface OrderSummaryProps {
   subtotal: number
   deliveryFee: number
   total: number
@@ -23,11 +24,15 @@ interface OrderSummaryProps {
   tipo: string | null
   initialTipo: string | null
   hasItems: boolean
-  canAddAcai: boolean    
+  canAddAcai: boolean
   hasSelectedCup: boolean
   onNextStep: () => void
   onAddAcai: (force?: boolean) => void
   setTab: (tab: string) => void
+
+  /** 👇 Valores da seleção atual na aba de produtos (opcionais) */
+  draftCupPrice?: number
+  draftExtraIds?: number[]
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -42,11 +47,14 @@ export function OrderSummary({
   tipo,
   initialTipo,
   hasItems,
-  canAddAcai,    
+  canAddAcai,
   hasSelectedCup,
   onNextStep,
   onAddAcai,
   setTab,
+  /** seleção atual (opcional) */
+  draftCupPrice,
+  draftExtraIds,
 }: OrderSummaryProps) {
   const [showModal, setShowModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -55,25 +63,18 @@ export function OrderSummary({
 
   const { cart } = useCart()
   const paymentMethod = cart.paymentMethod
-  const deliveryAddress = cart.deliveryAddress || {
-    street: "",
-    number: "",
-    neighborhood: "",
-    city: "",
-    zipCode: "",
-    complement: "",
-    reference: "",
-  }
 
   // ---------- BLINDA VALORES (props vs cart) ----------
-  const itemsSubtotal = useMemo(() =>
-    round2(
-      (cart.items ?? []).reduce<number>(
-        (s, it: any) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1),
-        0
-      )
-    ),
-  [cart.items])
+  const itemsSubtotal = useMemo(
+    () =>
+      round2(
+        (cart.items ?? []).reduce<number>(
+          (s, it: any) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1),
+          0
+        )
+      ),
+    [cart.items]
+  )
 
   const effectiveTipo = (tipo ?? cart.tipo ?? "retirada").toString().toLowerCase()
   const feeFromCart = useMemo(
@@ -81,31 +82,48 @@ export function OrderSummary({
     [effectiveTipo, (cart as any)?.deliveryFee]
   )
 
-  const shouldShowDeliveryRow = effectiveTipo === "entrega";
+  const shouldShowDeliveryRow = effectiveTipo === "entrega"
 
   // Preferir props quando válidas; se não, usar fallbacks do cart
   const safeSubtotal = useMemo(
-    () => Number.isFinite(subtotal) ? round2(Number(subtotal)) : itemsSubtotal,
+    () => (Number.isFinite(subtotal) ? round2(Number(subtotal)) : itemsSubtotal),
     [subtotal, itemsSubtotal]
   )
+
   const safeDeliveryFee = useMemo(() => {
     if (effectiveTipo !== "entrega") return 0
     return Number.isFinite(deliveryFee) ? round2(Number(deliveryFee)) : feeFromCart
   }, [effectiveTipo, deliveryFee, feeFromCart])
 
-  // Total coerente: se prop total bate com subtotal+frete, usa-a; senão, recalcula
-  const computedTotal = useMemo(
-    () => round2(safeSubtotal + safeDeliveryFee),
-    [safeSubtotal, safeDeliveryFee]
-  )
-  const safeTotal = useMemo(() => {
-    if (Number.isFinite(total)) {
-      const t = round2(Number(total))
-      const eps = 0.005
-      return Math.abs(t - computedTotal) < eps ? t : computedTotal
+  // ---------- PRÉ-VISUALIZAÇÃO EM TEMPO REAL NA ABA "produtos" ----------
+  // Soma preço do copo selecionado + totais dos adicionais selecionados (cremes não somam)
+  const draftExtrasTotal = useMemo(() => {
+    if (currentTab !== "produtos" || !hasSelectedCup) return 0
+    const ids = Array.isArray(draftExtraIds) ? draftExtraIds : []
+    const sum = ids.reduce((acc, id) => {
+      const a = addons.find((x) => x.id === id)
+      return acc + (a?.price ?? 0)
+    }, 0)
+    return round2(sum)
+  }, [currentTab, hasSelectedCup, draftExtraIds])
+
+  const draftCupSafe = useMemo(() => {
+    if (currentTab !== "produtos" || !hasSelectedCup) return 0
+    return round2(Number(draftCupPrice ?? 0))
+  }, [currentTab, hasSelectedCup, draftCupPrice])
+
+  // Subtotal exibido: se estiver em "produtos", mostra carrinho + seleção atual (preview)
+  const displaySubtotal = useMemo(() => {
+    if (currentTab === "produtos") {
+      return round2(safeSubtotal + draftCupSafe + draftExtrasTotal)
     }
-    return computedTotal
-  }, [total, computedTotal])
+    return safeSubtotal
+  }, [currentTab, safeSubtotal, draftCupSafe, draftExtrasTotal])
+
+  const displayTotal = useMemo(
+    () => round2(displaySubtotal + safeDeliveryFee),
+    [displaySubtotal, safeDeliveryFee]
+  )
 
   // ---------- validações ----------
   const isAddressValid = () => {
@@ -153,17 +171,17 @@ export function OrderSummary({
   const handleNextStepClick = () => {
     const isEnderecoStep = currentTab === "endereco"
     const isPagamentoStep = currentTab === "pagamento"
-    
-    if (isEnderecoStep && !isAddressValid()) {      
+
+    if (isEnderecoStep && !isAddressValid()) {
       setShowModal(true)
       return
     }
-    if (isPagamentoStep && !isPaymentValid()) {      
+    if (isPagamentoStep && !isPaymentValid()) {
       setShowModal(true)
       return
     }
     setShowModal(false)
-    onNextStep()    
+    onNextStep()
   }
 
   return (
@@ -177,7 +195,7 @@ export function OrderSummary({
                 {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
               </p>
               <p className="whitespace-nowrap">
-                Subtotal: {fmtBRL(safeSubtotal)}
+                Subtotal: {fmtBRL(displaySubtotal)}
               </p>
               {shouldShowDeliveryRow && (
                 <p className="whitespace-nowrap">
@@ -187,13 +205,13 @@ export function OrderSummary({
             </div>
 
             <p className="text-sm sm:text-base font-bold text-primary whitespace-nowrap self-end">
-              Total: {fmtBRL(safeTotal)}
+              Total: {fmtBRL(displayTotal)}
             </p>
           </div>
-                    
+
           {/* Linha do botão */}
           <div className="px-4 pt-1 pb-1">
-            {currentTab === "produtos" && (            
+            {currentTab === "produtos" && (
               <Button
                 size="sm"
                 onClick={handleAddAcai}
@@ -202,7 +220,7 @@ export function OrderSummary({
                 style={{ borderRadius: "6px" }}
               >
                 Adicionar ao Carrinho
-              </Button>            
+              </Button>
             )}
 
             {currentTab !== "produtos" && (
@@ -215,13 +233,16 @@ export function OrderSummary({
                 {buttonState.label}
               </Button>
             )}
-          </div>          
+          </div>
         </CardContent>
       </Card>
 
-      {/* Modal de sucesso ou erro */}
+      {/* Modal de sucesso/erro/validações */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent aria-describedby="descricao-do-modal" className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto">
+        <DialogContent
+          aria-describedby="descricao-do-modal"
+          className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto"
+        >
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg text-center">
               {currentTab === "pagamento" && !cart.paymentMethod
@@ -257,7 +278,9 @@ export function OrderSummary({
                 }}
                 className="rounded-xl px-6 py-2 text-sm"
               >
-                {effectiveTipo === "retirada" ? "Definir Forma de Pagamento" : "Ir para Endereço de Entrega"}
+                {effectiveTipo === "retirada"
+                  ? "Definir Forma de Pagamento"
+                  : "Ir para Endereço de Entrega"}
               </Button>
             </DialogFooter>
           )}
@@ -286,7 +309,6 @@ export function OrderSummary({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

@@ -10,9 +10,24 @@ import type {
 } from "@supabase/supabase-js"
 import { getOrCreateClientId } from "@/lib/client-id"
 
-type Order = BaseOrder & {
+/** Itens do pedido expostos no contexto (inclui `cremes`) */
+type OrderItem = {
+  id: number
+  name: string
+  quantity: number
+  price: number
+  toppings: string[]
+  cremes: string[]
+  extras: string[]
+  image?: string
+}
+
+/** Order do contexto: sobrescreve `items` do BaseOrder para aceitar `cremes` */
+type Order = Omit<BaseOrder, "items"> & {
+  items: OrderItem[]
   subtotal: number
   frete: number
+  total: number
   /** campos para cancelamento/motivo (expostos para a página) */
   cancel_reason?: string | null
   denied_reason?: string | null
@@ -35,7 +50,7 @@ const ENABLE_REALTIME = process.env.NEXT_PUBLIC_ENABLE_REALTIME === "true"
 const POLL_BASE_MS = 5000
 const POLL_MAX_MS = 30000
 
-const round2 = (n:number) => Math.round(n*100)/100
+const round2 = (n: number) => Math.round(n * 100) / 100
 
 export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
   const [orders, setOrders] = useState<Order[]>([])
@@ -63,9 +78,9 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
         })
 
         // fallbacks para pedidos antigos
-        const items = (row.cart?.items ?? []) as Array<{ price:number; quantity:number }>
+        const itemsRaw = (row.cart?.items ?? []) as Array<{ price: number; quantity: number }>
         const computedSubtotal = round2(
-          items.reduce((s, it) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1), 0)
+          itemsRaw.reduce((s, it) => s + Number(it?.price || 0) * Number(it?.quantity ?? 1), 0)
         )
 
         const tipo = row.tipo
@@ -79,20 +94,23 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
         )
         const total = round2(Number(row.total ?? (subtotal + frete)))
 
+        const items: OrderItem[] = (row.cart?.items ?? []).map((it: any) => ({
+          id: it.id,
+          name: String(it.name),
+          quantity: Number(it.quantity ?? 1),
+          price: Number(it.price ?? 0),
+          toppings: Array.isArray(it.toppings) ? it.toppings : [],
+          cremes: Array.isArray(it.cremes) ? it.cremes : [], // ⬅️ AQUI: inclui cremes
+          extras: Array.isArray(it.extras) ? it.extras : [],
+          image: it.image,
+        }))
+
         return {
           id: row.order_code ?? row.id,
           createdAt: createdAtDisplay,
           status: row.status,
           tipo,
-          items: (row.cart?.items ?? []).map((it: any) => ({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity ?? 1,
-            price: it.price ?? 0,
-            toppings: it.toppings ?? [],
-            extras: it.extras ?? [],
-            image: it.image,
-          })),
+          items,
           address:
             row.address ??
             row.cart?.deliveryAddress ?? {
@@ -105,15 +123,15 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
               reference: "",
             },
           paymentMethod: row.payment_method ?? row.cart?.paymentMethod ?? "",
-          subtotal,   // ⬅️ agora vem do DB/fallback
-          frete,      // ⬅️ agora vem do DB/fallback
-          total,      // ⬅️ total consistente
-          /** ⬇️ repassa os campos para a página poder exibir o motivo */
+          subtotal,   // vem do DB/fallback
+          frete,      // vem do DB/fallback
+          total,      // consistente com subtotal+frete
+          // repassa campos de cancelamento/motivo
           cancel_reason: row.cancel_reason ?? null,
           denied_reason: row.denied_reason ?? null,
           canceled_at: row.canceled_at ?? null,
           __iso: createdAtIso,
-        } satisfies OrderWithIso
+        } as OrderWithIso
       })
 
       mappedWithIso.sort(
@@ -196,13 +214,13 @@ export const OrderProvider = ({ children }: { children: React.ReactNode }) => {
           filter: `client_id=eq.${clientId}`,
         },
         (_payload: RealtimePostgresChangesPayload<any>) => {
-          scheduleReload();
+          scheduleReload()
         }
       )
-      .subscribe((status: REALTIME_SUBSCRIBE_STATES, _err?: Error) => {
+      .subscribe((status: REALTIME_SUBSCRIBE_STATES) => {
         // status: "SUBSCRIBED" | "TIMED_OUT" | "CHANNEL_ERROR" | "CLOSED"
         if (status !== "SUBSCRIBED") {
-          setTimeout(() => loadFromApi(), 1000);
+          setTimeout(() => loadFromApi(), 1000)
         }
       })
 
