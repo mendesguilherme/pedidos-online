@@ -1,5 +1,6 @@
 // app/painel/page.tsx
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
@@ -11,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import React from "react";
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
