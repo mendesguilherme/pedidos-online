@@ -17,7 +17,12 @@ export default function SobrePage() {
         <div className="bg-white shadow-sm border-b sticky top-0 z-10">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center">
-              <Button variant="ghost" size="sm" onClick={() => router.back()} className="mr-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mr-3 rounded-xl"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <Info className="w-6 h-6 mr-2 text-gray-600" />
@@ -27,7 +32,7 @@ export default function SobrePage() {
               variant="ghost"
               size="sm"
               onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-800"
+              className="text-gray-600 hover:text-gray-800 rounded-xl"
             >
               <Home className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Menu Principal</span>
@@ -37,17 +42,17 @@ export default function SobrePage() {
 
         <div className="container mx-auto px-4 py-6 pb-20 space-y-6">
           {/* Informações da Loja */}
-          <Card>
+          <Card className="rounded-2xl shadow-sm border">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Info className="w-5 h-5 mr-2 text-gray-600" />
-                Açaí do Chef - O melhor da cidade!
+                Açaí Modelo - O melhor da cidade!
               </CardTitle>
             </CardHeader>
           </Card>
 
           {/* Endereço */}
-          <Card>
+          <Card className="rounded-2xl shadow-sm border">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <MapPin className="w-5 h-5 mr-2 text-green-600" />
@@ -56,15 +61,15 @@ export default function SobrePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-gray-600">
-                <p>Rua Cério Galão, 660</p>
-                <p>Jardim Eldorado - Bebedouro/SP</p>
-                <p>CEP: 14706-126</p>
+                <p>Rua Abcde, 999</p>
+                <p>Jardim das Flores - Bebedouro/SP</p>
+                <p>CEP: 14700-000</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Horário de Funcionamento */}
-          <Card>
+          <Card className="rounded-2xl shadow-sm border">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Clock className="w-5 h-5 mr-2 text-blue-600" />
@@ -90,15 +95,29 @@ export default function SobrePage() {
                   return (
                     <div
                       key={dayKey}
-                      className={`flex justify-between items-center p-2 rounded ${
-                        isToday ? "bg-blue-50 border border-blue-200" : "bg-gray-50"
+                      className={`flex justify-between items-center p-3 rounded-xl ${
+                        isToday
+                          ? "bg-blue-50 border border-blue-200"
+                          : "bg-gray-50 border border-gray-200"
                       }`}
                     >
-                      <span className={`font-medium ${isToday ? "text-blue-800" : "text-gray-700"}`}>
+                      <span
+                        className={`font-medium ${
+                          isToday ? "text-blue-800" : "text-gray-700"
+                        }`}
+                      >
                         {dayName}
-                        {isToday && <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded">Hoje</span>}
+                        {isToday && (
+                          <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded-full">
+                            Hoje
+                          </span>
+                        )}
                       </span>
-                      <span className={`${isToday ? "text-blue-700 font-semibold" : "text-gray-600"}`}>
+                      <span
+                        className={`${
+                          isToday ? "text-blue-700 font-semibold" : "text-gray-600"
+                        }`}
+                      >
                         {hours.isOpen ? `${hours.open} às ${hours.close}` : "Fechado"}
                       </span>
                     </div>
@@ -106,21 +125,26 @@ export default function SobrePage() {
                 })}
               </div>
 
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                 <p className="text-sm text-yellow-800">
                   <strong>Importante:</strong> Os pedidos online seguem rigorosamente estes horários. Fora do horário de
                   funcionamento, os botões de pedido ficam bloqueados automaticamente.
                 </p>
               </div>
             </CardContent>
-          </Card>          
+          </Card>
 
+          {/* Ações */}
           <div className="space-y-2">
-            <Button onClick={() => router.push("/")} className="w-full">
+            <Button onClick={() => router.push("/")} className="w-full rounded-xl">
               <Home className="w-4 h-4 mr-2" />
               Fazer um Pedido
             </Button>
-            <Button variant="outline" onClick={() => router.back()} className="w-full">
+            <Button
+              variant="outline"
+              onClick={() => router.back()}
+              className="w-full rounded-xl"
+            >
               Voltar
             </Button>
           </div>
