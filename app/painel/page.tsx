@@ -94,6 +94,21 @@ function todayInSaoPaulo(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Primeiro dia do mês atual em São Paulo no formato YYYY-MM-DD */
+function firstDayOfCurrentMonthInSaoPaulo(): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+
+  const month = parts.find((p) => p.type === "month")!.value;
+  const year = parts.find((p) => p.type === "year")!.value;
+
+  return `${year}-${month}-01`;
+}
+
 /** Converte um ISO UTC do banco para string PT-BR em Brasília */
 function fmtDateBR_SP(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -242,7 +257,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const f_total_max = sp.tmax?.trim();
 
   // datas (se não vierem, HOJE por padrão)
-  const defaultDay = todayInSaoPaulo();
+  const defaultDay = firstDayOfCurrentMonthInSaoPaulo();
   const f_created_from = sp.cf?.trim() || defaultDay;
   const f_created_to = sp.ct?.trim() || f_created_from;
 
@@ -471,7 +486,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
       {/* Tabela */}
       <div className="mt-6 overflow-x-auto rounded-xl border bg-white [--border:0_0%85%]">
         <table className="min-w-full text-sm">
-          <thead className="bg-[hsl(var(--primary))] text-white)">
+          <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Código</th>
               <th className="px-3 py-2 text-left">Criado</th>
