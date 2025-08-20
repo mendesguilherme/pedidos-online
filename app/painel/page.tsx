@@ -257,9 +257,10 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const f_total_max = sp.tmax?.trim();
 
   // datas (se não vierem, HOJE por padrão)
-  const defaultDay = firstDayOfCurrentMonthInSaoPaulo();
-  const f_created_from = sp.cf?.trim() || defaultDay;
-  const f_created_to = sp.ct?.trim() || f_created_from;
+  const firstDayMonth = firstDayOfCurrentMonthInSaoPaulo();
+  const defaultDay = todayInSaoPaulo();
+  const f_created_from = sp.cf?.trim() || firstDayMonth;
+  const f_created_to = sp.ct?.trim() || defaultDay;
 
   const supa = adminClient();
 
