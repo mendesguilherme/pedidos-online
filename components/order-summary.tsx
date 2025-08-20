@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog"
 
 import { useCart } from "@/context/CartContext"
-import { addons } from "@/data/addons"
+// ⬇️ pega os adicionais do banco, como já feito na tela de produtos
+import { useAddons } from "@/hooks/use-addons"
 
 interface OrderSummaryProps {
   subtotal: number
@@ -64,6 +65,9 @@ export function OrderSummary({
   const { cart } = useCart()
   const paymentMethod = cart.paymentMethod
 
+  // ⬇️ carrega addons do banco (SWR/fetch), client-safe
+  const { data: addonsDb } = useAddons()
+
   // ---------- BLINDA VALORES (props vs cart) ----------
   const itemsSubtotal = useMemo(
     () =>
@@ -100,12 +104,12 @@ export function OrderSummary({
   const draftExtrasTotal = useMemo(() => {
     if (currentTab !== "produtos" || !hasSelectedCup) return 0
     const ids = Array.isArray(draftExtraIds) ? draftExtraIds : []
-    const sum = ids.reduce((acc, id) => {
-      const a = addons.find((x) => x.id === id)
-      return acc + (a?.price ?? 0)
-    }, 0)
+    const list = addonsDb ?? []
+    // map para lookup O(1)
+    const priceMap = new Map<number, number>(list.map(a => [a.id, Number(a.price ?? 0)]))
+    const sum = ids.reduce((acc, id) => acc + (priceMap.get(id) ?? 0), 0)
     return round2(sum)
-  }, [currentTab, hasSelectedCup, draftExtraIds])
+  }, [currentTab, hasSelectedCup, draftExtraIds, addonsDb])
 
   const draftCupSafe = useMemo(() => {
     if (currentTab !== "produtos" || !hasSelectedCup) return 0
@@ -197,7 +201,7 @@ export function OrderSummary({
               <p className="whitespace-nowrap">
                 Subtotal: {fmtBRL(displaySubtotal)}
               </p>
-              {shouldShowDeliveryRow && (
+              {effectiveTipo === "entrega" && (
                 <p className="whitespace-nowrap">
                   Taxa de entrega: {fmtBRL(safeDeliveryFee)}
                 </p>
@@ -237,7 +241,7 @@ export function OrderSummary({
         </CardContent>
       </Card>
 
-      {/* Modal de sucesso/erro/validações */}
+      {/* Modais */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent
           aria-describedby="descricao-do-modal"
@@ -301,7 +305,6 @@ export function OrderSummary({
             </DialogDescription>
           </DialogHeader>
 
-          {/* sobrescreve o padrão do shadcn: sm:justify-end */}
           <DialogFooter className="flex flex-col sm:flex-row justify-center sm:justify-center pt-4">
             <Button onClick={() => setShowWarning(false)} className="rounded-xl px-6 py-2 text-sm">
               OK, Entendi!

@@ -1,53 +1,54 @@
-"use client"
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useSession, signIn } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+// app/signin/page.tsx
+"use client";
+
+import { signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import CredentialsError from "./_components/CredentialsError";
 
 export default function SignInPage() {
-  const { status } = useSession()
-  const router = useRouter()
-  const params = useSearchParams()
-  const callbackUrl = params.get("callbackUrl") || "/painel"
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const username = (form.elements.namedItem("username") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (status === "authenticated") router.replace("/painel")
-  }, [status, router])
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    await signIn("credentials", { username, password, callbackUrl })
-    setLoading(false)
+    await signIn("credentials", {
+      username,
+      password,
+      redirect: true,          // NextAuth redireciona e usa ?error=... se falhar
+      callbackUrl: "/painel",
+    });
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md rounded-2xl">
-        <CardHeader><CardTitle className="text-center">Login do Administrador</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={onSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <Label>Login</Label>
-              <Input className="rounded-xl" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            </div>
-            <div className="space-y-1">
-              <Label>Senha</Label>
-              <Input type="password" className="rounded-xl" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </div>
-            <Button disabled={loading} className="w-full rounded-xl">
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="min-h-[100svh] flex items-center justify-center">
+      <main className="w-full max-w-sm p-6">
+        <h1 className="text-xl font-semibold text-center">Acesso ao Painel</h1>
+
+        {/* Mensagem padrão para usuário/senha inválidos */}
+        <CredentialsError className="mt-4" />
+
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <div>
+            <Label className="text-xs text-gray-600">Usuário</Label>
+            <Input name="username" autoComplete="username" className="rounded-xl" />
+          </div>
+          <div>
+            <Label className="text-xs text-gray-600">Senha</Label>
+            <Input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              className="rounded-xl"
+            />
+          </div>
+          <Button type="submit" className="w-full rounded-xl">
+            Entrar
+          </Button>
+        </form>
+      </main>
     </div>
-  )
+  );
 }

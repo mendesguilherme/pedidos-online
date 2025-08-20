@@ -1,4 +1,5 @@
 // src/data/toppings.ts
+import "server-only"
 
 export interface Topping {
   id: number
@@ -6,20 +7,37 @@ export interface Topping {
   imageUrl: string
 }
 
-export const toppings: Topping[] = [
-  { id: 1, name: "Leite Condensado", imageUrl: "/images/addons/leite-condensado.avif" },
-  { id: 2, name: "Leite Ninho", imageUrl: "/images/addons/leite-ninho.avif" },
-  { id: 3, name: "Paçoca", imageUrl: "/images/addons/pacoca.avif" },
-  { id: 4, name: "Granola", imageUrl: "/images/addons/granola.avif" },
-  { id: 5, name: "Confete", imageUrl: "/images/addons/confete.avif" },
-  { id: 6, name: "Ovomaltine", imageUrl: "/images/addons/ovomaltine.avif" },
-  { id: 7, name: "Farinha Láctea", imageUrl: "/images/addons/farinha-lactea.avif" },
-  { id: 8, name: "Chocoboll", imageUrl: "/images/addons/chocoboll.avif" },
-  { id: 9, name: "Amendoim", imageUrl: "/images/addons/amendoim.avif" },
-  { id: 10, name: "Gotas de Chocolate", imageUrl: "/images/addons/gotas-de-chocolate.avif" },
-  { id: 11, name: "Mel", imageUrl: "/images/addons/mel.avif" },
-  { id: 12, name: "Uva", imageUrl: "/images/addons/uva.avif" },
-  { id: 13, name: "Banana", imageUrl: "/images/addons/banana.avif" },
-  { id: 14, name: "Morango", imageUrl: "/images/addons/morango.avif" },
-  { id: 15, name: "Kiwi", imageUrl: "/images/addons/kiwi.avif" },
-]
+type Row = { id: number; name: string; image_url: string }
+
+function supabaseBase() {
+  const base = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base) throw new Error("SUPABASE_URL não definido")
+  return base.replace(/\/+$/, "")
+}
+
+function serviceKey() {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!k) throw new Error("SUPABASE_SERVICE_ROLE_KEY não definida")
+  return k
+}
+
+/** Use em server components/actions/route handlers */
+export async function getToppings(): Promise<Topping[]> {
+  const base = supabaseBase()
+  const key = serviceKey()
+
+  const url = `${base}/rest/v1/toppings?select=id,name,image_url&order=name.asc`
+  const res = await fetch(url, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    cache: "no-store",
+    next: { revalidate: 0 },
+  })
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "")
+    throw new Error(`Falha ao listar toppings: ${res.status} ${txt}`)
+  }
+
+  const rows = (await res.json()) as Row[]
+  return rows.map(r => ({ id: r.id, name: r.name, imageUrl: r.image_url }))
+}

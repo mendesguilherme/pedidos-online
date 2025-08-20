@@ -6,14 +6,15 @@ import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
 import DenyWithReasonButton from "./_components/DenyWithReasonButton";
+import LogoutButton from "./_components/LogoutButton";
 import { allowedActionsFor } from "@/lib/orders-workflow"; // mantém
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import React from "react";
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -199,6 +200,8 @@ function ItensResumo({ cart }: { cart: any }) {
 }
 
 export default async function AdminPedidosPage({ searchParams }: PageProps) {
+  const session = await getServerSession(authOptions);
+
   const sp = Object.fromEntries(
     Object.entries(searchParams ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])
   ) as Record<string, string | undefined>;
@@ -255,7 +258,13 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   if (error) {
     return (
       <main className="mx-auto max-w-6xl p-6">
-        <h1 className="text-2xl font-bold">Admin • Pedidos</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold">Admin • Pedidos</h1>
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <span>{session?.user?.name ?? "Admin"}</span>
+            <LogoutButton />
+          </div>
+        </div>
         <p className="mt-4 text-red-600">Falha ao carregar pedidos: {error.message}</p>
       </main>
     );
@@ -306,7 +315,15 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
     <main className="mx-auto max-w-6xl p-6">
       <RealtimeRefresher />
 
-      <h1 className="text-2xl font-bold">Admin • Pedidos</h1>
+      {/* topo com título, nome e logout */}
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Admin • Pedidos</h1>
+        <div className="flex items-center gap-3 text-sm text-gray-600">
+          <span>{session?.user?.name ?? "Admin"}</span>
+          <LogoutButton />
+        </div>
+      </div>
+
       <p className="text-sm text-gray-500 mt-2">
         Clique em Aceitar/Negar para atualizar o status. Você retornará a esta página após a ação.
       </p>

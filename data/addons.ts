@@ -1,49 +1,58 @@
 // src/data/addons.ts
+import "server-only"
 
-export interface Extras {
+export interface Addon {
   id: number
   name: string
   price: number
   imageUrl: string
+  isActive?: boolean
 }
 
-export const addons: Extras[] = [
-  // R$ 2,00
-  { id: 12, name: "Oreo", price: 2.0, imageUrl: "/images/addons/oreo.avif" },
-  { id: 13, name: "Bis Branco", price: 2.0, imageUrl: "/images/addons/bis-branco.avif" },
-  { id: 14, name: "Bis Preto", price: 2.0, imageUrl: "/images/addons/bis-preto.avif" },
-  { id: 19, name: "Kit Kat", price: 3.0, imageUrl: "/images/addons/kit-kat.avif" },
-  { id: 20, name: "Bombom Ouro Branco", price: 3.0, imageUrl: "/images/addons/bombom-ouro-branco.avif" },
-  { id: 21, name: "Bombom Sonho de Valsa", price: 3.0, imageUrl: "/images/addons/bombom-sonho-de-valsa.avif" },
-    // R$ 4,00
-  { id: 22, name: "Creme de Avelã", price: 4.0, imageUrl: "/images/addons/creme-de-avela.avif" },
-  { id: 23, name: "Prestígio", price: 4.0, imageUrl: "/images/addons/prestigio.avif" },
-  { id: 24, name: "Creme de Leite Ninho", price: 4.0, imageUrl: "/images/addons/creme-de-leite-ninho.avif" },
-  { id: 25, name: "Chocowaffer Branco", price: 4.0, imageUrl: "/images/addons/chocowaffer-branco.avif" },
+type Row = {
+  id: number
+  name: string
+  price: number | string
+  image_url: string
+  is_active?: boolean | null
+}
 
-  
+function supabaseBase() {
+  const base = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base) throw new Error("SUPABASE_URL não definido")
+  return base.replace(/\/+$/, "")
+}
 
-  { id: 1, name: "Leite Condensado", price: 2.0, imageUrl: "/images/addons/leite-condensado.avif" },
-  { id: 2, name: "Leite Ninho", price: 2.0, imageUrl: "/images/addons/leite-ninho.avif" },
-  { id: 3, name: "Paçoca", price: 2.0, imageUrl: "/images/addons/pacoca.avif" },
-  { id: 4, name: "Granola", price: 2.0, imageUrl: "/images/addons/granola.avif" },
-  { id: 5, name: "Confete", price: 2.0, imageUrl: "/images/addons/confete.avif" },
-  { id: 6, name: "Ovomaltine", price: 2.0, imageUrl: "/images/addons/ovomaltine.avif" },
-  { id: 7, name: "Farinha Láctea", price: 2.0, imageUrl: "/images/addons/farinha-lactea.avif" },
-  { id: 8, name: "Chocoboll", price: 2.0, imageUrl: "/images/addons/chocoboll.avif" },
-  { id: 9, name: "Gotas de Chocolate", price: 2.0, imageUrl: "/images/addons/gotas-de-chocolate.avif" },
-  { id: 10, name: "Amendoim", price: 2.0, imageUrl: "/images/addons/amendoim.avif" },
-  { id: 11, name: "Mel", price: 2.0, imageUrl: "/images/addons/mel.avif" },
-  
-  
-  
-  { id: 15, name: "Banana", price: 2.0, imageUrl: "/images/addons/banana.avif" },
-  { id: 16, name: "Uva", price: 2.0, imageUrl: "/images/addons/uva.avif" },
+function serviceKey() {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!k) throw new Error("SUPABASE_SERVICE_ROLE_KEY não definida")
+  return k
+}
 
-  // R$ 3,00
-  { id: 17, name: "Morango", price: 3.0, imageUrl: "/images/addons/morango.avif" },
-  { id: 18, name: "Kiwi", price: 3.0, imageUrl: "/images/addons/kiwi.avif" },
+/** Lista os adicionais (server-only). */
+export async function getAddons(): Promise<Addon[]> {
+  const base = supabaseBase()
+  const key = serviceKey()
 
-  { id: 26, name: "Creme de Amendoim", price: 4.0, imageUrl: "/images/addons/creme-pacoca-amendoim.avif" },
-  { id: 27, name: "Creme de Trufa ao Leite", price: 4.0, imageUrl: "/images/addons/creme-trufa-leite.avif" }
-]
+  // ajuste o nome da tabela se for diferente de "addons"
+  const url = `${base}/rest/v1/addons?select=id,name,price,image_url,is_active&order=id.asc`
+  const res = await fetch(url, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    cache: "no-store",
+    next: { revalidate: 0 },
+  })
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "")
+    throw new Error(`Falha ao listar addons: ${res.status} ${txt}`)
+  }
+
+  const rows = (await res.json()) as Row[]
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
+    imageUrl: r.image_url,
+    isActive: r.is_active ?? true,
+  }))
+}

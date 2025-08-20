@@ -1,4 +1,5 @@
-// src/data/products.ts  (ou o arquivo onde você define `acaiCups`)
+// src/data/products.ts
+import "server-only"
 
 export interface CupSizeOption {
   id: number
@@ -12,57 +13,68 @@ export interface CupSizeOption {
 
 /** Versão com whitelists por ID (opcionais) */
 export interface CupSizeOptionWithLimits extends CupSizeOption {
-  allowedToppingIds?: number[]
-  allowedAddonIds?: number[]
-  /** nº de cremes obrigatórios para este copo (0 = não exige) */
-  requiredCreams?: number
-  /** se definido, restringe os cremes possíveis por ID */
-  allowedCreamIds?: number[]
+  allowedToppingIds?: number[]          // NULL => undefined
+  allowedAddonIds?: number[]            // NULL => undefined | [] => esconder
+  requiredCreams?: number               // default 0
+  allowedCreamIds?: number[]            // NULL => undefined
 }
 
 export type AcaiCup = CupSizeOption | CupSizeOptionWithLimits
 
-export const acaiCups: AcaiCup[] = [
-  {
-    id: 1,
-    name: "Copo de Açaí 330ml",
-    description: "Monte com até 3 acompanhamentos",
-    price: 15.0,
-    image: "/images/330.webp",
-    maxToppings: 3,
-    volumeMl: 330,
-  },
-  {
-    id: 2,
-    name: "Copo de Açaí 550ml",
-    description: "Monte com até 3 acompanhamentos",
-    price: 20.0,
-    image: "/images/550.webp",
-    maxToppings: 3,
-    volumeMl: 550,
-  },
-  {
-    id: 3,
-    name: "Copo de Açaí 770ml",
-    description: "Monte com até 4 acompanhamentos",
-    price: 26.0,
-    image: "/images/770.webp",
-    maxToppings: 4,
-    volumeMl: 770,
-  },
-  {
-    id: 4,
-    name: "Copo de Fondue 330ml",
-    description: "Monte com até 3 acompanhamentos",
-    price: 24.0,
-    image: "/images/330.webp",
-    maxToppings: 3,
-    volumeMl: 330,
-    
-    allowedToppingIds: [12, 13, 14, 15],
-    allowedAddonIds:   [],
-    
-    requiredCreams: 2,
-    allowedCreamIds: [1, 2, 3, 4], 
-  },
-]
+type Row = {
+  id: number
+  name: string
+  description: string
+  price: number | string
+  image_url: string
+  max_toppings: number
+  volume_ml: number
+  allowed_topping_ids: number[] | null
+  allowed_addon_ids: number[] | null
+  required_creams: number | null
+  allowed_cream_ids: number[] | null
+}
+
+function supabaseBase() {
+  const base = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!base) throw new Error("SUPABASE_URL não definido")
+  return base.replace(/\/+$/, "")
+}
+function serviceKey() {
+  const k = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!k) throw new Error("SUPABASE_SERVICE_ROLE_KEY não definida")
+  return k
+}
+
+/** Lista todos os copos do banco (server-only). */
+export async function getAcaiCups(): Promise<AcaiCup[]> {
+  const base = supabaseBase()
+  const key = serviceKey()
+
+  const url = `${base}/rest/v1/acai_cups?select=id,name,description,price,image_url,max_toppings,volume_ml,allowed_topping_ids,allowed_addon_ids,required_creams,allowed_cream_ids&order=id.asc`
+  const res = await fetch(url, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    cache: "no-store",
+    next: { revalidate: 0 },
+  })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "")
+    throw new Error(`Falha ao listar products: ${res.status} ${txt}`)
+  }
+
+  const rows = (await res.json()) as Row[]
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description ?? "",
+    price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
+    image: r.image_url,
+    maxToppings: r.max_toppings,
+    volumeMl: r.volume_ml,
+    // whitelists tri-state
+    allowedToppingIds: r.allowed_topping_ids ?? undefined,
+    allowedAddonIds:   r.allowed_addon_ids   ?? undefined,
+    requiredCreams:    r.required_creams ?? 0,
+    allowedCreamIds:   r.allowed_cream_ids ?? undefined,
+  }))
+}

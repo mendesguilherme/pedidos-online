@@ -4,9 +4,10 @@ import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 import { CartProvider } from "@/context/CartContext"
 import { OrderProvider } from "@/context/OrderContext"
+import AuthProvider from "./providers" // ⬅️ wrapper client com <SessionProvider>
 
 export const metadata: Metadata = {
-  title: "Pedido Online - Açaí do Chef",
+  title: "Pedido Online - Açaí Modelo",
   description: "O melhor açaí da cidade!",
   icons: {
     icon: "/images/icon-192x192.avif",
@@ -42,9 +43,11 @@ export default function RootLayout({
         )}
       </head>
       <body>
-        <CartProvider>
-          <OrderProvider>{children}</OrderProvider>
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <OrderProvider>{children}</OrderProvider>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   )
