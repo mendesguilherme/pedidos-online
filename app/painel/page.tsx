@@ -156,7 +156,7 @@ function uiStatusLabel(status: string, tipo?: string | null) {
 
 /** ====================== NOVO: pill de status (mais visível) ====================== */
 const statusPillBase =
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap";
+  "inline-flex items-center rounded-xl border px-2 py-2 text-xs font-semibold whitespace-nowrap";
 
 function statusPillClass(status: string) {
   switch (status) {
@@ -387,7 +387,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
               <th className="px-3 py-2 text-left">Itens</th>
               <th className="px-3 py-2 text-left">Endereço</th>
               {/* 🔸 renomeado */}
-              <th className="px-3 py-2 text-left">Atualizar status para</th>
+              <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
 
