@@ -531,19 +531,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                             Enviar WhatsApp
                           </a>
                         </Button>
-
-                        {/* Imprimir Cupom — aparece apenas para 'saiu_para_entrega' (inclui pronto p/ retirada) */}
-                        {o.status === "saiu_para_entrega" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-8 rounded-xl px-2 text-xs leading-none whitespace-nowrap
-                                       bg-emerald-600 hover:bg-emerald-600/90 text-white
-                                       border border-emerald-600 focus-visible:ring-emerald-600/30"
-                          >
-                            Imprimir Cupom
-                          </Button>
-                        )}
+                        
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 rounded-xl px-2 text-xs leading-none whitespace-nowrap
+                                     bg-emerald-600 hover:bg-emerald-600/90 text-white
+                                     border border-emerald-600 focus-visible:ring-emerald-600/30"
+                        >
+                          Imprimir Cupom
+                        </Button>                        
                       </div>
                     )}
                   </div>
