@@ -67,9 +67,24 @@ export default function ProdutosPage() {
   const addonsRef = useRef<HTMLDivElement | null>(null);
 
   const searchParams = useSearchParams();
-  const initialTipo = searchParams.get("tipo") || "entrega";
+
+  // tipo inicial
+  const initialTipo = (searchParams.get("tipo") || "entrega").toString();
   const [tipo, setTipo] = useState(initialTipo);
-  const [activeTab, setActiveTab] = useState("produtos");
+
+  // 🔹 ativa a aba inicial com base na URL (?tab=...)
+  const allowedTabs = new Set(["produtos", "endereco", "pagamento"]);
+  const tabParam = (searchParams.get("tab") || "produtos").toString();
+  const initialTab = allowedTabs.has(tabParam) ? tabParam : "produtos";
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  // 🔹 mantém o estado sincronizado se a URL mudar (ex.: push/replace externos)
+  useEffect(() => {
+    const urlTab = (searchParams.get("tab") || "produtos").toString();
+    if (allowedTabs.has(urlTab) && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Copo selecionado
   const [selectedCup, setSelectedCup] = useState<AcaiCup | null>(null);
@@ -114,25 +129,22 @@ export default function ProdutosPage() {
   const requiredCreams = cupCfg?.requiredCreams ?? 0;
 
   // ---------- filtros ----------
-  // Acompanhamentos: respeita allowedToppingIds (se vier)
   const visibleToppings: Topping[] = useMemo(() => {
     if (!selectedCup) return [];
     const allow = (selectedCup as CupSizeOptionWithLimits).allowedToppingIds;
     return Array.isArray(allow) && allow.length ? toppingsDb.filter((t) => allow.includes(t.id)) : toppingsDb;
   }, [selectedCup, toppingsDb]);
 
-  // Adicionais: mesma regra de sempre
   const visibleAddons = useMemo(() => {
     if (!selectedCup) return [];
     const allow = (selectedCup as CupSizeOptionWithLimits).allowedAddonIds;
     if (Array.isArray(allow)) {
-      if (allow.length === 0) return []; // esconde seção
+      if (allow.length === 0) return [];
       return addonsDb.filter((a) => allow.includes(a.id));
     }
-    return addonsDb; // todos
+    return addonsDb;
   }, [selectedCup, addonsDb]);
 
-  // Cremes: respeita allowedCreamIds e requiredCreams
   const visibleCreams = useMemo(() => {
     if (!requiredCreams) return [];
     const allow = (selectedCup as CupSizeOptionWithLimits)?.allowedCreamIds;
@@ -178,7 +190,6 @@ export default function ProdutosPage() {
     const creamsOk = requiredCreams ? selectedCreamIds.length === requiredCreams : true;
     if (!force && (!toppingsOk || !creamsOk)) return;
 
-    // Converte IDs -> nomes
     const toppingNames = selectedToppingIds
       .map((id) => visibleToppings.find((t) => t.id === id)?.name)
       .filter(Boolean) as string[];
@@ -211,8 +222,10 @@ export default function ProdutosPage() {
     if (activeTab === "produtos") {
       if (cart.items.length === 0) return;
       setActiveTab(initialTipo === "retirada" ? "pagamento" : "endereco");
+      router.replace(`/produtos?tab=${initialTipo === "retirada" ? "pagamento" : "endereco"}&tipo=${tipo}`, { scroll: false });
     } else if (activeTab === "endereco") {
       setActiveTab("pagamento");
+      router.replace(`/produtos?tab=pagamento&tipo=${tipo}`, { scroll: false });
     } else if (activeTab === "pagamento") {
       if (!cart.paymentMethod) return;
       handleCreateOrder();
@@ -240,6 +253,16 @@ export default function ProdutosPage() {
     setSelectedCreamIds([]);
   };
 
+  // 🔹 troca de abas controlada + sincroniza URL
+  const handleTabChange = (tab: string) => {
+    const next = allowedTabs.has(tab) ? tab : "produtos";
+    setActiveTab(next);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set("tab", next);
+    params.set("tipo", tipo);
+    router.replace(`/produtos?${params.toString()}`, { scroll: false });
+  };
+
   // Scroll automático: cremes (se exigidos) ou adicionais
   useEffect(() => {
     if (selectedCup && selectedToppingIds.length === selectedCup.maxToppings) {
@@ -257,7 +280,7 @@ export default function ProdutosPage() {
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
       <div className="flex-1">
-        <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} tipo={tipo} initialTipo={initialTipo} />
+        <NavigationTabs activeTab={activeTab} onTabChange={handleTabChange} tipo={tipo} initialTipo={initialTipo} />
 
         <div className="container mx-auto px-4 py-2 pb-60">
           {activeTab === "produtos" && (
@@ -272,15 +295,12 @@ export default function ProdutosPage() {
               <div id="acai-cup-selector" className="mt-1">
                 <h2 className="text-sm font-semibold mb-1">Tamanho do Copo</h2>
 
-                {/* estados de products */}
                 {cupsError && (
                   <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                     Não foi possível carregar os copos.
                   </div>
                 )}
-                {cupsLoading && !cupsError && (
-                  <div className="mb-2 text-xs text-gray-500">Carregando opções…</div>
-                )}
+                {cupsLoading && !cupsError && <div className="mb-2 text-xs text-gray-500">Carregando opções…</div>}
 
                 <AcaiCupSelector
                   cups={cupsDb}
@@ -305,9 +325,7 @@ export default function ProdutosPage() {
                         Não foi possível carregar os acompanhamentos.
                       </div>
                     )}
-                    {toppingsLoading && !toppingsError && (
-                      <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>
-                    )}
+                    {toppingsLoading && !toppingsError && <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>}
 
                     <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {visibleToppings.map((t) => (
@@ -318,33 +336,25 @@ export default function ProdutosPage() {
                             selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
                           }`}
                         >
-                          {t.imageUrl && (
-                            <img src={t.imageUrl} alt={t.name} className="w-14 h-14 rounded-full object-cover mb-1" />
-                          )}
+                          {t.imageUrl && <img src={t.imageUrl} alt={t.name} className="w-14 h-14 rounded-full object-cover mb-1" />}
                           <span className="text-[11px] text-center text-gray-800 font-medium">{t.name}</span>
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Selecionados: {selectedToppingIds.length}/{selectedCup.maxToppings}
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Selecionados: {selectedToppingIds.length}/{selectedCup.maxToppings}</p>
                   </div>
 
                   {/* Cremes (obrigatórios por copo) */}
                   {requiredCreams > 0 && (
                     <div className="mt-2" ref={creamsRef}>
-                      <h2 className="text-sm font-semibold mb-1">
-                        Cremes ({selectedCreamIds.length}/{requiredCreams})
-                      </h2>
+                      <h2 className="text-sm font-semibold mb-1">Cremes ({selectedCreamIds.length}/{requiredCreams})</h2>
 
                       {creamsError && (
                         <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                           Não foi possível carregar os cremes.
                         </div>
                       )}
-                      {creamsLoading && !creamsError && (
-                        <div className="mb-2 text-xs text-gray-500">Carregando cremes…</div>
-                      )}
+                      {creamsLoading && !creamsError && <div className="mb-2 text-xs text-gray-500">Carregando cremes…</div>}
 
                       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                         {visibleCreams.map((c) => {
@@ -357,32 +367,26 @@ export default function ProdutosPage() {
                                 active ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
                               }`}
                             >
-                              {c.imageUrl && (
-                                <img src={c.imageUrl} alt={c.name} className="w-14 h-14 rounded-full object-cover mb-1" />
-                              )}
+                              {c.imageUrl && <img src={c.imageUrl} alt={c.name} className="w-14 h-14 rounded-full object-cover mb-1" />}
                               <span className="text-[11px] text-center text-gray-800 font-medium">{c.name}</span>
                             </button>
                           );
                         })}
                       </div>
 
-                      <p className="text-xs text-gray-500 mt-1">
-                        Selecionados: {selectedCreamIds.length}/{requiredCreams}
-                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Selecionados: {selectedCreamIds.length}/{requiredCreams}</p>
                     </div>
                   )}
 
-                  {/* feedback de carregamento/erro dos adicionais */}
+                  {/* feedback adicionais */}
                   {addonsError && (
                     <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                       Não foi possível carregar os adicionais.
                     </div>
                   )}
-                  {addonsLoading && !addonsError && (
-                    <div className="mb-2 text-xs text-gray-500">Carregando adicionais…</div>
-                  )}
+                  {addonsLoading && !addonsError && <div className="mb-2 text-xs text-gray-500">Carregando adicionais…</div>}
 
-                  {/* Adicionais (opcionais) — esconde se visibleAddons = [] */}
+                  {/* Adicionais (opcionais) */}
                   {visibleAddons.length > 0 && (
                     <div className="mt-2" ref={addonsRef}>
                       <h2 className="text-sm font-semibold mb-1">Adicionais (opcionais)</h2>
@@ -396,11 +400,7 @@ export default function ProdutosPage() {
                             }`}
                           >
                             {extra.imageUrl && (
-                              <img
-                                src={extra.imageUrl}
-                                alt={extra.name}
-                                className="w-14 h-14 rounded-full object-cover mb-1"
-                              />
+                              <img src={extra.imageUrl} alt={extra.name} className="w-14 h-14 rounded-full object-cover mb-1" />
                             )}
                             <span className="text-[11px] text-center text-gray-800 font-medium">{extra.name}</span>
                             <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
@@ -450,7 +450,7 @@ export default function ProdutosPage() {
           total={cart.items.reduce((sum, item) => sum + item.price, 0)}
           itemCount={cart.items.reduce((total, item) => total + item.quantity, 0)}
           currentTab={activeTab}
-          setTab={setActiveTab}
+          setTab={handleTabChange}
           tipo={tipo}
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}

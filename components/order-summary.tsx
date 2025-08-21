@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog"
 
 import { useCart } from "@/context/CartContext"
-// ⬇️ pega os adicionais do banco, como já feito na tela de produtos
 import { useAddons } from "@/hooks/use-addons"
 
 interface OrderSummaryProps {
@@ -31,7 +30,7 @@ interface OrderSummaryProps {
   onAddAcai: (force?: boolean) => void
   setTab: (tab: string) => void
 
-  /** 👇 Valores da seleção atual na aba de produtos (opcionais) */
+  /** seleção atual na aba produtos (opcional) */
   draftCupPrice?: number
   draftExtraIds?: number[]
 }
@@ -40,10 +39,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
 export function OrderSummary({
-  subtotal,
-  deliveryFee,
-  total,
-  itemCount,
+  subtotal,           // (mantidos na assinatura, mas não usados como fonte)
+  deliveryFee,        // idem
+  total,              // idem
+  itemCount,          // idem
   currentTab,
   tipo,
   initialTipo,
@@ -53,7 +52,6 @@ export function OrderSummary({
   onNextStep,
   onAddAcai,
   setTab,
-  /** seleção atual (opcional) */
   draftCupPrice,
   draftExtraIds,
 }: OrderSummaryProps) {
@@ -65,10 +63,10 @@ export function OrderSummary({
   const { cart } = useCart()
   const paymentMethod = cart.paymentMethod
 
-  // ⬇️ carrega addons do banco (SWR/fetch), client-safe
+  // addons para pré-visualização dos extras na aba produtos
   const { data: addonsDb } = useAddons()
 
-  // ---------- BLINDA VALORES (props vs cart) ----------
+  // ======== FONTE DE VERDADE: CONTEXTO (cart) =========
   const itemsSubtotal = useMemo(
     () =>
       round2(
@@ -80,7 +78,13 @@ export function OrderSummary({
     [cart.items]
   )
 
-  const effectiveTipo = (tipo ?? cart.tipo ?? "retirada").toString().toLowerCase()
+  const itemCountFromCart = useMemo(
+    () => (cart.items ?? []).reduce((s, it: any) => s + Number(it?.quantity ?? 1), 0),
+    [cart.items]
+  )
+
+  const effectiveTipo = (tipo ?? cart.tipo ?? initialTipo ?? "retirada").toString().toLowerCase()
+
   const feeFromCart = useMemo(
     () => (effectiveTipo === "entrega" ? round2(Number((cart as any)?.deliveryFee ?? 0)) : 0),
     [effectiveTipo, (cart as any)?.deliveryFee]
@@ -88,24 +92,11 @@ export function OrderSummary({
 
   const shouldShowDeliveryRow = effectiveTipo === "entrega"
 
-  // Preferir props quando válidas; se não, usar fallbacks do cart
-  const safeSubtotal = useMemo(
-    () => (Number.isFinite(subtotal) ? round2(Number(subtotal)) : itemsSubtotal),
-    [subtotal, itemsSubtotal]
-  )
-
-  const safeDeliveryFee = useMemo(() => {
-    if (effectiveTipo !== "entrega") return 0
-    return Number.isFinite(deliveryFee) ? round2(Number(deliveryFee)) : feeFromCart
-  }, [effectiveTipo, deliveryFee, feeFromCart])
-
-  // ---------- PRÉ-VISUALIZAÇÃO EM TEMPO REAL NA ABA "produtos" ----------
-  // Soma preço do copo selecionado + totais dos adicionais selecionados (cremes não somam)
+  // ======== PRÉ-VISUALIZAÇÃO DA ABA PRODUTOS =========
   const draftExtrasTotal = useMemo(() => {
     if (currentTab !== "produtos" || !hasSelectedCup) return 0
     const ids = Array.isArray(draftExtraIds) ? draftExtraIds : []
     const list = addonsDb ?? []
-    // map para lookup O(1)
     const priceMap = new Map<number, number>(list.map(a => [a.id, Number(a.price ?? 0)]))
     const sum = ids.reduce((acc, id) => acc + (priceMap.get(id) ?? 0), 0)
     return round2(sum)
@@ -116,20 +107,22 @@ export function OrderSummary({
     return round2(Number(draftCupPrice ?? 0))
   }, [currentTab, hasSelectedCup, draftCupPrice])
 
-  // Subtotal exibido: se estiver em "produtos", mostra carrinho + seleção atual (preview)
+  // Subtotal exibido: carrinho (contexto) + prévia (se na aba produtos)
   const displaySubtotal = useMemo(() => {
     if (currentTab === "produtos") {
-      return round2(safeSubtotal + draftCupSafe + draftExtrasTotal)
+      return round2(itemsSubtotal + draftCupSafe + draftExtrasTotal)
     }
-    return safeSubtotal
-  }, [currentTab, safeSubtotal, draftCupSafe, draftExtrasTotal])
+    return itemsSubtotal
+  }, [currentTab, itemsSubtotal, draftCupSafe, draftExtrasTotal])
+
+  const displayDeliveryFee = useMemo(() => (shouldShowDeliveryRow ? feeFromCart : 0), [shouldShowDeliveryRow, feeFromCart])
 
   const displayTotal = useMemo(
-    () => round2(displaySubtotal + safeDeliveryFee),
-    [displaySubtotal, safeDeliveryFee]
+    () => round2(displaySubtotal + displayDeliveryFee),
+    [displaySubtotal, displayDeliveryFee]
   )
 
-  // ---------- validações ----------
+  // ========= validações =========
   const isAddressValid = () => {
     if (effectiveTipo === "retirada") return true
     const address = cart.deliveryAddress
@@ -157,7 +150,7 @@ export function OrderSummary({
         ? "Finalizar Pedido"
         : currentTab === "endereco"
         ? "Definir Forma de Pagamento"
-        : initialTipo === "entrega"
+        : (initialTipo ?? cart.tipo) === "entrega"
         ? "Informar Endereço de Entrega"
         : "Definir Forma de Pagamento",
   }
@@ -196,14 +189,14 @@ export function OrderSummary({
           <div className="flex justify-between items-start flex-wrap gap-2">
             <div className="text-xs sm:text-sm text-muted-foreground space-y-1 flex-1 min-w-[140px]">
               <p className="whitespace-nowrap">
-                {itemCount} {itemCount === 1 ? "Açaí" : "Açaís"}
+                {itemCountFromCart} {itemCountFromCart === 1 ? "Açaí" : "Açaís"}
               </p>
               <p className="whitespace-nowrap">
                 Subtotal: {fmtBRL(displaySubtotal)}
               </p>
-              {effectiveTipo === "entrega" && (
+              {shouldShowDeliveryRow && (
                 <p className="whitespace-nowrap">
-                  Taxa de entrega: {fmtBRL(safeDeliveryFee)}
+                  Taxa de entrega: {fmtBRL(displayDeliveryFee)}
                 </p>
               )}
             </div>
