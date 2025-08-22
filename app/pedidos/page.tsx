@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -236,6 +236,8 @@ export default function PedidosPage() {
                 const statusInfo = getStatusInfo(order.status, order.type)
                 const StatusIcon = statusInfo.icon
 
+                
+
                 return (
                   <Card key={order.id} className="rounded-xl">
                     <CardHeader className="pb-2">
@@ -247,12 +249,20 @@ export default function PedidosPage() {
                           <p className="text-xs text-gray-500">{order.date}</p>
                         </div>
                         <div className="flex flex-col items-end space-y-1">
-                          <Badge
-                            className={`${statusInfo.color} text-white text-[10px] py-1 px-2 rounded-xl`}
-                          >
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {statusInfo.label}
-                          </Badge>
+                          <div className="relative inline-flex align-middle">
+                            <Badge
+                              className={`${statusInfo.color}
+                                          relative z-[1]
+                                          text-white text-xs sm:text-sm font-semibold
+                                          px-3 py-1.5 rounded-xl shadow-md leading-none`}
+                            >
+                              <span className="inline-flex items-center">
+                                <StatusIcon className="w-6 h-6 mr-1.5" />
+                                {statusInfo.label}
+                              </span>
+                            </Badge>
+                          </div>
+
                           <div className="flex items-center text-xs text-gray-600">
                             {order.type === "entrega" ? (
                               <>
