@@ -162,15 +162,6 @@ export function PaymentForm({
 
   return (
     <div className="space-y-4 sm:space-y-6 px-4 sm:px-0 pb-8">
-      <div className="m-1 p-0 leading-none">
-        <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
-          Selecione a Forma de Pagamento
-        </h1>
-        <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
-          Escolha uma das opções disponíveis para finalizar seu pedido com segurança.
-        </p>
-      </div>
-
       <div className="bg-blue-50 p-3 rounded-xl">
         <p className="text-sm text-blue-800">
           <span className="text-red-500">*</span> Selecione uma forma de pagamento para continuar

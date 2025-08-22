@@ -122,15 +122,6 @@ export function AddressForm({ tipo }: AddressFormProps) {
         </div>
       )}         
       <div className="address-fields space-y-4 sm:space-y-6 px-4 sm:px-0">
-        <div className="m-1 p-0 leading-none">
-          <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
-            Informe seu Endereço
-          </h1>
-          <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
-            Preencha os campos abaixo para receber seu pedido com segurança.
-          </p>
-        </div>
-
         <div className="space-y-4">
           <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
             <div className="col-span-full">

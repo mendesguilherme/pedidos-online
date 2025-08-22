@@ -1,3 +1,4 @@
+// src/app/produtos/page.tsx
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -8,6 +9,7 @@ import { PaymentForm } from "@/components/payment-form";
 import { CartEmptyWarning } from "@/components/cart-empty-warning";
 import { OrderSummary } from "@/components/order-summary";
 import { BottomNavigation } from "@/components/bottom-navigation";
+import { CategoryTabs } from "@/components/category-tabs";
 
 // produtos (client-safe)
 import { useProducts, type Product, type ProductOptionWithLimits } from "@/hooks/use-products";
@@ -28,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useOrders } from "@/context/OrderContext";
-import { Menu } from "lucide-react";
 
 /* ============================================================
    Página
@@ -259,17 +260,13 @@ export default function ProdutosPage() {
   // ==================== CATEGORIAS ====================
   type Cat = { id: string; name: string };
   const categories: Cat[] = useMemo(() => {
-    // usa id/name vindos de product.category
     const seen = new Map<string, { name: string; pos: number }>();
-
     for (const p of productsDb) {
       const id = String(p.category?.id ?? "uncat");
       const name = String(p.category?.name ?? "Outros");
       const pos = Number(p.category?.position ?? 9999);
       if (!seen.has(id)) seen.set(id, { name, pos });
     }
-
-    // ordena por position e depois por nome
     return Array.from(seen, ([id, v]) => ({ id, name: v.name, pos: v.pos }))
       .sort((a, b) => a.pos - b.pos || a.name.localeCompare(b.name))
       .map(({ id, name }) => ({ id, name }));
@@ -279,66 +276,39 @@ export default function ProdutosPage() {
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const setSectionRef = useCallback((cid: string) => {
     return (el: HTMLDivElement | null) => {
-      // callback ref precisa retornar void
       sectionRefs.current[cid] = el;
     };
   }, []);
 
-  // categoria ativa (scroll-spy)
-  const [activeCategory, setActiveCategory] = useState<string | null>(categories[0]?.id ?? null);
-
+  // medida da barra de categorias (para sticky das seções)
+  const catBarRef = useRef<HTMLDivElement | null>(null);
+  const [catBarH, setCatBarH] = useState(0);
   useEffect(() => {
-    if (!categories.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // pega a primeira seção que está visível
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-
-        if (visible?.target) {
-          const id = (visible.target as HTMLElement).dataset["cid"] || null;
-          if (id) setActiveCategory(id);
-        }
-      },
-      {
-        root: null,
-        // quando o topo da seção encostar a 80px do topo, a seção “vira ativa”
-        rootMargin: "-80px 0px -80% 0px",
-        threshold: [0, 0.1, 0.5, 1],
-      }
-    );
-
-    for (const { id } of categories) {
-      const el = sectionRefs.current[id];
-      if (el) observer.observe(el);
-    }
-
-    return () => observer.disconnect();
-  }, [categories]);
-
-  // scroll p/ seção
-  const scrollToCategory = (cid: string) => {
-    const el = sectionRefs.current[cid];
-    if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - 72; // compensa barra fixa
-    window.scrollTo({ top: y, behavior: "smooth" });
-  };
-
-  // modal com lista de categorias (ícone menu)
-  const [catModalOpen, setCatModalOpen] = useState(false);
+    const upd = () => setCatBarH(catBarRef.current?.offsetHeight ?? 0);
+    upd();
+    window.addEventListener("resize", upd);
+    return () => window.removeEventListener("resize", upd);
+  }, []);
 
   // ==================== BARRA DOCKABLE (esconde topo/abas) ====================
   const headerRef = useRef<HTMLDivElement | null>(null);
+  const [headerH, setHeaderH] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [compactHeader, setCompactHeader] = useState(false);
+
+  // mede altura do header quando visível
+  useEffect(() => {
+    const update = () => setHeaderH(headerRef.current?.offsetHeight ?? 0);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     if (!sentinelRef.current) return;
     const io = new IntersectionObserver(
       (entries) => {
         const e = entries[0];
-        // quando o sentinel sai da viewport, compacta (some o topo)
         setCompactHeader(!e.isIntersecting);
       },
       { root: null, threshold: 0, rootMargin: "0px" }
@@ -347,6 +317,44 @@ export default function ProdutosPage() {
     return () => io.disconnect();
   }, []);
 
+  // categoria ativa (scroll-spy)
+  const [activeCategory, setActiveCategory] = useState<string | null>(categories[0]?.id ?? null);
+  useEffect(() => {
+    if (!categories.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible?.target) {
+          const id = (visible.target as HTMLElement).dataset["cid"] || null;
+          if (id) setActiveCategory(id);
+        }
+      },
+      {
+        root: null,
+        rootMargin: `${-(catBarH + 8)}px 0px -80% 0px`,
+        threshold: [0, 0.1, 0.5, 1],
+      }
+    );
+    for (const { id } of categories) {
+      const el = sectionRefs.current[id];
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [categories, catBarH]);
+
+  // scroll p/ seção
+  const scrollToCategory = (cid: string) => {
+    const el = sectionRefs.current[cid];
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - (catBarH + 8);
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  // modal com lista de categorias
+  const [catModalOpen, setCatModalOpen] = useState(false);
+
   // ==================== RENDER ====================
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
@@ -354,9 +362,7 @@ export default function ProdutosPage() {
         {/* TOPO (some quando compactHeader = true) */}
         <div
           ref={headerRef}
-          className={`sticky top-0 z-40 bg-white transition-all duration-200 ${
-            compactHeader ? "hidden" : ""
-          }`}
+          className={`sticky top-0 z-40 bg-white transition-all duration-200 ${compactHeader ? "hidden" : ""}`}
         >
           <NavigationTabs
             activeTab={activeTab}
@@ -369,41 +375,19 @@ export default function ProdutosPage() {
         {/* sentinel para saber quando esconder o topo */}
         <div ref={sentinelRef} aria-hidden className="h-1" />
 
-        {/* BARRA DE CATEGORIAS (fixa no topo) */}
+        {/* BARRA DE CATEGORIAS – agora realmente ocupa o topo quando o header some */}
         {activeTab === "produtos" && (
-          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b">
-            <div className="container mx-auto px-4 py-2">
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                {/* Ícone de menu (abre modal) */}
-                <button
-                  onClick={() => setCatModalOpen(true)}
-                  className="shrink-0 w-10 h-10 rounded-xl border border-gray-300 bg-gray-50 hover:bg-gray-100 grid place-items-center"
-                  aria-label="Abrir todas as categorias"
-                >
-                  <Menu className="w-5 h-5 text-gray-700" />
-                </button>
-
-                {/* Pílulas das categorias */}
-                <div className="flex items-center gap-2">
-                  {categories.map((c) => {
-                    const active = activeCategory === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => scrollToCategory(c.id)}
-                        className={`whitespace-nowrap rounded-2xl px-3 py-2 text-[13px] border transition ${
-                          active
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        {c.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+          <div
+            ref={catBarRef}
+            className="z-30"
+            style={{ position: "sticky", top: compactHeader ? 0 : headerH }}
+          >
+            <CategoryTabs
+              categories={categories}
+              activeId={activeCategory}
+              onChange={scrollToCategory}
+              onOpenAll={() => setCatModalOpen(true)}
+            />
           </div>
         )}
 
@@ -421,10 +405,8 @@ export default function ProdutosPage() {
                     setCatModalOpen(false);
                     setTimeout(() => scrollToCategory(c.id), 50);
                   }}
-                  className={`w-full text-left rounded-xl px-3 py-2 border ${
-                    activeCategory === c.id
-                      ? "border-primary/60 bg-primary/5"
-                      : "border-gray-200 hover:bg-gray-50"
+                  className={`w-full text-left rounded-xl px-3 py-2 uppercase tracking-wide ${
+                    activeCategory === c.id ? "bg-primary/5 text-primary" : "hover:bg-gray-50 text-gray-700"
                   }`}
                 >
                   {c.name}
@@ -443,36 +425,23 @@ export default function ProdutosPage() {
         <div className="container mx-auto px-4 py-2 pb-60">
           {activeTab === "produtos" && (
             <div className="space-y-6">
-              {/* Cabeçalho da página */}
-              <div className="m-1 p-0 leading-none">
-                <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
-                  Monte seu Pedido
-                </h1>
-                <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
-                  Escolha uma opção, acompanhamentos e adicionais opcionais.
-                </p>
-              </div>
-
               {/* AGRUPA PRODUTOS POR CATEGORIA EM SEÇÕES */}
               {categories.map(({ id: cid, name }) => {
-                const prods = productsDb.filter(
-                  (p) => String(p.category?.id ?? "uncat") === cid
-                );
-
+                const prods = productsDb.filter((p) => String(p.category?.id ?? "uncat") === cid);
                 if (!prods.length) return null;
 
                 return (
-                  <div
-                    key={cid}
-                    data-cid={cid}
-                    ref={setSectionRef(cid)}
-                    className="scroll-mt-24"
-                  >
-                    <div className="mb-2 px-1">
-                      <h2 className="text-sm font-semibold text-gray-700">{name}</h2>
+                  <div key={cid} data-cid={cid} ref={setSectionRef(cid)} className="scroll-mt-24">
+                    {/* DIVISOR DE CATEGORIA – full-bleed + sticky até a próxima */}
+                    <div className="-mx-4 sticky z-20" style={{ top: (catBarH || 0) }}>
+                      <div className="bg-gray-100 px-4 py-2">
+                        <h2 className="text-[13px] sm:text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                          {name}
+                        </h2>
+                      </div>
                     </div>
 
-                    <div id="product-selector" className="mt-1">
+                    <div id="product-selector" className="mt-2">
                       {productsError && (
                         <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                           Não foi possível carregar os produtos.
@@ -519,9 +488,7 @@ export default function ProdutosPage() {
                           key={t.id}
                           onClick={() => handleToppingToggle(t.id)}
                           className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                            selectedToppingIds.includes(t.id)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-300 bg-white"
+                            selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
                           }`}
                         >
                           {t.imageUrl && (
@@ -610,9 +577,7 @@ export default function ProdutosPage() {
                             key={extra.id}
                             onClick={() => handleExtraToggle(extra.id)}
                             className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                              selectedExtraIds.includes(extra.id)
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-300 bg-white"
+                              selectedExtraIds.includes(extra.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
                             }`}
                           >
                             {extra.imageUrl && (
@@ -625,9 +590,7 @@ export default function ProdutosPage() {
                             <span className="text-[11px] text-center text-gray-800 font-medium">
                               {extra.name}
                             </span>
-                            <span className="text-[10px] text-gray-500">
-                              +R$ {extra.price.toFixed(2)}
-                            </span>
+                            <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
                           </button>
                         ))}
                       </div>
