@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { NavigationTabs } from "@/components/navigation-tabs";
 import { AddressForm } from "@/components/address-form";
@@ -9,51 +9,45 @@ import { CartEmptyWarning } from "@/components/cart-empty-warning";
 import { OrderSummary } from "@/components/order-summary";
 import { BottomNavigation } from "@/components/bottom-navigation";
 
-// ✅ tipos e dados de produtos vêm do hook (client-safe)
-import { useProducts, type AcaiCup, type CupSizeOptionWithLimits } from "@/hooks/use-products";
+// produtos (client-safe)
+import { useProducts, type Product, type ProductOptionWithLimits } from "@/hooks/use-products";
 
-// 🔽 hooks padronizados ({ data, isLoading, error })
+// hooks padronizados
 import { useAddons } from "@/hooks/use-addons";
 import { useCreams } from "@/hooks/use-creams";
 import { useToppings, type Topping } from "@/hooks/use-toppings";
 
-import { AcaiCupSelector } from "@/components/AcaiCupSelector";
+import { ProductSelector } from "@/components/ProductSelector";
 import { useCart } from "@/context/CartContext";
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogFooter,
+  DialogHeader,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useOrders } from "@/context/OrderContext";
+import { Menu } from "lucide-react";
 
+/* ============================================================
+   Página
+   ============================================================ */
 export default function ProdutosPage() {
-  // PRODUCTS (copos)
-  const {
-    data: cupsData,
-    isLoading: cupsLoading,
-    error: cupsError,
-  } = useProducts();
-  const cupsDb = cupsData ?? [];
+  // PRODUCTS
+  const { data: productsData, isLoading: productsLoading, error: productsError } = useProducts();
+  const productsDb = productsData ?? [];
 
   // ADDONS
-  const {
-    data: addonsData,
-    isLoading: addonsLoading,
-    error: addonsError,
-  } = useAddons();
+  const { data: addonsData, isLoading: addonsLoading, error: addonsError } = useAddons();
   const addonsDb = addonsData ?? [];
 
   // CREAMS
-  const {
-    data: creamsData,
-    isLoading: creamsLoading,
-    error: creamsError,
-  } = useCreams();
+  const { data: creamsData, isLoading: creamsLoading, error: creamsError } = useCreams();
   const creams = creamsData ?? [];
 
   // TOPPINGS
-  const {
-    data: toppingsData,
-    isLoading: toppingsLoading,
-    error: toppingsError,
-  } = useToppings();
+  const { data: toppingsData, isLoading: toppingsLoading, error: toppingsError } = useToppings();
   const toppingsDb = toppingsData ?? [];
 
   const { refreshOrders } = useOrders();
@@ -72,13 +66,12 @@ export default function ProdutosPage() {
   const initialTipo = (searchParams.get("tipo") || "entrega").toString();
   const [tipo, setTipo] = useState(initialTipo);
 
-  // 🔹 ativa a aba inicial com base na URL (?tab=...)
+  // tabs
   const allowedTabs = new Set(["produtos", "endereco", "pagamento"]);
   const tabParam = (searchParams.get("tab") || "produtos").toString();
   const initialTab = allowedTabs.has(tabParam) ? tabParam : "produtos";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
-  // 🔹 mantém o estado sincronizado se a URL mudar (ex.: push/replace externos)
   useEffect(() => {
     const urlTab = (searchParams.get("tab") || "produtos").toString();
     if (allowedTabs.has(urlTab) && urlTab !== activeTab) {
@@ -86,14 +79,14 @@ export default function ProdutosPage() {
     }
   }, [searchParams, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Copo selecionado
-  const [selectedCup, setSelectedCup] = useState<AcaiCup | null>(null);
+  // Produto selecionado
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Estados por ID
   const [selectedToppingIds, setSelectedToppingIds] = useState<number[]>([]);
   const [selectedExtraIds, setSelectedExtraIds] = useState<number[]>([]);
   const [selectedCreamIds, setSelectedCreamIds] = useState<number[]>([]);
-  const maxToppings = selectedCup?.maxToppings ?? 0;
+  const maxToppings = selectedProduct?.maxToppings ?? 0;
 
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
@@ -109,8 +102,8 @@ export default function ProdutosPage() {
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const handleCupSelect = (cup: AcaiCup) => {
-    setSelectedCup(cup);
+  const handleProductSelect = (product: Product) => {
+    setSelectedProduct(product);
     setSelectedToppingIds([]);
     setSelectedExtraIds([]);
     setSelectedCreamIds([]);
@@ -124,40 +117,40 @@ export default function ProdutosPage() {
     }, 100);
   };
 
-  // Helpers do copo
-  const cupCfg = (selectedCup ?? null) as CupSizeOptionWithLimits | null;
-  const requiredCreams = cupCfg?.requiredCreams ?? 0;
+  // Helpers do produto
+  const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;
+  const requiredCreams = productCfg?.requiredCreams ?? 0;
 
   // ---------- filtros ----------
   const visibleToppings: Topping[] = useMemo(() => {
-    if (!selectedCup) return [];
-    const allow = (selectedCup as CupSizeOptionWithLimits).allowedToppingIds;
+    if (!selectedProduct) return [];
+    const allow = (selectedProduct as ProductOptionWithLimits).allowedToppingIds;
     return Array.isArray(allow) && allow.length ? toppingsDb.filter((t) => allow.includes(t.id)) : toppingsDb;
-  }, [selectedCup, toppingsDb]);
+  }, [selectedProduct, toppingsDb]);
 
   const visibleAddons = useMemo(() => {
-    if (!selectedCup) return [];
-    const allow = (selectedCup as CupSizeOptionWithLimits).allowedAddonIds;
+    if (!selectedProduct) return [];
+    const allow = (selectedProduct as ProductOptionWithLimits).allowedAddonIds;
     if (Array.isArray(allow)) {
       if (allow.length === 0) return [];
       return addonsDb.filter((a) => allow.includes(a.id));
     }
     return addonsDb;
-  }, [selectedCup, addonsDb]);
+  }, [selectedProduct, addonsDb]);
 
   const visibleCreams = useMemo(() => {
     if (!requiredCreams) return [];
-    const allow = (selectedCup as CupSizeOptionWithLimits)?.allowedCreamIds;
+    const allow = (selectedProduct as ProductOptionWithLimits)?.allowedCreamIds;
     if (Array.isArray(allow) && allow.length) {
       return creams.filter((c) => allow.includes(c.id));
     }
     return creams;
-  }, [selectedCup, requiredCreams, creams]);
+  }, [selectedProduct, requiredCreams, creams]);
 
   // ---------- toggles ----------
   const handleToppingToggle = (toppingId: number) => {
-    if (!selectedCup) return;
-    const max = selectedCup.maxToppings;
+    if (!selectedProduct) return;
+    const max = selectedProduct.maxToppings;
     if (selectedToppingIds.includes(toppingId)) {
       setSelectedToppingIds(selectedToppingIds.filter((id) => id !== toppingId));
     } else if (selectedToppingIds.length < max) {
@@ -184,9 +177,9 @@ export default function ProdutosPage() {
   };
 
   const handleAddToCart = (force = false) => {
-    if (!selectedCup) return;
+    if (!selectedProduct) return;
 
-    const toppingsOk = selectedToppingIds.length === selectedCup.maxToppings;
+    const toppingsOk = selectedToppingIds.length === selectedProduct.maxToppings;
     const creamsOk = requiredCreams ? selectedCreamIds.length === requiredCreams : true;
     if (!force && (!toppingsOk || !creamsOk)) return;
 
@@ -204,8 +197,8 @@ export default function ProdutosPage() {
 
     const newItem = {
       id: Date.now(),
-      name: `${selectedCup.name} com ${toppingNames.length} acompanhamentos`,
-      price: selectedCup.price + extrasTotal, // cremes não somam
+      name: `${selectedProduct.name} com ${toppingNames.length} acompanhamentos`,
+      price: selectedProduct.price + extrasTotal, // cremes não somam
       quantity: 1,
       image: "/acai.webp",
       toppings: toppingNames,
@@ -215,7 +208,7 @@ export default function ProdutosPage() {
 
     addItem(newItem);
     resetMontagem();
-    document.getElementById("acai-cup-selector")?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("product-selector")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleNextStep = () => {
@@ -247,13 +240,13 @@ export default function ProdutosPage() {
   };
 
   const resetMontagem = () => {
-    setSelectedCup(null);
+    setSelectedProduct(null);
     setSelectedToppingIds([]);
     setSelectedExtraIds([]);
     setSelectedCreamIds([]);
   };
 
-  // 🔹 troca de abas controlada + sincroniza URL
+  // troca de abas + sincroniza URL
   const handleTabChange = (tab: string) => {
     const next = allowedTabs.has(tab) ? tab : "produtos";
     setActiveTab(next);
@@ -263,56 +256,247 @@ export default function ProdutosPage() {
     router.replace(`/produtos?${params.toString()}`, { scroll: false });
   };
 
-  // Scroll automático: cremes (se exigidos) ou adicionais
-  useEffect(() => {
-    if (selectedCup && selectedToppingIds.length === selectedCup.maxToppings) {
-      setTimeout(() => {
-        const targetRef = requiredCreams > 0 ? creamsRef.current : addonsRef.current;
-        if (targetRef) {
-          const yOffset = -100;
-          const y = targetRef.getBoundingClientRect().top + window.scrollY + yOffset;
-          window.scrollTo({ top: y, behavior: "smooth" });
-        }
-      }, 100);
-    }
-  }, [selectedToppingIds, selectedCup, requiredCreams]);
+  // ==================== CATEGORIAS ====================
+  type Cat = { id: string; name: string };
+  const categories: Cat[] = useMemo(() => {
+    // usa id/name vindos de product.category
+    const seen = new Map<string, { name: string; pos: number }>();
 
+    for (const p of productsDb) {
+      const id = String(p.category?.id ?? "uncat");
+      const name = String(p.category?.name ?? "Outros");
+      const pos = Number(p.category?.position ?? 9999);
+      if (!seen.has(id)) seen.set(id, { name, pos });
+    }
+
+    // ordena por position e depois por nome
+    return Array.from(seen, ([id, v]) => ({ id, name: v.name, pos: v.pos }))
+      .sort((a, b) => a.pos - b.pos || a.name.localeCompare(b.name))
+      .map(({ id, name }) => ({ id, name }));
+  }, [productsDb]);
+
+  // refs das sections por categoria
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const setSectionRef = useCallback((cid: string) => {
+    return (el: HTMLDivElement | null) => {
+      // callback ref precisa retornar void
+      sectionRefs.current[cid] = el;
+    };
+  }, []);
+
+  // categoria ativa (scroll-spy)
+  const [activeCategory, setActiveCategory] = useState<string | null>(categories[0]?.id ?? null);
+
+  useEffect(() => {
+    if (!categories.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // pega a primeira seção que está visível
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+
+        if (visible?.target) {
+          const id = (visible.target as HTMLElement).dataset["cid"] || null;
+          if (id) setActiveCategory(id);
+        }
+      },
+      {
+        root: null,
+        // quando o topo da seção encostar a 80px do topo, a seção “vira ativa”
+        rootMargin: "-80px 0px -80% 0px",
+        threshold: [0, 0.1, 0.5, 1],
+      }
+    );
+
+    for (const { id } of categories) {
+      const el = sectionRefs.current[id];
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [categories]);
+
+  // scroll p/ seção
+  const scrollToCategory = (cid: string) => {
+    const el = sectionRefs.current[cid];
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 72; // compensa barra fixa
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  // modal com lista de categorias (ícone menu)
+  const [catModalOpen, setCatModalOpen] = useState(false);
+
+  // ==================== BARRA DOCKABLE (esconde topo/abas) ====================
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [compactHeader, setCompactHeader] = useState(false);
+
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        // quando o sentinel sai da viewport, compacta (some o topo)
+        setCompactHeader(!e.isIntersecting);
+      },
+      { root: null, threshold: 0, rootMargin: "0px" }
+    );
+    io.observe(sentinelRef.current);
+    return () => io.disconnect();
+  }, []);
+
+  // ==================== RENDER ====================
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-50">
       <div className="flex-1">
-        <NavigationTabs activeTab={activeTab} onTabChange={handleTabChange} tipo={tipo} initialTipo={initialTipo} />
+        {/* TOPO (some quando compactHeader = true) */}
+        <div
+          ref={headerRef}
+          className={`sticky top-0 z-40 bg-white transition-all duration-200 ${
+            compactHeader ? "hidden" : ""
+          }`}
+        >
+          <NavigationTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            tipo={tipo}
+            initialTipo={initialTipo}
+          />
+        </div>
 
+        {/* sentinel para saber quando esconder o topo */}
+        <div ref={sentinelRef} aria-hidden className="h-1" />
+
+        {/* BARRA DE CATEGORIAS (fixa no topo) */}
+        {activeTab === "produtos" && (
+          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b">
+            <div className="container mx-auto px-4 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {/* Ícone de menu (abre modal) */}
+                <button
+                  onClick={() => setCatModalOpen(true)}
+                  className="shrink-0 w-10 h-10 rounded-xl border border-gray-300 bg-gray-50 hover:bg-gray-100 grid place-items-center"
+                  aria-label="Abrir todas as categorias"
+                >
+                  <Menu className="w-5 h-5 text-gray-700" />
+                </button>
+
+                {/* Pílulas das categorias */}
+                <div className="flex items-center gap-2">
+                  {categories.map((c) => {
+                    const active = activeCategory === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => scrollToCategory(c.id)}
+                        className={`whitespace-nowrap rounded-2xl px-3 py-2 text-[13px] border transition ${
+                          active
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL – lista completa de categorias */}
+        <Dialog open={catModalOpen} onOpenChange={setCatModalOpen}>
+          <DialogContent className="rounded-xl sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Categorias</DialogTitle>
+            </DialogHeader>
+            <div className="mt-2 grid gap-2">
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setCatModalOpen(false);
+                    setTimeout(() => scrollToCategory(c.id), 50);
+                  }}
+                  className={`w-full text-left rounded-xl px-3 py-2 border ${
+                    activeCategory === c.id
+                      ? "border-primary/60 bg-primary/5"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+            <DialogFooter className="pt-3">
+              <Button onClick={() => setCatModalOpen(false)} className="rounded-xl">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* CONTEÚDO */}
         <div className="container mx-auto px-4 py-2 pb-60">
           {activeTab === "produtos" && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Cabeçalho da página */}
               <div className="m-1 p-0 leading-none">
-                <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">Monte seu Açaí</h1>
+                <h1 className="text-xl font-bold text-center text-gray-800 m-0 p-0 leading-none">
+                  Monte seu Pedido
+                </h1>
                 <p className="text-center text-gray-600 m-1 p-1 text-xs leading-none">
-                  Escolha um tamanho, acompanhamentos e adicionais opcionais.
+                  Escolha uma opção, acompanhamentos e adicionais opcionais.
                 </p>
               </div>
 
-              <div id="acai-cup-selector" className="mt-1">
-                <h2 className="text-sm font-semibold mb-1">Tamanho do Copo</h2>
+              {/* AGRUPA PRODUTOS POR CATEGORIA EM SEÇÕES */}
+              {categories.map(({ id: cid, name }) => {
+                const prods = productsDb.filter(
+                  (p) => String(p.category?.id ?? "uncat") === cid
+                );
 
-                {cupsError && (
-                  <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    Não foi possível carregar os copos.
+                if (!prods.length) return null;
+
+                return (
+                  <div
+                    key={cid}
+                    data-cid={cid}
+                    ref={setSectionRef(cid)}
+                    className="scroll-mt-24"
+                  >
+                    <div className="mb-2 px-1">
+                      <h2 className="text-sm font-semibold text-gray-700">{name}</h2>
+                    </div>
+
+                    <div id="product-selector" className="mt-1">
+                      {productsError && (
+                        <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                          Não foi possível carregar os produtos.
+                        </div>
+                      )}
+                      {productsLoading && !productsError && (
+                        <div className="mb-2 text-xs text-gray-500">Carregando opções…</div>
+                      )}
+
+                      <ProductSelector
+                        products={prods}
+                        selectedProductId={selectedProduct?.id ?? null}
+                        onChange={(id) => {
+                          const p = prods.find((x) => x.id === id);
+                          if (p) handleProductSelect(p);
+                        }}
+                      />
+                    </div>
                   </div>
-                )}
-                {cupsLoading && !cupsError && <div className="mb-2 text-xs text-gray-500">Carregando opções…</div>}
+                );
+              })}
 
-                <AcaiCupSelector
-                  cups={cupsDb}
-                  selectedCup={selectedCup?.id ?? null}
-                  onChange={(id) => {
-                    const cup = cupsDb.find((c) => c.id === id);
-                    if (cup) handleCupSelect(cup);
-                  }}
-                />
-              </div>
-
-              {selectedCup && (
+              {/* Se existir produto selecionado, mostram-se as outras seções */}
+              {selectedProduct && (
                 <>
                   {/* Acompanhamentos */}
                   <div className="mt-2" ref={toppingsRef}>
@@ -325,7 +509,9 @@ export default function ProdutosPage() {
                         Não foi possível carregar os acompanhamentos.
                       </div>
                     )}
-                    {toppingsLoading && !toppingsError && <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>}
+                    {toppingsLoading && !toppingsError && (
+                      <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>
+                    )}
 
                     <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {visibleToppings.map((t) => (
@@ -333,28 +519,44 @@ export default function ProdutosPage() {
                           key={t.id}
                           onClick={() => handleToppingToggle(t.id)}
                           className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                            selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
+                            selectedToppingIds.includes(t.id)
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-300 bg-white"
                           }`}
                         >
-                          {t.imageUrl && <img src={t.imageUrl} alt={t.name} className="w-14 h-14 rounded-full object-cover mb-1" />}
-                          <span className="text-[11px] text-center text-gray-800 font-medium">{t.name}</span>
+                          {t.imageUrl && (
+                            <img
+                              src={t.imageUrl}
+                              alt={t.name}
+                              className="w-14 h-14 rounded-full object-cover mb-1"
+                            />
+                          )}
+                          <span className="text-[11px] text-center text-gray-800 font-medium">
+                            {t.name}
+                          </span>
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Selecionados: {selectedToppingIds.length}/{selectedCup.maxToppings}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selecionados: {selectedToppingIds.length}/{selectedProduct.maxToppings}
+                    </p>
                   </div>
 
-                  {/* Cremes (obrigatórios por copo) */}
+                  {/* Cremes (obrigatórios por produto) */}
                   {requiredCreams > 0 && (
                     <div className="mt-2" ref={creamsRef}>
-                      <h2 className="text-sm font-semibold mb-1">Cremes ({selectedCreamIds.length}/{requiredCreams})</h2>
+                      <h2 className="text-sm font-semibold mb-1">
+                        Cremes ({selectedCreamIds.length}/{requiredCreams})
+                      </h2>
 
                       {creamsError && (
                         <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                           Não foi possível carregar os cremes.
                         </div>
                       )}
-                      {creamsLoading && !creamsError && <div className="mb-2 text-xs text-gray-500">Carregando cremes…</div>}
+                      {creamsLoading && !creamsError && (
+                        <div className="mb-2 text-xs text-gray-500">Carregando cremes…</div>
+                      )}
 
                       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                         {visibleCreams.map((c) => {
@@ -367,14 +569,24 @@ export default function ProdutosPage() {
                                 active ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
                               }`}
                             >
-                              {c.imageUrl && <img src={c.imageUrl} alt={c.name} className="w-14 h-14 rounded-full object-cover mb-1" />}
-                              <span className="text-[11px] text-center text-gray-800 font-medium">{c.name}</span>
+                              {c.imageUrl && (
+                                <img
+                                  src={c.imageUrl}
+                                  alt={c.name}
+                                  className="w-14 h-14 rounded-full object-cover mb-1"
+                                />
+                              )}
+                              <span className="text-[11px] text-center text-gray-800 font-medium">
+                                {c.name}
+                              </span>
                             </button>
                           );
                         })}
                       </div>
 
-                      <p className="text-xs text-gray-500 mt-1">Selecionados: {selectedCreamIds.length}/{requiredCreams}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Selecionados: {selectedCreamIds.length}/{requiredCreams}
+                      </p>
                     </div>
                   )}
 
@@ -384,7 +596,9 @@ export default function ProdutosPage() {
                       Não foi possível carregar os adicionais.
                     </div>
                   )}
-                  {addonsLoading && !addonsError && <div className="mb-2 text-xs text-gray-500">Carregando adicionais…</div>}
+                  {addonsLoading && !addonsError && (
+                    <div className="mb-2 text-xs text-gray-500">Carregando adicionais…</div>
+                  )}
 
                   {/* Adicionais (opcionais) */}
                   {visibleAddons.length > 0 && (
@@ -396,14 +610,24 @@ export default function ProdutosPage() {
                             key={extra.id}
                             onClick={() => handleExtraToggle(extra.id)}
                             className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                              selectedExtraIds.includes(extra.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
+                              selectedExtraIds.includes(extra.id)
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-300 bg-white"
                             }`}
                           >
                             {extra.imageUrl && (
-                              <img src={extra.imageUrl} alt={extra.name} className="w-14 h-14 rounded-full object-cover mb-1" />
+                              <img
+                                src={extra.imageUrl}
+                                alt={extra.name}
+                                className="w-14 h-14 rounded-full object-cover mb-1"
+                              />
                             )}
-                            <span className="text-[11px] text-center text-gray-800 font-medium">{extra.name}</span>
-                            <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
+                            <span className="text-[11px] text-center text-gray-800 font-medium">
+                              {extra.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500">
+                              +R$ {extra.price.toFixed(2)}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -454,16 +678,16 @@ export default function ProdutosPage() {
           tipo={tipo}
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
-          canAddAcai={
-            !!selectedCup &&
-            selectedToppingIds.length === (selectedCup?.maxToppings ?? 0) &&
+          canAddProduct={
+            !!selectedProduct &&
+            selectedToppingIds.length === (selectedProduct?.maxToppings ?? 0) &&
             (requiredCreams === 0 || selectedCreamIds.length === requiredCreams)
           }
-          hasSelectedCup={!!selectedCup}
+          hasSelectedProduct={!!selectedProduct}
           onNextStep={handleNextStep}
-          onAddAcai={handleAddToCart}
-          draftCupPrice={selectedCup?.price ?? 0}
-          draftExtraIds={selectedCup ? selectedExtraIds : []}
+          onAddProduct={handleAddToCart}
+          draftProductPrice={selectedProduct?.price ?? 0}
+          draftExtraIds={selectedProduct ? selectedExtraIds : []}
         />
       </div>
 

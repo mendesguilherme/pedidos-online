@@ -24,14 +24,14 @@ interface OrderSummaryProps {
   tipo: string | null
   initialTipo: string | null
   hasItems: boolean
-  canAddAcai: boolean
-  hasSelectedCup: boolean
+  canAddProduct: boolean
+  hasSelectedProduct: boolean
   onNextStep: () => void
-  onAddAcai: (force?: boolean) => void
+  onAddProduct: (force?: boolean) => void
   setTab: (tab: string) => void
 
   /** seleção atual na aba produtos (opcional) */
-  draftCupPrice?: number
+  draftProductPrice?: number
   draftExtraIds?: number[]
 }
 
@@ -47,12 +47,12 @@ export function OrderSummary({
   tipo,
   initialTipo,
   hasItems,
-  canAddAcai,
-  hasSelectedCup,
+  canAddProduct,
+  hasSelectedProduct,
   onNextStep,
-  onAddAcai,
+  onAddProduct,
   setTab,
-  draftCupPrice,
+  draftProductPrice,
   draftExtraIds,
 }: OrderSummaryProps) {
   const [showModal, setShowModal] = useState(false)
@@ -94,26 +94,26 @@ export function OrderSummary({
 
   // ======== PRÉ-VISUALIZAÇÃO DA ABA PRODUTOS =========
   const draftExtrasTotal = useMemo(() => {
-    if (currentTab !== "produtos" || !hasSelectedCup) return 0
+    if (currentTab !== "produtos" || !hasSelectedProduct) return 0
     const ids = Array.isArray(draftExtraIds) ? draftExtraIds : []
     const list = addonsDb ?? []
     const priceMap = new Map<number, number>(list.map(a => [a.id, Number(a.price ?? 0)]))
     const sum = ids.reduce((acc, id) => acc + (priceMap.get(id) ?? 0), 0)
     return round2(sum)
-  }, [currentTab, hasSelectedCup, draftExtraIds, addonsDb])
+  }, [currentTab, hasSelectedProduct, draftExtraIds, addonsDb])
 
-  const draftCupSafe = useMemo(() => {
-    if (currentTab !== "produtos" || !hasSelectedCup) return 0
-    return round2(Number(draftCupPrice ?? 0))
-  }, [currentTab, hasSelectedCup, draftCupPrice])
+  const draftProductSafe = useMemo(() => {
+    if (currentTab !== "produtos" || !hasSelectedProduct) return 0
+    return round2(Number(draftProductPrice ?? 0))
+  }, [currentTab, hasSelectedProduct, draftProductPrice])
 
   // Subtotal exibido: carrinho (contexto) + prévia (se na aba produtos)
   const displaySubtotal = useMemo(() => {
     if (currentTab === "produtos") {
-      return round2(itemsSubtotal + draftCupSafe + draftExtrasTotal)
+      return round2(itemsSubtotal + draftProductSafe + draftExtrasTotal)
     }
     return itemsSubtotal
-  }, [currentTab, itemsSubtotal, draftCupSafe, draftExtrasTotal])
+  }, [currentTab, itemsSubtotal, draftProductSafe, draftExtrasTotal])
 
   const displayDeliveryFee = useMemo(() => (shouldShowDeliveryRow ? feeFromCart : 0), [shouldShowDeliveryRow, feeFromCart])
 
@@ -155,12 +155,12 @@ export function OrderSummary({
         : "Definir Forma de Pagamento",
   }
 
-  const handleAddAcai = () => {
-    if (!canAddAcai && !forceAdd) {
+  const handleAddProduct = () => {
+    if (!canAddProduct && !forceAdd) {
       setShowWarning(true)
       return
     }
-    onAddAcai()
+    onAddProduct()
     setShowModal(true)
     setForceAdd(false)
   }
@@ -189,7 +189,7 @@ export function OrderSummary({
           <div className="flex justify-between items-start flex-wrap gap-2">
             <div className="text-xs sm:text-sm text-muted-foreground space-y-1 flex-1 min-w-[140px]">
               <p className="whitespace-nowrap">
-                {itemCountFromCart} {itemCountFromCart === 1 ? "Açaí" : "Açaís"}
+                {itemCountFromCart} {itemCountFromCart === 1 ? "Item" : "Itens"}
               </p>
               <p className="whitespace-nowrap">
                 Subtotal: {fmtBRL(displaySubtotal)}
@@ -211,8 +211,8 @@ export function OrderSummary({
             {currentTab === "produtos" && (
               <Button
                 size="sm"
-                onClick={handleAddAcai}
-                disabled={!hasSelectedCup}
+                onClick={handleAddProduct}
+                disabled={!hasSelectedProduct}
                 className="text-xs sm:text-sm px-4 py-6 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
                 style={{ borderRadius: "6px" }}
               >
@@ -246,7 +246,7 @@ export function OrderSummary({
                 ? "Selecione uma forma de pagamento!"
                 : currentTab === "endereco"
                 ? "Preencha todos os campos obrigatórios"
-                : "Açaí adicionado com sucesso!"}
+                : "Item adicionado com sucesso!"}
             </DialogTitle>
           </DialogHeader>
 
@@ -265,7 +265,7 @@ export function OrderSummary({
                 onClick={() => setShowModal(false)}
                 className="rounded-xl px-6 py-2 text-sm"
               >
-                Montar outro Açaí
+                Adicionar outro item
               </Button>
 
               <Button

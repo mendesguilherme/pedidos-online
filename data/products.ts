@@ -1,7 +1,15 @@
 // src/data/products.ts
 import "server-only"
 
-export interface CupSizeOption {
+export interface CategoryLite {
+  id: string
+  name: string
+  slug: string
+  position: number
+  active: boolean
+}
+
+export interface ProductOption {
   id: number
   name: string
   description: string
@@ -9,17 +17,18 @@ export interface CupSizeOption {
   image: string
   maxToppings: number
   volumeMl: number
+  /** categoria do produto (opcional para compat) */
+  category?: CategoryLite | null
 }
 
-/** Versão com whitelists por ID (opcionais) */
-export interface CupSizeOptionWithLimits extends CupSizeOption {
+export interface ProductOptionWithLimits extends ProductOption {
   allowedToppingIds?: number[]          // NULL => undefined
   allowedAddonIds?: number[]            // NULL => undefined | [] => esconder
   requiredCreams?: number               // default 0
   allowedCreamIds?: number[]            // NULL => undefined
 }
 
-export type AcaiCup = CupSizeOption | CupSizeOptionWithLimits
+export type Product = ProductOption | ProductOptionWithLimits
 
 type Row = {
   id: number
@@ -33,6 +42,15 @@ type Row = {
   allowed_addon_ids: number[] | null
   required_creams: number | null
   allowed_cream_ids: number[] | null
+  /** novos campos para categoria */
+  category_id: string | null
+  category?: {
+    id: string
+    name: string
+    slug: string
+    position: number
+    active: boolean
+  } | null
 }
 
 function supabaseBase() {
@@ -46,12 +64,22 @@ function serviceKey() {
   return k
 }
 
-/** Lista todos os copos do banco (server-only). */
-export async function getAcaiCups(): Promise<AcaiCup[]> {
+/** Lista todos os produtos do banco (server-only). */
+export async function getProducts(): Promise<Product[]> {
   const base = supabaseBase()
   const key = serviceKey()
 
-  const url = `${base}/rest/v1/acai_cups?select=id,name,description,price,image_url,max_toppings,volume_ml,allowed_topping_ids,allowed_addon_ids,required_creams,allowed_cream_ids&order=id.asc`
+  // Inclui category_id e o embed da tabela categories (apelidada como "category")
+  const url =
+    `${base}/rest/v1/products` +
+    `?select=` +
+      `id,name,description,price,image_url,` +
+      `max_toppings,volume_ml,` +
+      `allowed_topping_ids,allowed_addon_ids,required_creams,allowed_cream_ids,` +
+      `category_id,` +
+      `category:categories(id,name,slug,position,active)` +
+    `&order=id.asc`
+
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
     cache: "no-store",
@@ -76,5 +104,15 @@ export async function getAcaiCups(): Promise<AcaiCup[]> {
     allowedAddonIds:   r.allowed_addon_ids   ?? undefined,
     requiredCreams:    r.required_creams ?? 0,
     allowedCreamIds:   r.allowed_cream_ids ?? undefined,
+    // categoria (opcional)
+    category: r.category
+      ? {
+          id: r.category.id,
+          name: r.category.name,
+          slug: r.category.slug,
+          position: r.category.position,
+          active: !!r.category.active,
+        }
+      : null,
   }))
 }

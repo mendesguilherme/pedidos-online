@@ -2,8 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-// Defina o tipo aqui para evitar importar de módulo server-only
-export type CupSizeOption = {
+/** Categoria leve retornada junto ao produto */
+export type CategoryLite = {
+  id: string;
+  name: string;
+  slug: string;
+  position: number;
+  active: boolean;
+};
+
+// Tipos genéricos (sem referência a nicho)
+export type ProductOption = {
   id: number;
   name: string;
   description: string;
@@ -11,19 +20,23 @@ export type CupSizeOption = {
   image: string;
   maxToppings: number;
   volumeMl: number;
+  /** Categoria do produto (opcional para compatibilidade) */
+  category?: CategoryLite | null;
 };
-export type CupSizeOptionWithLimits = CupSizeOption & {
+
+export type ProductOptionWithLimits = ProductOption & {
   allowedToppingIds?: number[];
   allowedAddonIds?: number[]; // [] = esconder seção; undefined = mostrar todos
   requiredCreams?: number;
   allowedCreamIds?: number[];
 };
-export type AcaiCup = CupSizeOption | CupSizeOptionWithLimits;
 
-type ApiResp = { data?: AcaiCup[]; error?: string };
+export type Product = ProductOption | ProductOptionWithLimits;
+
+type ApiResp = { data?: Product[]; error?: string };
 
 export function useProducts() {
-  const [data, setData] = useState<AcaiCup[] | null>(null);
+  const [data, setData] = useState<Product[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -45,8 +58,7 @@ export function useProducts() {
 
         if (!ignore) setData(json.data ?? []);
       } catch (e: any) {
-        // Ignora aborts
-        if (e?.name === "AbortError") return;
+        if (e?.name === "AbortError") return; // ignora aborts
         if (!ignore) setError(String(e?.message || e));
       } finally {
         if (!ignore) setIsLoading(false);
@@ -55,17 +67,15 @@ export function useProducts() {
 
     return () => {
       ignore = true;
-      // em produção, pode abortar para economizar rede; em dev, evita o overlay de erro
       if (process.env.NODE_ENV === "production") {
         try { ab.abort(); } catch {}
       }
     };
-
   }, []);
 
   const indexById = useMemo(() => {
-    const m = new Map<number, AcaiCup>();
-    (data ?? []).forEach((c) => m.set(c.id, c));
+    const m = new Map<number, Product>();
+    (data ?? []).forEach((p) => m.set(p.id, p));
     return m;
   }, [data]);
 
