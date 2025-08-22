@@ -165,8 +165,17 @@ type EnrichedOrder = Order & {
 /** Label amigável do status para exibição na tabela */
 function uiStatusLabel(status: string, tipo?: string | null) {
   const isEntrega = (tipo ?? "").toLowerCase() === "entrega";
+
   if (status === "saiu_para_entrega" && !isEntrega) return "Pronto p/ retirada";
-  return status.replaceAll("_", " ");
+  if (status === "pendente") return "Em processamento";
+  if (status === "em_preparo") return "Em preparo";
+  if (status === "saiu_para_entrega") return "Saiu para entrega";
+  if (status === "entregue") return "Entregue";
+  if (status === "cancelado") return "Cancelado";
+
+  // fallback: substitui "_" por espaço e coloca só a 1ª letra em maiúscula
+  const pretty = status.replaceAll("_", " ").trim();
+  return pretty ? pretty.charAt(0).toUpperCase() + pretty.slice(1) : "—";
 }
 
 /** ====================== NOVO: pill de status (mais visível) ====================== */
@@ -388,7 +397,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
             className={`${selectClass} select-like-chevron h-[42px] appearance-none pr-8 border-[hsl(0,0%,85%)] focus:border-[hsl(0,0%,85%)]`}
           >
             <option value="">Todos</option>
-            <option value="pendente">Pendente</option>
+            <option value="pendente">Em processamento</option>
             <option value="em_preparo">Em preparo</option>
             <option value="saiu_para_entrega">Saiu para entrega</option>
             <option value="entregue">Entregue</option>
@@ -516,33 +525,7 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                     {/* pill do status */}
                     <span className={statusPillClass(o.status)}>
                       {uiStatusLabel(o.status, o.tipo)}
-                    </span>
-
-                    {(o.status !== "pendente" && o.status !== "cancelado") && (
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          asChild
-                          size="sm"
-                          className="h-8 rounded-xl px-2 text-xs leading-none whitespace-nowrap
-                                     bg-emerald-600 hover:bg-emerald-600/90 text-white
-                                     border border-emerald-600 focus-visible:ring-emerald-600/30"
-                        >
-                          <a href={o.links.notify} title="Enviar os detalhes no WhatsApp">
-                            Enviar WhatsApp
-                          </a>
-                        </Button>
-                        
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-8 rounded-xl px-2 text-xs leading-none whitespace-nowrap
-                                     bg-emerald-600 hover:bg-emerald-600/90 text-white
-                                     border border-emerald-600 focus-visible:ring-emerald-600/30"
-                        >
-                          Imprimir Cupom
-                        </Button>                        
-                      </div>
-                    )}
+                    </span>                    
                   </div>
                 </td>
 
@@ -559,10 +542,10 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 </td>
 
                 <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="w-full flex flex-wrap justify-center gap-2">
                     {o.actions.includes("aceitar") && (
                       <Button asChild variant="outline" className={btnAceitar}>
-                        <a href={o.links.aceitar}>Aceitar</a>
+                        <a href={o.links.aceitar}>Aceitar Pedido</a>
                       </Button>
                     )}
                     {o.actions.includes("negar") && (
@@ -580,6 +563,33 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                         <a href={o.links.entregue}>Entregue</a>
                       </Button>
                     )}
+
+                    {(o.status !== "pendente" && o.status !== "cancelado") && (
+                      <>
+                        <Button
+                          asChild
+                          size="sm"
+                          className={`${btnCellBase}
+                                      bg-emerald-600 hover:bg-emerald-600/90 text-white
+                                      border border-emerald-600 focus-visible:ring-emerald-600/30`}
+                        >
+                          <a href={o.links.notify} title="Enviar os detalhes no WhatsApp">
+                            Enviar WhatsApp
+                          </a>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          className={`${btnCellBase}
+                                      bg-emerald-600 hover:bg-emerald-600/90 text-white
+                                      border border-emerald-600 focus-visible:ring-emerald-600/30`}
+                        >
+                          Imprimir Cupom
+                        </Button>
+                      </>
+                    )}
+
                   </div>
                 </td>
               </tr>

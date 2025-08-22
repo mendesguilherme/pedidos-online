@@ -160,7 +160,7 @@ export default function PedidosPage() {
     }
     switch (status) {
       case "pendente":
-        return { label: "Pendente", color: "bg-yellow-500", icon: Clock }
+        return { label: "Em processamento", color: "bg-yellow-500", icon: Clock }
       case "em preparo":
         return { label: "Em preparo", color: "bg-blue-500", icon: Clock }
       case "saiu para entrega":

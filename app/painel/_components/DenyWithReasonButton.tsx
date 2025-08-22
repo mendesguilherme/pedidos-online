@@ -47,7 +47,7 @@ export default function DenyWithReasonButton({ orderId, className }: Props) {
         className={className}
         onClick={() => setOpen(true)}
       >
-        Negar
+        Negar Pedido
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
