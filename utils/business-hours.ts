@@ -13,7 +13,7 @@ export const BUSINESS_HOURS: BusinessHours = {
   thursday: { open: "00:01", close: "23:59", isOpen: true },
   friday: { open: "07:00", close: "23:00", isOpen: true },
   saturday: { open: "14:00", close: "23:00", isOpen: true },
-  sunday: { open: "14:00", close: "23:00", isOpen: true },
+  sunday: { open: "00:01", close: "23:00", isOpen: true },
 }
 
 export const DAY_NAMES = {

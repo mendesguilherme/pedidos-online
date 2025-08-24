@@ -499,13 +499,13 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Código</th>
-              <th className="px-3 py-2 text-left">Criado</th>
-              <th className="px-3 py-2 text-left">Status</th>
+              <th className="px-3 py-2 text-left">Criado</th>              
               <th className="px-3 py-2 text-left">Tipo</th>
               <th className="px-3 py-2 text-left">Total</th>
               <th className="px-3 py-2 text-left">Pagamento</th>
               <th className="px-3 py-2 text-left">Itens</th>
               <th className="px-3 py-2 text-left">Endereço</th>
+              <th className="px-3 py-2 text-left">Status Pedido</th>
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
@@ -517,19 +517,23 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 className={`align-top ${o.status === "entregue" ? "bg-gray-100" : o.status === "cancelado" ? "bg-red-100" : ""} divide-x divide-slate-200`}
               >
                 <td className="px-3 py-2 font-medium">{o.order_code ?? o.id.slice(0, 8)}</td>
-                <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>
+                <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>                
 
-                {/* Status + botões (WhatsApp + Imprimir Cupom) */}
                 <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    {/* pill do status */}
-                    <span className={statusPillClass(o.status)}>
-                      {uiStatusLabel(o.status, o.tipo)}
-                    </span>                    
-                  </div>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border
+                      ${
+                        (o.tipo ?? "").toLowerCase() === "entrega"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : (o.tipo ?? "").toLowerCase() === "retirada"
+                          ? "bg-gray-50 text-gray-700 border-gray-300"
+                          : "bg-slate-50 text-slate-500 border-slate-200"
+                      }`}
+                  >
+                    {(o.tipo ?? "—").charAt(0).toUpperCase() + (o.tipo ?? "—").slice(1)}
+                  </span>
                 </td>
 
-                <td className="px-3 py-2">{o.tipo ?? "—"}</td>
                 <td className="px-3 py-2">{fmtBRL(o.total)}</td>
                 <td className="px-3 py-2">{labelPgto(o.payment_method)}</td>
 
@@ -539,6 +543,16 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
 
                 <td className="px-3 py-2 max-w-[320px]">
                   <div className="text-gray-700">{resumoEndereco(o.address ?? o.cart?.deliveryAddress, o.tipo)}</div>
+                </td>
+
+                {/* Status */}
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    {/* pill do status */}
+                    <span className={statusPillClass(o.status)}>
+                      {uiStatusLabel(o.status, o.tipo)}
+                    </span>                    
+                  </div>
                 </td>
 
                 <td className="px-3 py-2">
