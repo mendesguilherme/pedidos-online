@@ -153,26 +153,63 @@ export default function PedidosPage() {
     }
   }
 
-  // Ajusta label quando retirada estiver em "saiu para entrega"
+  // Ajusta label quando retirada estiver em "saiu para entrega"  
   const getStatusInfo = (status: string, type?: Order["type"]) => {
     if (status === "saiu para entrega" && type === "retirada") {
-      return { label: "Pronto para retirada", color: "bg-purple-500", icon: ShoppingBag }
+      return {
+        label: "Pronto para retirada",
+        color: "bg-purple-500",
+        icon: ShoppingBag,
+        hint: "Seu pedido está pronto! Retire na loja."
+      }
     }
     switch (status) {
       case "pendente":
-        return { label: "Em processamento", color: "bg-yellow-500", icon: Clock }
+        return {
+          label: "Em processamento",
+          color: "bg-yellow-500",
+          icon: Clock,
+          hint: "Aguardando confirmação da loja."
+        }
       case "em preparo":
-        return { label: "Em preparo", color: "bg-blue-500", icon: Clock }
+        return {
+          label: "Em preparo",
+          color: "bg-blue-500",
+          icon: Clock,
+          hint: "Seu pedido está sendo preparado."
+        }
       case "saiu para entrega":
-        return { label: "Saiu para entrega", color: "bg-purple-500", icon: Truck }
+        return {
+          label: "Saiu para entrega",
+          color: "bg-purple-500",
+          icon: Truck,
+          hint: "Seu pedido está a caminho."
+        }
       case "entregue":
-        return { label: "Entregue", color: "bg-green-500", icon: CheckCircle }
+        return {
+          label: "Entregue",
+          color: "bg-green-500",
+          icon: CheckCircle,
+          hint: "Pedido entregue. Obrigado!"
+        }
       case "cancelado":
-        return { label: "Cancelado", color: "bg-red-500", icon: CheckCircle }
+        return {
+          label: "Cancelado",
+          color: "bg-red-500",
+          icon: CheckCircle,
+          hint: "Pedido cancelado pela loja."
+        }
+
       default:
-        return { label: "Desconhecido", color: "bg-gray-500", icon: Clock }
+        return {
+          label: "Desconhecido",
+          color: "bg-gray-500",
+          icon: Clock,
+          hint: "Estamos verificando o status do seu pedido."
+        }
     }
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col text-sm">
@@ -262,6 +299,11 @@ export default function PedidosPage() {
                               </span>
                             </Badge>
                           </div>
+
+                          {/* novo resumo abaixo do badge */}
+                          <p className="text-[11px] sm:text-xs italic text-gray-600 text-right">
+                            {statusInfo.hint}
+                          </p>                          
 
                           <div className="flex items-center text-xs text-gray-600">
                             {order.type === "entrega" ? (

@@ -200,6 +200,18 @@ function statusPillClass(status: string) {
 }
 /** =============================================================================== */
 
+// use exatamente a mesma base
+const tipoPillBase = statusPillBase; // "inline-flex items-center rounded-xl border px-2 py-2 text-xs font-semibold whitespace-nowrap"
+
+function tipoPillClass(tipo?: string | null) {
+  const t = (tipo ?? "").toLowerCase();
+  if (t === "entrega")   return `${tipoPillBase} border-sky-300 bg-sky-50 text-sky-800`;
+  if (t === "retirada")  return `${tipoPillBase} border-slate-300 bg-slate-50 text-slate-700`;
+  return `${tipoPillBase} border-slate-300 bg-slate-50 text-slate-500`;
+}
+
+const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : "—";
+
 /** Componente da célula de itens: mostra cada copo com espaço e inclui Cremes */
 function ItensResumo({ cart }: { cart: any }) {
   const items = Array.isArray(cart?.items) ? cart.items : [];
@@ -520,17 +532,8 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
                 <td className="px-3 py-2">{fmtDateBR_SP(o.created_at)}</td>                
 
                 <td className="px-3 py-2">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border
-                      ${
-                        (o.tipo ?? "").toLowerCase() === "entrega"
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : (o.tipo ?? "").toLowerCase() === "retirada"
-                          ? "bg-gray-50 text-gray-700 border-gray-300"
-                          : "bg-slate-50 text-slate-500 border-slate-200"
-                      }`}
-                  >
-                    {(o.tipo ?? "—").charAt(0).toUpperCase() + (o.tipo ?? "—").slice(1)}
+                  <span className={tipoPillClass(o.tipo)}>
+                    {cap(o.tipo ?? "—")}
                   </span>
                 </td>
 
