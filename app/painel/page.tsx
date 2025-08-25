@@ -3,8 +3,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import CategoriesEntry from "./_tabs/categoriesEntry";
+import ToppingssEntry from "./_tabs/toppingsEntry";
+import AddonsEntry from "./_tabs/addonsEntry";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileText as OrdersIcon, Folder } from "lucide-react";
+import { FileText as OrdersIcon, Folder, ChefHat, Utensils, Shapes, Layers } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
@@ -18,6 +21,7 @@ import Link from "next/link";
 import React from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import ToppingsTabs from "./_tabs/toppingsTabs";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -400,6 +404,12 @@ function ItensResumo({ cart }: { cart: any }) {
           <TabsTrigger value="categorias" className="rounded-xl flex items-center gap-2">
             <Folder className="w-4 h-4" /> Categorias
           </TabsTrigger>
+          <TabsTrigger value="toppings" className="rounded-xl flex items-center gap-2">
+            <Shapes className="w-4 h-4" /> Acompanhamentos
+          </TabsTrigger>
+          <TabsTrigger value="addons" className="rounded-xl flex items-center gap-2">
+            <Layers className="w-4 h-4" /> Adicionais
+          </TabsTrigger>
         </TabsList>
 
         {/* === Aba Pedidos (DEFAULT) === */}
@@ -739,6 +749,14 @@ function ItensResumo({ cart }: { cart: any }) {
         {/* === Aba Categorias === */}
         <TabsContent value="categorias" className="mt-4">
           <CategoriesEntry />
+        </TabsContent>
+
+        <TabsContent value="toppings" className="mt-4">
+          <ToppingssEntry />
+        </TabsContent>
+
+        <TabsContent value="addons" className="mt-4">
+          <AddonsEntry />
         </TabsContent>
       </Tabs>
     </main>
