@@ -41,9 +41,6 @@ export async function POST(req: Request) {
                         : ("allowed_topping_ids" in body ? (body.allowed_topping_ids ?? null) : undefined),
       allowedAddonIds:   ("allowedAddonIds"   in body) ? (body.allowedAddonIds ?? null)
                         : ("allowed_addon_ids"   in body ? (body.allowed_addon_ids   ?? null) : undefined),
-      requiredCreams: Number(body?.requiredCreams ?? body?.required_creams ?? 0),
-      allowedCreamIds: ("allowedCreamIds" in body) ? (body.allowedCreamIds ?? null)
-                        : ("allowed_cream_ids" in body ? (body.allowed_cream_ids ?? null) : undefined),
     })
 
     return NextResponse.json({ data }, { status: 201 })

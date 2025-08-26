@@ -27,8 +27,6 @@ export async function PATCH(
       position?: number
       allowedToppingIds?: number[] | null
       allowedAddonIds?: number[] | null
-      requiredCreams?: number
-      allowedCreamIds?: number[] | null
       deleted?: boolean
     } = {}
 
@@ -56,12 +54,6 @@ export async function PATCH(
 
     if ("allowedAddonIds" in body)          updates.allowedAddonIds = body.allowedAddonIds
     else if ("allowed_addon_ids" in body)   updates.allowedAddonIds = body.allowed_addon_ids
-
-    if ("requiredCreams" in body)           updates.requiredCreams = body.requiredCreams
-    else if ("required_creams" in body)     updates.requiredCreams = body.required_creams
-
-    if ("allowedCreamIds" in body)          updates.allowedCreamIds = body.allowedCreamIds
-    else if ("allowed_cream_ids" in body)   updates.allowedCreamIds = body.allowed_cream_ids
 
     if ("deleted" in body)                  updates.deleted = !!body.deleted
 

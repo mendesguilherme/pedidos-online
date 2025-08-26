@@ -33,6 +33,7 @@ interface OrderSummaryProps {
   /** seleção atual na aba produtos (opcional) */
   draftProductPrice?: number
   draftExtraIds?: number[]
+  mustFillToppings?: boolean
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -54,6 +55,7 @@ export function OrderSummary({
   setTab,
   draftProductPrice,
   draftExtraIds,
+  mustFillToppings = false,
 }: OrderSummaryProps) {
   const [showModal, setShowModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -156,14 +158,13 @@ export function OrderSummary({
   }
 
   const handleAddProduct = () => {
-    if (!canAddProduct && !forceAdd) {
-      setShowWarning(true)
-      return
+    if (mustFillToppings && !canAddProduct) {
+      setShowWarning(true);
+      return;
     }
-    onAddProduct()
-    setShowModal(true)
-    setForceAdd(false)
-  }
+    onAddProduct(true);   // força adicionar mesmo sem seleção completa quando não é obrigatório
+    setShowModal(true);
+  };
 
   const handleNextStepClick = () => {
     const isEnderecoStep = currentTab === "endereco"

@@ -17,15 +17,13 @@ type Product = {
   name: string
   description: string
   price: number
-  image: string
+  imageUrl: string | null
   maxToppings: number
   volumeMl: number
   category_id: string | null
   category?: { id: string; name: string; active: boolean } | null
   allowedToppingIds?: number[]
   allowedAddonIds?: number[]
-  requiredCreams?: number
-  allowedCreamIds?: number[]
   active: boolean
   slug: string | null
   position: number
@@ -165,7 +163,15 @@ export default function ProductsTabs() {
         fetch("/api/toppings").then(r => r.json()).catch(() => ({})),
         fetch("/api/addons").then(r => r.json()).catch(() => ({})),
       ]);
-      setRows((pr?.data ?? []) as Product[]);
+
+      // Mapeia image/image_url -> imageUrl para o estado do cliente
+      const raw = (pr?.data ?? []) as any[];
+      const mapped = raw.map((r) => ({
+        ...r,
+        imageUrl: r.imageUrl ?? r.image ?? r.image_url ?? null,
+      })) as Product[];
+
+      setRows(mapped);
       setCategories(((cr?.data ?? []) as any[]).filter(c => c.active));
       setToppings((tr?.data ?? []) as Topping[]);
       setAddons((ar?.data ?? []) as Addon[]);
@@ -190,8 +196,11 @@ export default function ProductsTabs() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name, description: form.description || "",
-          price: priceNum, imageUrl: form.imageUrl || "",
+          name,
+          description: form.description || "",
+          price: priceNum,
+          // envia snake_case (API mapeia para camel internamente)
+          image_url: form.imageUrl || "",
           maxToppings: Number(form.maxToppings || 0),
           volumeMl: Number(form.volumeMl || 0),
           categoryId: form.categoryId,
@@ -325,6 +334,8 @@ export default function ProductsTabs() {
               <th className="px-3 py-2 text-left">Descrição</th>
               <th className="px-3 py-2 text-left">Preço</th>
               <th className="px-3 py-2 text-left">Categoria</th>
+              {/* NOVO: coluna Imagem */}
+              <th className="px-3 py-2 text-left">Imagem</th>
               <th className="px-3 py-2 text-left">Volume</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Máx. Acomp.</th>
               <th className="px-3 py-2 text-left">Acompanhamentos</th>
@@ -376,6 +387,26 @@ export default function ProductsTabs() {
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                </td>
+
+                {/* NOVO: imagem (miniatura + URL editável) */}
+                <td className="px-3 py-2 min-w-[260px]">
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                      {r.imageUrl ? (
+                        <img src={r.imageUrl} alt={r.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <InlineText
+                        value={r.imageUrl ?? ""}
+                        onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, imageUrl: v}) : x))}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
                 </td>
 
                 {/* volume (compacto) */}
@@ -444,11 +475,13 @@ export default function ProductsTabs() {
                       size="sm" variant="outline" className="h-8 rounded-xl"
                       onClick={() => patch(r.id, {
                         name: r.name,
-                        description: r.description,      // ← NOVO: envia descrição no PATCH
+                        description: r.description,
                         price: r.price,
                         category_id: r.category_id,
                         volume_ml: r.volumeMl,
                         max_toppings: r.maxToppings,
+                        // envia snake_case para a API (PATCH aceita image_url/imageUrl)
+                        image_url: r.imageUrl ?? "",
                       })}
                     >
                       <Save className="w-4 h-4 mr-1" /> Salvar
@@ -463,8 +496,8 @@ export default function ProductsTabs() {
 
             {!rows.length && (
               <tr>
-                {/* +1 no colSpan por causa da coluna Descrição (antes 9, agora 10) */}
-                <td colSpan={10} className="px-3 py-8 text-center text-gray-500">
+                {/* +2 no colSpan (Descrição + Imagem) → agora 11 colunas */}
+                <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
                   {loading ? "Carregando..." : "Nenhum produto"}
                 </td>
               </tr>

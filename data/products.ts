@@ -25,8 +25,6 @@ export interface ProductOption {
 export interface ProductOptionWithLimits extends ProductOption {
   allowedToppingIds?: number[]          // NULL => undefined (sem restrição)
   allowedAddonIds?: number[]            // NULL => undefined
-  requiredCreams?: number               // default 0
-  allowedCreamIds?: number[]            // NULL => undefined
 }
 
 /** Tipo público (GET) já existente */
@@ -53,8 +51,6 @@ type Row = {
   volume_ml: number
   allowed_topping_ids: number[] | null
   allowed_addon_ids: number[] | null
-  required_creams: number | string | null
-  allowed_cream_ids: number[] | null
   category_id: string | null
   category?: {
     id: string
@@ -93,10 +89,14 @@ export async function getProducts(): Promise<Product[]> {
     `?select=` +
       `id,name,description,price,image_url,` +
       `max_toppings,volume_ml,` +
-      `allowed_topping_ids,allowed_addon_ids,required_creams,allowed_cream_ids,` +
+      `allowed_topping_ids,allowed_addon_ids,` +
       `category_id,` +
       `category:categories(id,name,slug,position,active)` +
-    `&order=id.asc`
+    // ⬇️ FILTROS essenciais
+    `&deleted=eq.false` +
+    `&active=eq.true` +
+    // (mantenha a ordenação que preferir)
+    `&order=position.asc,id.asc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -117,12 +117,8 @@ export async function getProducts(): Promise<Product[]> {
     image: r.image_url,
     maxToppings: r.max_toppings,
     volumeMl: r.volume_ml,
-    // tri-state
     allowedToppingIds: r.allowed_topping_ids ?? undefined,
     allowedAddonIds:   r.allowed_addon_ids   ?? undefined,
-    requiredCreams:    r.required_creams != null ? Number(r.required_creams) : 0,
-    allowedCreamIds:   r.allowed_cream_ids ?? undefined,
-    // categoria (opcional)
     category: r.category
       ? {
           id: r.category.id,
@@ -145,7 +141,7 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
     `?select=` +
       `id,name,description,price,image_url,` +
       `max_toppings,volume_ml,` +
-      `allowed_topping_ids,allowed_addon_ids,required_creams,allowed_cream_ids,` +
+      `allowed_topping_ids,allowed_addon_ids,` +
       `active,deleted,slug,position,` +
       `created_at,updated_at,` +
       `category_id,` +
@@ -174,8 +170,6 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
     volumeMl: r.volume_ml,
     allowedToppingIds: r.allowed_topping_ids ?? undefined,
     allowedAddonIds:   r.allowed_addon_ids   ?? undefined,
-    requiredCreams:    r.required_creams != null ? Number(r.required_creams) : 0,
-    allowedCreamIds:   r.allowed_cream_ids ?? undefined,
     active: !!r.active,
     deleted: !!r.deleted,
     slug: r.slug ?? null,
@@ -249,8 +243,6 @@ export async function createProduct(payload: {
   position?: number
   allowedToppingIds?: number[] | null // null = sem restrição | [] = esconder
   allowedAddonIds?: number[] | null
-  requiredCreams?: number
-  allowedCreamIds?: number[] | null
 }) {
   const base = supabaseBase()
   const key  = serviceKey()
@@ -261,7 +253,6 @@ export async function createProduct(payload: {
   const price = ensurePrice(payload.price)
   const max_toppings = ensureNonNegativeInt(payload.maxToppings, "max_toppings")
   const volume_ml    = ensureNonNegativeInt(payload.volumeMl, "volume_ml")
-  const required_creams = Number.isFinite(payload.requiredCreams as any) ? Number(payload.requiredCreams) : 0
   const position = Number.isFinite(payload.position as any) ? Number(payload.position) : 0
   const category_id = String(payload.categoryId || "").trim()
   if (!category_id) throw new Error("category_id é obrigatório")
@@ -278,8 +269,6 @@ export async function createProduct(payload: {
     volume_ml,
     allowed_topping_ids: payload.allowedToppingIds ?? null,
     allowed_addon_ids:   payload.allowedAddonIds   ?? null,
-    required_creams,
-    allowed_cream_ids:   payload.allowedCreamIds ?? null,
     active: true,
     slug: payload.slug ?? null,
     position,
@@ -318,8 +307,6 @@ export async function updateProduct(id: number | string, updates: {
   position?: number
   allowedToppingIds?: number[] | null
   allowedAddonIds?: number[] | null
-  requiredCreams?: number
-  allowedCreamIds?: number[] | null
   deleted?: boolean
 }) {
   const base = supabaseBase()
@@ -333,12 +320,10 @@ export async function updateProduct(id: number | string, updates: {
   if (typeof updates.imageUrl !== "undefined") body.image_url = String(updates.imageUrl ?? "")
   if (typeof updates.maxToppings !== "undefined") body.max_toppings = ensureNonNegativeInt(updates.maxToppings, "max_toppings")
   if (typeof updates.volumeMl !== "undefined") body.volume_ml = ensureNonNegativeInt(updates.volumeMl, "volume_ml")
-  if (typeof updates.requiredCreams !== "undefined") body.required_creams = Number(updates.requiredCreams ?? 0)
   if (typeof updates.position !== "undefined") body.position = Number(updates.position ?? 0)
   if (typeof updates.slug !== "undefined") body.slug = updates.slug ?? null
   if (typeof updates.allowedToppingIds !== "undefined") body.allowed_topping_ids = toNumArrayOrNull(updates.allowedToppingIds)
   if (typeof updates.allowedAddonIds   !== "undefined") body.allowed_addon_ids   = toNumArrayOrNull(updates.allowedAddonIds)
-  if (typeof updates.allowedCreamIds   !== "undefined") body.allowed_cream_ids   = toNumArrayOrNull(updates.allowedCreamIds)
   if (typeof updates.deleted !== "undefined") body.deleted = !!updates.deleted
 
   if (typeof updates.categoryId !== "undefined") {
@@ -385,5 +370,7 @@ export async function updateProduct(id: number | string, updates: {
 
 /** ---------- SOFT DELETE ---------- */
 export async function softDeleteProduct(id: number | string) {
-  return updateProduct(id, { deleted: true })
+  // Belt-and-suspenders: deletado e inativo
+  return updateProduct(id, { deleted: true, active: false })
 }
+

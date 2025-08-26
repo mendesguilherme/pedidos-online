@@ -16,7 +16,6 @@ import { useProducts, type Product, type ProductOptionWithLimits } from "@/hooks
 
 // hooks padronizados
 import { useAddons } from "@/hooks/use-addons";
-import { useCreams } from "@/hooks/use-creams";
 import { useToppings, type Topping } from "@/hooks/use-toppings";
 
 import { ProductSelector } from "@/components/ProductSelector";
@@ -43,10 +42,6 @@ export default function ProdutosPage() {
   const { data: addonsData, isLoading: addonsLoading, error: addonsError } = useAddons();
   const addonsDb = addonsData ?? [];
 
-  // CREAMS
-  const { data: creamsData, isLoading: creamsLoading, error: creamsError } = useCreams();
-  const creams = creamsData ?? [];
-
   // TOPPINGS
   const { data: toppingsData, isLoading: toppingsLoading, error: toppingsError } = useToppings();
   const toppingsDb = toppingsData ?? [];
@@ -58,7 +53,6 @@ export default function ProdutosPage() {
   const { cart, addItem } = useCart();
 
   const toppingsRef = useRef<HTMLDivElement | null>(null);
-  const creamsRef = useRef<HTMLDivElement | null>(null);
   const addonsRef = useRef<HTMLDivElement | null>(null);
 
   const searchParams = useSearchParams();
@@ -86,8 +80,11 @@ export default function ProdutosPage() {
   // Estados por ID
   const [selectedToppingIds, setSelectedToppingIds] = useState<number[]>([]);
   const [selectedExtraIds, setSelectedExtraIds] = useState<number[]>([]);
-  const [selectedCreamIds, setSelectedCreamIds] = useState<number[]>([]);
-  const maxToppings = selectedProduct?.maxToppings ?? 0;
+  const maxToppings = useMemo(() => {
+    const base = selectedProduct?.maxToppings ?? 0;
+    const allow = (selectedProduct as ProductOptionWithLimits | null)?.allowedToppingIds;
+    return Array.isArray(allow) && allow.length === 0 ? 0 : base;
+  }, [selectedProduct]);
 
   const [deliveryAddress, setDeliveryAddress] = useState({
     street: "",
@@ -107,7 +104,6 @@ export default function ProdutosPage() {
     setSelectedProduct(product);
     setSelectedToppingIds([]);
     setSelectedExtraIds([]);
-    setSelectedCreamIds([]);
 
     setTimeout(() => {
       if (toppingsRef.current) {
@@ -119,14 +115,17 @@ export default function ProdutosPage() {
   };
 
   // Helpers do produto
-  const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;
-  const requiredCreams = productCfg?.requiredCreams ?? 0;
+  const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;  
 
   // ---------- filtros ----------
   const visibleToppings: Topping[] = useMemo(() => {
     if (!selectedProduct) return [];
     const allow = (selectedProduct as ProductOptionWithLimits).allowedToppingIds;
-    return Array.isArray(allow) && allow.length ? toppingsDb.filter((t) => allow.includes(t.id)) : toppingsDb;
+    if (Array.isArray(allow)) {
+      if (allow.length === 0) return [];                  // ← esconder
+      return toppingsDb.filter((t) => allow.includes(t.id));
+    }
+    return toppingsDb;                                     // ← sem restrição
   }, [selectedProduct, toppingsDb]);
 
   const visibleAddons = useMemo(() => {
@@ -139,14 +138,11 @@ export default function ProdutosPage() {
     return addonsDb;
   }, [selectedProduct, addonsDb]);
 
-  const visibleCreams = useMemo(() => {
-    if (!requiredCreams) return [];
-    const allow = (selectedProduct as ProductOptionWithLimits)?.allowedCreamIds;
-    if (Array.isArray(allow) && allow.length) {
-      return creams.filter((c) => allow.includes(c.id));
-    }
-    return creams;
-  }, [selectedProduct, requiredCreams, creams]);
+  const mustFillToppings = useMemo(() => {
+    const max = selectedProduct?.maxToppings ?? 0
+    const hasVisibleToppings = visibleToppings.length > 0
+    return max > 0 && hasVisibleToppings
+  }, [selectedProduct?.maxToppings, visibleToppings])
 
   // ---------- toggles ----------
   const handleToppingToggle = (toppingId: number) => {
@@ -167,22 +163,11 @@ export default function ProdutosPage() {
     }
   };
 
-  const toggleCream = (id: number) => {
-    if (!requiredCreams) return;
-    setSelectedCreamIds((prev) => {
-      const has = prev.includes(id);
-      if (has) return prev.filter((x) => x !== id);
-      if (prev.length >= requiredCreams) return prev;
-      return [...prev, id];
-    });
-  };
-
   const handleAddToCart = (force = false) => {
     if (!selectedProduct) return;
 
     const toppingsOk = selectedToppingIds.length === selectedProduct.maxToppings;
-    const creamsOk = requiredCreams ? selectedCreamIds.length === requiredCreams : true;
-    if (!force && (!toppingsOk || !creamsOk)) return;
+    if (!force && !toppingsOk) return;
 
     const toppingNames = selectedToppingIds
       .map((id) => visibleToppings.find((t) => t.id === id)?.name)
@@ -192,19 +177,14 @@ export default function ProdutosPage() {
     const extrasNames = extraObjs.map((e) => e!.name);
     const extrasTotal = extraObjs.reduce((acc, e) => acc + (e?.price ?? 0), 0);
 
-    const cremeNames = selectedCreamIds
-      .map((id) => visibleCreams.find((c) => c.id === id)?.name)
-      .filter(Boolean) as string[];
-
     const newItem = {
       id: Date.now(),
       name: `${selectedProduct.name} com ${toppingNames.length} acompanhamentos`,
-      price: selectedProduct.price + extrasTotal, // cremes não somam
+      price: selectedProduct.price + extrasTotal,
       quantity: 1,
       image: "/acai.webp",
       toppings: toppingNames,
       extras: extrasNames,
-      cremes: cremeNames,
     };
 
     addItem(newItem);
@@ -244,7 +224,6 @@ export default function ProdutosPage() {
     setSelectedProduct(null);
     setSelectedToppingIds([]);
     setSelectedExtraIds([]);
-    setSelectedCreamIds([]);
   };
 
   // troca de abas + sincroniza URL
@@ -466,96 +445,45 @@ export default function ProdutosPage() {
 
               {/* Se existir produto selecionado, mostram-se as outras seções */}
               {selectedProduct && (
-                <>
+                <>                  
                   {/* Acompanhamentos */}
-                  <div className="mt-2" ref={toppingsRef}>
-                    <h2 className="text-sm font-semibold mb-1">
-                      Acompanhamentos ({selectedToppingIds.length}/{maxToppings})
-                    </h2>
-
-                    {toppingsError && (
-                      <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                        Não foi possível carregar os acompanhamentos.
-                      </div>
-                    )}
-                    {toppingsLoading && !toppingsError && (
-                      <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>
-                    )}
-
-                    <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                      {visibleToppings.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => handleToppingToggle(t.id)}
-                          className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                            selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
-                          }`}
-                        >
-                          {t.imageUrl && (
-                            <img
-                              src={t.imageUrl}
-                              alt={t.name}
-                              className="w-14 h-14 rounded-full object-cover mb-1"
-                            />
-                          )}
-                          <span className="text-[11px] text-center text-gray-800 font-medium">
-                            {t.name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Selecionados: {selectedToppingIds.length}/{selectedProduct.maxToppings}
-                    </p>
-                  </div>
-
-                  {/* Cremes (obrigatórios por produto) */}
-                  {requiredCreams > 0 && (
-                    <div className="mt-2" ref={creamsRef}>
+                  {visibleToppings.length > 0 && (
+                    <div className="mt-2" ref={toppingsRef}>
                       <h2 className="text-sm font-semibold mb-1">
-                        Cremes ({selectedCreamIds.length}/{requiredCreams})
+                        Acompanhamentos ({selectedToppingIds.length}/{maxToppings})
                       </h2>
-
-                      {creamsError && (
+                      {toppingsError && (
                         <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                          Não foi possível carregar os cremes.
+                          Não foi possível carregar os acompanhamentos.
                         </div>
                       )}
-                      {creamsLoading && !creamsError && (
-                        <div className="mb-2 text-xs text-gray-500">Carregando cremes…</div>
+                      {toppingsLoading && !toppingsError && (
+                        <div className="mb-2 text-xs text-gray-500">Carregando acompanhamentos…</div>
                       )}
 
                       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {visibleCreams.map((c) => {
-                          const active = selectedCreamIds.includes(c.id);
-                          return (
-                            <button
-                              key={c.id}
-                              onClick={() => toggleCream(c.id)}
-                              className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                                active ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
-                              }`}
-                            >
-                              {c.imageUrl && (
-                                <img
-                                  src={c.imageUrl}
-                                  alt={c.name}
-                                  className="w-14 h-14 rounded-full object-cover mb-1"
-                                />
-                              )}
-                              <span className="text-[11px] text-center text-gray-800 font-medium">
-                                {c.name}
-                              </span>
-                            </button>
-                          );
-                        })}
+                        {visibleToppings.map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => handleToppingToggle(t.id)}
+                            className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
+                              selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
+                            }`}
+                          >
+                            {t.imageUrl && (
+                              <img src={t.imageUrl} alt={t.name} className="w-14 h-14 rounded-full object-cover mb-1" />
+                            )}
+                            <span className="text-[11px] text-center text-gray-800 font-medium">{t.name}</span>
+                          </button>
+                        ))}
                       </div>
 
                       <p className="text-xs text-gray-500 mt-1">
-                        Selecionados: {selectedCreamIds.length}/{requiredCreams}
+                        Selecionados: {selectedToppingIds.length}/{selectedProduct.maxToppings}
                       </p>
                     </div>
                   )}
+
 
                   {/* feedback adicionais */}
                   {addonsError && (
@@ -643,14 +571,14 @@ export default function ProdutosPage() {
           hasItems={cart.items.length > 0}
           canAddProduct={
             !!selectedProduct &&
-            selectedToppingIds.length === (selectedProduct?.maxToppings ?? 0) &&
-            (requiredCreams === 0 || selectedCreamIds.length === requiredCreams)
+            selectedToppingIds.length === (selectedProduct?.maxToppings ?? 0)
           }
           hasSelectedProduct={!!selectedProduct}
           onNextStep={handleNextStep}
           onAddProduct={handleAddToCart}
           draftProductPrice={selectedProduct?.price ?? 0}
           draftExtraIds={selectedProduct ? selectedExtraIds : []}
+          mustFillToppings={mustFillToppings}
         />
       </div>
 

@@ -265,11 +265,11 @@ function ItensResumo({ cart }: { cart: any }) {
   );
 }
 
-  export default async function AdminPedidosPage({
-    searchParams,
-  }: {
-    searchParams: Promise<Record<string, string | string[] | undefined>>
-  }) {
+export default async function AdminPedidosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const session = await getServerSession(authOptions);
 
   const spRaw = await searchParams;
@@ -346,9 +346,26 @@ function ItensResumo({ cart }: { cart: any }) {
   const totalPages = Math.max(1, Math.ceil(totalRows / rpp));
   const orders = (data ?? []) as Order[];
 
-  // links com redirect a /painel
+  // ==== NOVO: aba atual pela URL ====
+  const allowedTabs = new Set(["pedidos","categorias","toppings","addons","produtos"]);
+  const currentTab = allowedTabs.has((sp.tab ?? "").toString())
+    ? (sp.tab as string)
+    : "pedidos";
+
+  // links com redirect a /painel (preserva filtros e aba atual)
   const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
-  const redirect = `${base}/painel`;
+  const currentQS: Record<string, string | undefined> = {
+    code: f_code || undefined,
+    status: f_status || undefined,
+    tipo: f_tipo || undefined,
+    pgto: f_pgto || undefined,
+    tmin: f_total_min || undefined,
+    tmax: f_total_max || undefined,
+    cf: f_created_from || undefined,
+    ct: f_created_to || undefined,
+    rpp: String(rpp),
+  };
+  const redirect = `${base}/painel${buildQS({ ...currentQS, tab: currentTab }, {})}`;
 
   // monta ações e links (inclui notify do n8n)
   const enriched: EnrichedOrder[] = await Promise.all(
@@ -371,18 +388,6 @@ function ItensResumo({ cart }: { cart: any }) {
     })
   );
 
-  const currentQS: Record<string, string | undefined> = {
-    code: f_code || undefined,
-    status: f_status || undefined,
-    tipo: f_tipo || undefined,
-    pgto: f_pgto || undefined,
-    tmin: f_total_min || undefined,
-    tmax: f_total_max || undefined,
-    cf: f_created_from || undefined,
-    ct: f_created_to || undefined,
-    rpp: String(rpp),
-  };
-
   return (
     <main className="mx-auto max-w-6xl p-6">
       <RealtimeRefresher />
@@ -397,22 +402,32 @@ function ItensResumo({ cart }: { cart: any }) {
       </div>
 
       {/* Abas */}
-      <Tabs defaultValue="pedidos" className="mt-4">
+      <Tabs defaultValue={currentTab} className="mt-4">
         <TabsList className="rounded-xl">
-          <TabsTrigger value="pedidos" className="rounded-xl flex items-center gap-2">
-            <OrdersIcon className="w-4 h-4" /> Pedidos
+          <TabsTrigger value="pedidos" className="rounded-xl flex items-center gap-2" asChild>
+            <Link href={buildQS(currentQS, { tab: "pedidos" })}>
+              <OrdersIcon className="w-4 h-4" /> Pedidos
+            </Link>
           </TabsTrigger>
-          <TabsTrigger value="categorias" className="rounded-xl flex items-center gap-2">
-            <Folder className="w-4 h-4" /> Categorias
+          <TabsTrigger value="categorias" className="rounded-xl flex items-center gap-2" asChild>
+            <Link href={buildQS(currentQS, { tab: "categorias" })}>
+              <Folder className="w-4 h-4" /> Categorias
+            </Link>
           </TabsTrigger>
-          <TabsTrigger value="toppings" className="rounded-xl flex items-center gap-2">
-            <Shapes className="w-4 h-4" /> Acompanhamentos
+          <TabsTrigger value="toppings" className="rounded-xl flex items-center gap-2" asChild>
+            <Link href={buildQS(currentQS, { tab: "toppings" })}>
+              <Shapes className="w-4 h-4" /> Acompanhamentos
+            </Link>
           </TabsTrigger>
-          <TabsTrigger value="addons" className="rounded-xl flex items-center gap-2">
-            <Layers className="w-4 h-4" /> Adicionais
+          <TabsTrigger value="addons" className="rounded-xl flex items-center gap-2" asChild>
+            <Link href={buildQS(currentQS, { tab: "addons" })}>
+              <Layers className="w-4 h-4" /> Adicionais
+            </Link>
           </TabsTrigger>
-          <TabsTrigger value="produtos" className="rounded-xl flex items-center gap-2">
-            <Package className="w-4 h-4" /> Produtos
+          <TabsTrigger value="produtos" className="rounded-xl flex items-center gap-2" asChild>
+            <Link href={buildQS(currentQS, { tab: "produtos" })}>
+              <Package className="w-4 h-4" /> Produtos
+            </Link>
           </TabsTrigger>
         </TabsList>
 
@@ -736,13 +751,13 @@ function ItensResumo({ cart }: { cart: any }) {
             <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
             <div className="flex gap-2">
               <Button asChild variant="outline" className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}>
-                <Link href={page <= 1 ? "#" : buildQS(currentQS, { p: String(page - 1) })}>
+                <Link href={page <= 1 ? "#" : buildQS({ ...currentQS, tab: currentTab }, { p: String(page - 1) })}>
                   ← Anterior
                 </Link>
               </Button>
 
               <Button asChild variant="outline" className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}>
-                <Link href={page >= totalPages ? "#" : buildQS(currentQS, { p: String(page + 1) })}>
+                <Link href={page >= totalPages ? "#" : buildQS({ ...currentQS, tab: currentTab }, { p: String(page + 1) })}>
                   Próxima →
                 </Link>
               </Button>
