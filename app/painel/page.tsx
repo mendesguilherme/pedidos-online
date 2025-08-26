@@ -5,9 +5,10 @@ export const runtime = "nodejs";
 import CategoriesEntry from "./_tabs/categoriesEntry";
 import ToppingssEntry from "./_tabs/toppingsEntry";
 import AddonsEntry from "./_tabs/addonsEntry";
+import ProductsEntry from "./_tabs/productsEntry";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FileText as OrdersIcon, Folder, ChefHat, Utensils, Shapes, Layers } from "lucide-react";
+import { FileText as OrdersIcon, Folder, ChefHat, Utensils, Shapes, Layers, Package } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { buildActionLink } from "@/lib/admin-actions";
 import RealtimeRefresher from "./_components/RealtimeRefresher";
@@ -410,6 +411,9 @@ function ItensResumo({ cart }: { cart: any }) {
           <TabsTrigger value="addons" className="rounded-xl flex items-center gap-2">
             <Layers className="w-4 h-4" /> Adicionais
           </TabsTrigger>
+          <TabsTrigger value="produtos" className="rounded-xl flex items-center gap-2">
+            <Package className="w-4 h-4" /> Produtos
+          </TabsTrigger>
         </TabsList>
 
         {/* === Aba Pedidos (DEFAULT) === */}
@@ -758,6 +762,11 @@ function ItensResumo({ cart }: { cart: any }) {
         <TabsContent value="addons" className="mt-4">
           <AddonsEntry />
         </TabsContent>
+        
+        <TabsContent value="produtos" className="mt-4">
+          <ProductsEntry />
+        </TabsContent>
+
       </Tabs>
     </main>
   );
