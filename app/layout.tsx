@@ -25,7 +25,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#6b21a8" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icon-192x192.avif" type="image/avif" />
-        <link rel="apple-touch-icon" href="/icon-192x192.avif" type="image/avif" />
+        <link rel="apple-touch-icon" href="/icon-192x192.avif" type="image/avif" />        
         {/* Em DEV, desregistra qualquer Service Worker antigo para não interferir */}
         {process.env.NODE_ENV === "development" && (
           <script

@@ -6,6 +6,8 @@ export interface Addon {
   name: string
   price: number
   imageUrl: string
+  /** miniaturas/variantes para otimização no painel */
+  image_meta?: any
   /** público mantém compat: isActive vem de active (DB) */
   isActive?: boolean
 }
@@ -23,6 +25,7 @@ type RowPublic = {
   name: string
   price: number | string
   image_url: string
+  image_meta?: any | null
   active?: boolean | null
 }
 
@@ -52,7 +55,7 @@ export async function getAddons(): Promise<Addon[]> {
 
   const url =
     `${base}/rest/v1/addons` +
-    `?select=id,name,price,image_url,active` +
+    `?select=id,name,price,image_url,image_meta,active` +
     `&deleted=eq.false` +
     `&order=id.asc`
 
@@ -73,6 +76,7 @@ export async function getAddons(): Promise<Addon[]> {
     name: r.name,
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
     imageUrl: r.image_url,
+    image_meta: r.image_meta ?? null,
     isActive: r.active ?? true,
   }))
 }
@@ -84,7 +88,7 @@ export async function getAddonsForAdmin(): Promise<AddonAdmin[]> {
 
   const url =
     `${base}/rest/v1/addons` +
-    `?select=id,name,price,image_url,active,deleted,created_at,updated_at,deleted_at` +
+    `?select=id,name,price,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` +
     `&deleted=eq.false` +
     `&order=id.asc`
 
@@ -105,6 +109,7 @@ export async function getAddonsForAdmin(): Promise<AddonAdmin[]> {
     name: r.name,
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
     imageUrl: r.image_url,
+    image_meta: r.image_meta ?? null,
     active: !!r.active,
     deleted: !!r.deleted,
     created_at: r.created_at,
@@ -166,8 +171,8 @@ export async function updateAddon(
   if (updates.name !== undefined)      body.name = String(updates.name)
   if (updates.price !== undefined)     body.price = Number(updates.price)
   if (updates.imageUrl !== undefined)  body.image_url = updates.imageUrl
-  if (updates.active !== undefined)    body.active = !!updates.active   // <- FIX: só seta se veio definido
-  if (updates.deleted !== undefined)   body.deleted = !!updates.deleted // <- FIX
+  if (updates.active !== undefined)    body.active = !!updates.active
+  if (updates.deleted !== undefined)   body.deleted = !!updates.deleted
 
   const res = await fetch(
     `${base}/rest/v1/addons?id=eq.${encodeURIComponent(String(id))}`,

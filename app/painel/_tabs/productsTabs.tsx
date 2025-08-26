@@ -7,33 +7,36 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Save, Trash2, Plus, Image as ImageIcon, ListChecks } from "lucide-react";
+import ImageUploader from "../_components/ImageUploader";
 
-type Category = { id: string; name: string; active: boolean }
-type Topping  = { id: number; name: string; imageUrl: string }
-type Addon    = { id: number; name: string; imageUrl: string }
+/* ===== Tipos ===== */
+type Category = { id: string; name: string; active: boolean };
+type Topping  = { id: number; name: string; imageUrl: string };
+type Addon    = { id: number; name: string; imageUrl: string };
 
 type Product = {
-  id: number
-  name: string
-  description: string
-  price: number
-  imageUrl: string | null
-  maxToppings: number
-  volumeMl: number
-  category_id: string | null
-  category?: { id: string; name: string; active: boolean } | null
-  allowedToppingIds?: number[]
-  allowedAddonIds?: number[]
-  active: boolean
-  slug: string | null
-  position: number
-}
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string | null;
+  imageMeta?: any | null; // <- otimização via image_meta
+  maxToppings: number;
+  volumeMl: number;
+  category_id: string | null;
+  category?: { id: string; name: string; active: boolean } | null;
+  allowedToppingIds?: number[];
+  allowedAddonIds?: number[];
+  active: boolean;
+  slug: string | null;
+  position: number;
+};
 
 const field =
   "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] " +
   "focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
 
-/* ===== helpers de moeda iguais aos de Addons ===== */
+/* ===== helpers de moeda (iguais aos de Addons) ===== */
 const fmtBRL = (v?: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
@@ -52,26 +55,14 @@ function InlineCurrency({ value, onChange }: { value: number; onChange: (v: numb
   const [txt, setTxt] = useState<string>(fmtBRL(value));
   const [focused, setFocused] = useState(false);
 
-  useEffect(() => {
-    if (!focused) setTxt(fmtBRL(value));
-  }, [value, focused]);
+  useEffect(() => { if (!focused) setTxt(fmtBRL(value)); }, [value, focused]);
 
-  function handleFocus() {
-    setFocused(true);
-    setTxt(String(value ?? 0).replace(".", ",")); // edição “crua”
-  }
-
-  function handleBlur() {
-    const n = parseBRLToNumber(txt);
-    onChange(n);
-    setTxt(fmtBRL(n));
-    setFocused(false);
-  }
-
+  function handleFocus() { setFocused(true); setTxt(String(value ?? 0).replace(".", ",")); }
+  function handleBlur()  { const n = parseBRLToNumber(txt); onChange(n); setTxt(fmtBRL(n)); setFocused(false); }
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const next = e.target.value;
     setTxt(next);
-    onChange(parseBRLToNumber(next)); // atualiza number enquanto digita
+    onChange(parseBRLToNumber(next));
   }
 
   return (
@@ -87,7 +78,7 @@ function InlineCurrency({ value, onChange }: { value: number; onChange: (v: numb
   );
 }
 
-/** Inputs inline pequenos p/ números */
+/** Inputs inline pequenos */
 function InlineText({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
@@ -109,14 +100,25 @@ function InlineNumber({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-/** Tri-state view */
+/** Tri-state label */
 function triLabel(arr: number[] | undefined) {
   if (typeof arr === "undefined") return "Sem restrição";
   if (Array.isArray(arr) && arr.length === 0) return "Esconder";
   return `${arr?.length ?? 0} selecionado(s)`;
 }
 
-export default function ProductsTabs() {
+/** Usa image_meta (se existir) para retornar srcs ideais */
+function pickThumb(meta: any | null | undefined, fallback?: string | null) {
+  if (!meta || !meta.sources) return { avif: undefined, webp: undefined, img: fallback ?? undefined };
+  const s = meta.sources;
+  const avif = s["avif-64"]?.url || s["avif-128"]?.url || s["avif-256"]?.url;
+  const webp = s["webp-64"]?.url || s["webp-128"]?.url || s["webp-256"]?.url;
+  const img  = avif || webp || fallback || undefined;
+  return { avif, webp, img };
+}
+
+/* ===== Componente ===== */
+export default function ProductsTabs() { 
   const [rows, setRows] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [toppings, setToppings]     = useState<Topping[]>([]);
@@ -135,6 +137,10 @@ export default function ProductsTabs() {
   const confirmRef = useRef<HTMLDialogElement | null>(null);
   const pickRef = useRef<HTMLDialogElement | null>(null);
 
+  // Modal de upload
+  const uploadRef = useRef<HTMLDialogElement | null>(null);
+  const [uploadRow, setUploadRow] = useState<Product | null>(null);
+
   const [infoMsg, setInfoMsg] = useState("");
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
 
@@ -142,33 +148,31 @@ export default function ProductsTabs() {
   const [pickFor, setPickFor] = useState<{ id: number; kind: "toppings" | "addons" } | null>(null);
   const currentRow = useMemo(() => rows.find(r => r.id === pickFor?.id), [rows, pickFor]);
 
-  function showInfo(msg: string) {
-    setInfoMsg(msg); try { infoRef.current?.showModal(); } catch {}
-  }
+  function showInfo(msg: string) { setInfoMsg(msg); try { infoRef.current?.showModal(); } catch {} }
   function closeInfo() { try { infoRef.current?.close() } catch {}; setInfoMsg(""); }
   function openConfirm(id: number, name: string) { setConfirmData({ id, name }); try { confirmRef.current?.showModal() } catch {} }
   function closeConfirm() { try { confirmRef.current?.close() } catch {}; setConfirmData(null); }
-
-  function openPicker(id: number, kind: "toppings" | "addons") {
-    setPickFor({ id, kind }); try { pickRef.current?.showModal() } catch {}
-  }
+  function openPicker(id: number, kind: "toppings" | "addons") { setPickFor({ id, kind }); try { pickRef.current?.showModal() } catch {} }
   function closePicker() { try { pickRef.current?.close() } catch {}; setPickFor(null); }
+  function openUpload(row: Product) { setUploadRow(row); try { uploadRef.current?.showModal(); } catch {} }
+  function closeUpload() { try { uploadRef.current?.close(); } catch {}; setUploadRow(null); }
 
   async function fetchAll() {
     setLoading(true);
     try {
       const [pr, cr, tr, ar] = await Promise.all([
-        fetch("/api/products?admin=1").then(r => r.json()).catch(() => ({})),
-        fetch("/api/categories").then(r => r.json()).catch(() => ({})),
-        fetch("/api/toppings").then(r => r.json()).catch(() => ({})),
-        fetch("/api/addons").then(r => r.json()).catch(() => ({})),
+        fetch("/api/products?admin=1", { cache: "no-store" }).then(r => r.json()).catch(() => ({})),
+        fetch("/api/categories",      { cache: "no-store" }).then(r => r.json()).catch(() => ({})),
+        fetch("/api/toppings",        { cache: "no-store" }).then(r => r.json()).catch(() => ({})),
+        fetch("/api/addons",          { cache: "no-store" }).then(r => r.json()).catch(() => ({})),
       ]);
 
-      // Mapeia image/image_url -> imageUrl para o estado do cliente
+      // Mapeia image/image_url -> imageUrl; image_meta -> imageMeta
       const raw = (pr?.data ?? []) as any[];
       const mapped = raw.map((r) => ({
         ...r,
         imageUrl: r.imageUrl ?? r.image ?? r.image_url ?? null,
+        imageMeta: r.image_meta ?? r.imageMeta ?? null,
       })) as Product[];
 
       setRows(mapped);
@@ -199,7 +203,6 @@ export default function ProductsTabs() {
           name,
           description: form.description || "",
           price: priceNum,
-          // envia snake_case (API mapeia para camel internamente)
           image_url: form.imageUrl || "",
           maxToppings: Number(form.maxToppings || 0),
           volumeMl: Number(form.volumeMl || 0),
@@ -245,9 +248,7 @@ export default function ProductsTabs() {
     try {
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
       const payload = await res.json().catch(() => ({} as any));
-      if (!res.ok) {
-        closeConfirm(); return showInfo(payload?.error || `Falha ao excluir (HTTP ${res.status}).`);
-      }
+      if (!res.ok) { closeConfirm(); return showInfo(payload?.error || `Falha ao excluir (HTTP ${res.status}).`); }
       await fetchAll(); closeConfirm(); showInfo("Produto excluído com sucesso!");
     } finally { setLoading(false); }
   }
@@ -258,25 +259,13 @@ export default function ProductsTabs() {
       {/* Inserção */}
       <form onSubmit={createProduct} className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-8 gap-3">
         <div className="md:col-span-4">
-            <Label className="text-xs text-gray-500">Nome</Label>
-            <Input
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className={field}
-                required
-            />
+          <Label className="text-xs text-gray-500">Nome</Label>
+          <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={field} required />
         </div>
-
         <div className="md:col-span-4">
-            <Label className="text-xs text-gray-500">Descrição</Label>
-            <Input
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                className={field}
-                placeholder="Opcional"
-            />
+          <Label className="text-xs text-gray-500">Descrição</Label>
+          <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className={field} placeholder="Opcional" />
         </div>
-
         <div className="md:col-span-2">
           <Label className="text-xs text-gray-500">Categoria</Label>
           <select
@@ -290,22 +279,12 @@ export default function ProductsTabs() {
         </div>
         <div>
           <Label className="text-xs text-gray-500">Preço</Label>
-          <Input
-            type="number" step="0.01" inputMode="decimal"
-            value={form.price}
-            onChange={e => setForm(f => ({...f, price: e.target.value}))}
-            className={field}
-          />
+          <Input type="number" step="0.01" inputMode="decimal" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className={field} />
         </div>
         <div>
           <Label className="text-xs text-gray-500">Máx. Acompanh.</Label>
           <div className="flex justify-center">
-            <Input
-              type="number"
-              value={form.maxToppings}
-              onChange={e => setForm(f => ({ ...f, maxToppings: Number(e.target.value) }))}
-              className={`${field} w-24`} // largura fixa + centralizado pelo wrapper
-            />
+            <Input type="number" value={form.maxToppings} onChange={e => setForm(f => ({ ...f, maxToppings: Number(e.target.value) }))} className={`${field} w-24`} />
           </div>
         </div>
         <div>
@@ -326,15 +305,15 @@ export default function ProductsTabs() {
 
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-sm table-fixed">
+          {/* colgroup em UMA linha (evita hidratação quebrar) */}
+          <colgroup><col className="w-[22%]" /><col className="w-[18%]" /><col className="w-[90px]" /><col className="w-[14%]" /><col className="w-[20%]" /><col className="w-[84px]" /><col className="w-[96px]" /><col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[120px]" /><col className="w-[180px]" /></colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Nome</th>
-              {/* NOVO: coluna Descrição */}
               <th className="px-3 py-2 text-left">Descrição</th>
               <th className="px-3 py-2 text-left">Preço</th>
               <th className="px-3 py-2 text-left">Categoria</th>
-              {/* NOVO: coluna Imagem */}
               <th className="px-3 py-2 text-left">Imagem</th>
               <th className="px-3 py-2 text-left">Volume</th>
               <th className="px-3 py-2 text-left whitespace-nowrap">Máx. Acomp.</th>
@@ -345,158 +324,173 @@ export default function ProductsTabs() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r) => (
-              <tr key={r.id} className="divide-x divide-slate-200">
-                {/* nome */}
-                <td className="px-3 py-2 min-w-[260px]">
-                  <InlineText
-                    value={r.name}
-                    onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, name: v}) : x))}
-                  />
-                </td>
+            {rows.map((r) => {
+              const thumb = pickThumb(r.imageMeta, r.imageUrl);
+              return (
+                <tr key={r.id} className="divide-x divide-slate-200">
+                  {/* nome */}
+                  <td className="px-3 py-2 min-w-[260px]">
+                    <InlineText
+                      value={r.name}
+                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, name: v}) : x))}
+                    />
+                  </td>
 
-                {/* NOVO: descrição (largura moderada) */}
-                <td className="px-3 py-2 min-w-[220px]">
-                  <InlineText
-                    value={r.description}
-                    onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, description: v}) : x))}
-                    placeholder="Opcional"
-                  />
-                </td>
+                  {/* descrição */}
+                  <td className="px-3 py-2 min-w-[220px]">
+                    <InlineText
+                      value={r.description}
+                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, description: v}) : x))}
+                      placeholder="Opcional"
+                    />
+                  </td>
 
-                {/* preço (compacto, só campo) */}
-                <td className="px-3 py-2 w-[88px]">
-                  <InlineCurrency
-                    value={r.price}
-                    onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, price: v}) : x))}
-                  />
-                </td>
+                  {/* preço */}
+                  <td className="px-3 py-2">
+                    <InlineCurrency
+                      value={r.price}
+                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, price: v}) : x))}
+                    />
+                  </td>
 
-                {/* categoria */}
-                <td className="px-3 py-2">
-                  <select
-                    className="h-9 rounded-xl border border-slate-300 bg-white px-2 text-sm"
-                    value={r.category_id ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value || null;
-                      setRows(rs => rs.map(x => x.id === r.id ? ({...x, category_id: val}) : x));
-                    }}
-                  >
-                    <option value="">—</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </td>
+                  {/* categoria */}
+                  <td className="px-3 py-2">
+                    <select
+                      className="h-9 rounded-xl border border-slate-300 bg-white px-2 text-sm"
+                      value={r.category_id ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value || null;
+                        setRows(rs => rs.map(x => x.id === r.id ? ({...x, category_id: val}) : x));
+                      }}
+                    >
+                      <option value="">—</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </td>
 
-                {/* NOVO: imagem (miniatura + URL editável) */}
-                <td className="px-3 py-2 min-w-[260px]">
-                  <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
-                      {r.imageUrl ? (
-                        <img src={r.imageUrl} alt={r.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <ImageIcon className="w-5 h-5 text-slate-400" />
-                      )}
+                  {/* imagem (preview otimizado + caminho + botão) */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                        {thumb.img ? (
+                          <picture>
+                            {thumb.avif && <source srcSet={thumb.avif} type="image/avif" />}
+                            {thumb.webp && <source srcSet={thumb.webp} type="image/webp" />}
+                            <img src={thumb.img} alt={r.name} className="h-full w-full object-cover" />
+                          </picture>
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-slate-400" />
+                        )}
+                      </div>
+
+                      {/* campo do caminho (compacto) */}
+                      <div className="w-28 sm:w-40 md:w-56">
+                        <InlineText
+                          value={r.imageUrl ?? ""}
+                          placeholder="https://..."
+                          onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, imageUrl: v}) : x))}
+                        />
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl shrink-0"
+                        onClick={() => openUpload(r)}
+                        title="Trocar imagem"
+                      >
+                        <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+                      </Button>
                     </div>
-                    <div className="flex-1">
-                      <InlineText
-                        value={r.imageUrl ?? ""}
-                        onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, imageUrl: v}) : x))}
-                        placeholder="https://..."
+                  </td>
+
+                  {/* volume */}
+                  <td className="px-3 py-2">
+                    <InlineNumber
+                      value={r.volumeMl}
+                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, volumeMl: v}) : x))}
+                    />
+                  </td>
+
+                  {/* máx. acompanh. */}
+                  <td className="px-3 py-2">
+                    <div className="flex justify-center">
+                      <InlineNumber
+                        value={r.maxToppings}
+                        onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, maxToppings: v}) : x))}
                       />
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                {/* volume (compacto) */}
-                <td className="px-3 py-2 w-[84px]">
-                  <InlineNumber
-                    value={r.volumeMl}
-                    onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, volumeMl: v}) : x))}
-                  />
-                </td>
+                  {/* Acompanhamentos (status + editar) */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
+                        {triLabel(r.allowedToppingIds)}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-8 rounded-xl"
+                        onClick={() => openPicker(r.id, "toppings")}
+                        title="Selecionar acompanhamentos">
+                        <ListChecks className="w-4 h-4 mr-1" /> Editar
+                      </Button>
+                    </div>
+                  </td>
 
-                {/* máx. acompanh. (centralizado via wrapper) */}
-                <td className="px-3 py-2 w-[96px]">
-                  <div className="flex justify-center">
-                    <InlineNumber
-                      value={r.maxToppings}
-                      onChange={(v) =>
-                        setRows(rs => rs.map(x => x.id === r.id ? ({ ...x, maxToppings: v }) : x))
-                      }
-                    />
-                  </div>
-                </td>
+                  {/* Adicionais (status + editar) */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
+                        {triLabel(r.allowedAddonIds)}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-8 rounded-xl"
+                        onClick={() => openPicker(r.id, "addons")}
+                        title="Selecionar adicionais">
+                        <ListChecks className="w-4 h-4 mr-1" /> Editar
+                      </Button>
+                    </div>
+                  </td>
 
-                {/* Acompanhamentos (status + editar) */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
-                      {triLabel(r.allowedToppingIds)}
-                    </span>
-                    <Button size="sm" variant="outline" className="h-8 rounded-xl"
-                      onClick={() => openPicker(r.id, "toppings")}
-                      title="Selecionar acompanhamentos">
-                      <ListChecks className="w-4 h-4 mr-1" /> Editar
-                    </Button>
-                  </div>
-                </td>
+                  {/* ativo */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!!r.active} onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })} />
+                      <span className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
+                        r.active ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                 : "border-slate-300 bg-slate-50 text-slate-600"
+                      }`}>{r.active ? "Ativo" : "Inativo"}</span>
+                    </div>
+                  </td>
 
-                {/* Adicionais (status + editar) */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
-                      {triLabel(r.allowedAddonIds)}
-                    </span>
-                    <Button size="sm" variant="outline" className="h-8 rounded-xl"
-                      onClick={() => openPicker(r.id, "addons")}
-                      title="Selecionar adicionais">
-                      <ListChecks className="w-4 h-4 mr-1" /> Editar
-                    </Button>
-                  </div>
-                </td>
-
-                {/* ativo */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={!!r.active} onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })} />
-                    <span className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
-                      r.active ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                               : "border-slate-300 bg-slate-50 text-slate-600"
-                    }`}>{r.active ? "Ativo" : "Inativo"}</span>
-                  </div>
-                </td>
-
-                {/* ações */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm" variant="outline" className="h-8 rounded-xl"
-                      onClick={() => patch(r.id, {
-                        name: r.name,
-                        description: r.description,
-                        price: r.price,
-                        category_id: r.category_id,
-                        volume_ml: r.volumeMl,
-                        max_toppings: r.maxToppings,
-                        // envia snake_case para a API (PATCH aceita image_url/imageUrl)
-                        image_url: r.imageUrl ?? "",
-                      })}
-                    >
-                      <Save className="w-4 h-4 mr-1" /> Salvar
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8 rounded-xl" onClick={() => openConfirm(r.id, r.name)}>
-                      <Trash2 className="w-4 h-4 mr-1" /> Excluir
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  {/* ações */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm" variant="outline" className="h-8 rounded-xl"
+                        onClick={() => patch(r.id, {
+                          name: r.name,
+                          description: r.description,
+                          price: r.price,
+                          category_id: r.category_id,
+                          volume_ml: r.volumeMl,
+                          max_toppings: r.maxToppings,
+                          image_url: r.imageUrl ?? "",
+                        })}
+                      >
+                        <Save className="w-4 h-4 mr-1" /> Salvar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 rounded-xl" onClick={() => openConfirm(r.id, r.name)}>
+                        <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
 
             {!rows.length && (
               <tr>
-                {/* +2 no colSpan (Descrição + Imagem) → agora 11 colunas */}
                 <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
                   {loading ? "Carregando..." : "Nenhum produto"}
                 </td>
@@ -505,6 +499,48 @@ export default function ProductsTabs() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal: Upload de imagem */}
+      <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">
+            {uploadRow ? `Imagem de "${uploadRow.name}"` : "Imagem"}
+          </h3>
+
+          {uploadRow && (
+            <ImageUploader
+              entity="product"
+              entityId={String(uploadRow.id)}
+              value={uploadRow.imageUrl ?? null}
+              onChange={async (url) => {
+                if (url) {
+                  // Atualiza localmente e refaz fetch para pegar image_meta atualizado
+                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x)));
+                  closeUpload();
+                  await fetchAll();
+                  showInfo("Imagem atualizada com sucesso!");
+                } else {
+                  // Remoção explícita
+                  await patch(uploadRow.id, { image_url: "" }, { silent: true });
+                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x)));
+                  closeUpload();
+                  showInfo("Imagem removida.");
+                }
+              }}
+            />
+          )}
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
 
       {/* Confirmar exclusão */}
       <dialog ref={confirmRef} className="rounded-xl border p-0 w-full max-w-sm">
@@ -563,26 +599,12 @@ export default function ProductsTabs() {
 
                       if (pickFor.kind === "toppings") {
                         const cur = currentRow.allowedToppingIds ?? [];
-                        const next = checked
-                          ? (cur.includes(id) ? cur : [...cur, id])
-                          : cur.filter((x) => x !== id);
-
-                        setRows((rs) =>
-                          rs.map((x) =>
-                            x.id === currentRow.id ? { ...x, allowedToppingIds: next } : x
-                          )
-                        );
+                        const next = checked ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
+                        setRows((rs) => rs.map((x) => (x.id === currentRow.id ? { ...x, allowedToppingIds: next } : x)));
                       } else {
                         const cur = currentRow.allowedAddonIds ?? [];
-                        const next = checked
-                          ? (cur.includes(id) ? cur : [...cur, id])
-                          : cur.filter((x) => x !== id);
-
-                        setRows((rs) =>
-                          rs.map((x) =>
-                            x.id === currentRow.id ? { ...x, allowedAddonIds: next } : x
-                          )
-                        );
+                        const next = checked ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
+                        setRows((rs) => rs.map((x) => (x.id === currentRow.id ? { ...x, allowedAddonIds: next } : x)));
                       }
                     }}
                   />
@@ -602,11 +624,7 @@ export default function ProductsTabs() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 justify-center">
-            <button
-              type="button"
-              className="rounded-xl bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
-              onClick={() => closePicker()}
-            >
+            <button type="button" className="rounded-xl bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300" onClick={() => closePicker()}>
               Cancelar
             </button>
             <button

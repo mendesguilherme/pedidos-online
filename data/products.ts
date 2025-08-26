@@ -16,6 +16,8 @@ export interface ProductOption {
   description: string
   price: number
   image: string
+  /** variantes/miniaturas geradas no upload (avif/webp 64/128/256) */
+  image_meta?: any | null
   maxToppings: number
   volumeMl: number
   /** categoria (opcional para compat) */
@@ -47,6 +49,7 @@ type Row = {
   description: string
   price: number | string
   image_url: string
+  image_meta?: any | null
   max_toppings: number
   volume_ml: number
   allowed_topping_ids: number[] | null
@@ -87,15 +90,13 @@ export async function getProducts(): Promise<Product[]> {
   const url =
     `${base}/rest/v1/products` +
     `?select=` +
-      `id,name,description,price,image_url,` +
+      `id,name,description,price,image_url,image_meta,` + // ← inclui image_meta
       `max_toppings,volume_ml,` +
       `allowed_topping_ids,allowed_addon_ids,` +
       `category_id,` +
       `category:categories(id,name,slug,position,active)` +
-    // ⬇️ FILTROS essenciais
     `&deleted=eq.false` +
     `&active=eq.true` +
-    // (mantenha a ordenação que preferir)
     `&order=position.asc,id.asc`
 
   const res = await fetch(url, {
@@ -115,6 +116,7 @@ export async function getProducts(): Promise<Product[]> {
     description: r.description ?? "",
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
     image: r.image_url,
+    image_meta: r.image_meta ?? null,
     maxToppings: r.max_toppings,
     volumeMl: r.volume_ml,
     allowedToppingIds: r.allowed_topping_ids ?? undefined,
@@ -139,7 +141,7 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
   const url =
     `${base}/rest/v1/products` +
     `?select=` +
-      `id,name,description,price,image_url,` +
+      `id,name,description,price,image_url,image_meta,` + // ← inclui image_meta
       `max_toppings,volume_ml,` +
       `allowed_topping_ids,allowed_addon_ids,` +
       `active,deleted,slug,position,` +
@@ -166,6 +168,7 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
     description: r.description ?? "",
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
     image: r.image_url,
+    image_meta: r.image_meta ?? null,
     maxToppings: r.max_toppings,
     volumeMl: r.volume_ml,
     allowedToppingIds: r.allowed_topping_ids ?? undefined,
@@ -317,7 +320,16 @@ export async function updateProduct(id: number | string, updates: {
   if (typeof updates.name !== "undefined") body.name = String(updates.name)
   if (typeof updates.description !== "undefined") body.description = String(updates.description ?? "")
   if (typeof updates.price !== "undefined") body.price = ensurePrice(updates.price)
-  if (typeof updates.imageUrl !== "undefined") body.image_url = String(updates.imageUrl ?? "")
+
+  if (typeof updates.imageUrl !== "undefined") {
+    if (updates.imageUrl === null) {
+      body.image_url  = null
+      body.image_meta = null   // <-- limpa o meta quando remover imagem
+    } else {
+      body.image_url = String(updates.imageUrl)
+    }
+  }
+
   if (typeof updates.maxToppings !== "undefined") body.max_toppings = ensureNonNegativeInt(updates.maxToppings, "max_toppings")
   if (typeof updates.volumeMl !== "undefined") body.volume_ml = ensureNonNegativeInt(updates.volumeMl, "volume_ml")
   if (typeof updates.position !== "undefined") body.position = Number(updates.position ?? 0)
@@ -334,9 +346,7 @@ export async function updateProduct(id: number | string, updates: {
 
   if (typeof updates.active !== "undefined") {
     body.active = !!updates.active
-    // se tentar ativar, certifique-se que a categoria está OK (a atual ou a nova)
     if (body.active === true) {
-      // recupera category_id (novo no body ou atual via quick fetch)
       let cid: string | null = body.category_id ?? null
       if (!cid) {
         const url = `${base}/rest/v1/products?id=eq.${encodeURIComponent(String(id))}&select=category_id&limit=1`
@@ -373,4 +383,3 @@ export async function softDeleteProduct(id: number | string) {
   // Belt-and-suspenders: deletado e inativo
   return updateProduct(id, { deleted: true, active: false })
 }
-

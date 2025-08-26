@@ -7,11 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Save, Trash2, Plus, Image as ImageIcon } from "lucide-react";
+import ImageUploader from "../_components/ImageUploader";
+
+type ImageSources = Record<string, { url: string; size: number; format: string }>;
+type ImageMeta = {
+  bucket?: string;
+  folder?: string;
+  original?: { width?: number | null; height?: number | null; mime?: string | null };
+  sizes?: number[];
+  formats?: string[];
+  sources?: ImageSources;
+  updated_at?: string;
+} | null;
 
 type Topping = {
   id: number;
   name: string;
-  imageUrl: string;
+  imageUrl: string; // camelCase no client (API aceita imageUrl/image_url)
+  image_meta?: ImageMeta; // <- passa a considerar o meta vindo da API
   // podem ou não vir do GET
   active?: boolean;
   deleted?: boolean;
@@ -24,6 +37,12 @@ const field =
   "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] " +
   "focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
 
+// helper para escolher miniatura a partir do image_meta
+function pickThumb(meta?: ImageMeta): string | null {
+  const s = meta?.sources;
+  return s?.["avif-64"]?.url ?? s?.["webp-64"]?.url ?? null;
+}
+
 export default function ToppingsTabs() {
   const [rows, setRows] = useState<Topping[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +54,10 @@ export default function ToppingsTabs() {
   const infoRef = useRef<HTMLDialogElement | null>(null);
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
   const [infoMsg, setInfoMsg] = useState<string>("");
+
+  // ---- MODAL (upload de imagem) ----
+  const uploadRef = useRef<HTMLDialogElement | null>(null);
+  const [uploadRow, setUploadRow] = useState<Topping | null>(null);
 
   function openConfirm(id: number, name: string) {
     setConfirmData({ id, name });
@@ -53,6 +76,15 @@ export default function ToppingsTabs() {
     setInfoMsg("");
   }
 
+  function openUpload(row: Topping) {
+    setUploadRow(row);
+    try { uploadRef.current?.showModal(); } catch {}
+  }
+  function closeUpload() {
+    try { uploadRef.current?.close(); } catch {}
+    setUploadRow(null);
+  }
+
   async function fetchRows() {
     setLoading(true);
     try {
@@ -61,13 +93,19 @@ export default function ToppingsTabs() {
       if (!res.ok) res = await fetch("/api/toppings", { cache: "no-store" });
 
       const json = await res.json().catch(() => ({}));
-      const data = (json?.data ?? []) as Topping[];
+      const data = (json?.data ?? []) as any[];
 
-      // garante defaults para active/deleted quando a API não enviar
-      const normalized = data.map((d) => ({
-        ...d,
+      // normaliza keys + defaults (inclui image_meta se vier)
+      const normalized: Topping[] = data.map((d) => ({
+        id: d.id,
+        name: d.name,
+        imageUrl: d.imageUrl ?? d.image_url ?? "",
+        image_meta: d.image_meta ?? d.imageMeta ?? null,
         active: typeof d.active === "boolean" ? d.active : true,
         deleted: typeof d.deleted === "boolean" ? d.deleted : false,
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+        deleted_at: d.deleted_at ?? null,
       }));
       setRows(normalized);
     } finally {
@@ -117,7 +155,6 @@ export default function ToppingsTabs() {
       const payload = await res.json().catch(() => ({} as any));
       if (!res.ok) {
         const msg = payload?.error || `Falha ao editar (HTTP ${res.status}).`;
-        // sempre mostra erro, independente do "silent"
         showInfo(msg);
         return;
       }
@@ -127,7 +164,6 @@ export default function ToppingsTabs() {
       setLoading(false);
     }
   }
-
 
   // DELETE (soft)
   async function confirmAndDelete() {
@@ -183,7 +219,8 @@ export default function ToppingsTabs() {
 
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-sm table-fixed">
+          <colgroup><col className="w-[50%]"/><col className="w-[22%]"/><col className="w-[12%]"/><col className="w-[16%]"/></colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Nome</th>
@@ -195,6 +232,7 @@ export default function ToppingsTabs() {
           <tbody className="divide-y divide-slate-200">
             {rows.map((r) => {
               const isActive = r.active !== false; // default para true quando não vier da API
+              const thumb = pickThumb(r.image_meta); // usa o 64px do image_meta se disponível
               return (
                 <tr key={r.id} className="divide-x divide-slate-200">
                   {/* Nome */}
@@ -207,12 +245,12 @@ export default function ToppingsTabs() {
                     />
                   </td>
 
-                  {/* Imagem (preview + inline input) */}
+                  {/* Imagem (preview + caminho + botão Imagem) */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      {r.imageUrl ? (
+                      {thumb || r.imageUrl ? (
                         <img
-                          src={r.imageUrl}
+                          src={thumb || r.imageUrl}
                           alt={r.name}
                           className="h-8 w-8 rounded-md object-cover border border-slate-200"
                         />
@@ -221,13 +259,27 @@ export default function ToppingsTabs() {
                           <ImageIcon className="w-4 h-4" />
                         </div>
                       )}
-                      <InlineText
-                        value={r.imageUrl ?? ""}
-                        placeholder="https://..."
-                        onChange={(v) =>
-                          setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x)))
-                        }
-                      />
+
+                      {/* campo do caminho da imagem (mais compacto) */}
+                      <div className="w-28 sm:w-40 md:w-56">
+                        <InlineText
+                          value={r.imageUrl ?? ""}
+                          placeholder="https://..."
+                          onChange={(v) =>
+                            setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x)))
+                          }
+                        />
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl shrink-0"
+                        onClick={() => openUpload(r)}
+                        title="Trocar imagem"
+                      >
+                        <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+                      </Button>
                     </div>
                   </td>
 
@@ -250,7 +302,7 @@ export default function ToppingsTabs() {
                     </div>
                   </td>
 
-                  {/* Ações */}
+                  {/* Ações (mantidas apenas Salvar/Excluir) */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Button
@@ -285,6 +337,49 @@ export default function ToppingsTabs() {
           </tbody>
         </table>
       </div>
+
+      {/* ======= MODAL: Upload de imagem ======= */}
+      <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">
+            {uploadRow ? `Imagem de "${uploadRow.name}"` : "Imagem"}
+          </h3>
+
+          {uploadRow && (
+            <ImageUploader
+              entity="topping"
+              entityId={String(uploadRow.id)}
+              value={uploadRow.imageUrl ?? null}
+              onChange={(url) => {
+                if (url) {
+                  // Upload OK: atualiza local, fecha modal e avisa
+                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x)));
+                  closeUpload();
+                  showInfo("Imagem atualizada com sucesso!");
+                  // opcional: refetch para trazer image_meta/variantes
+                  // void fetchRows();
+                } else {
+                  // Remoção: limpa no banco
+                  patch(uploadRow.id, { imageUrl: null }, { silent: true });
+                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x)));
+                  closeUpload();
+                  showInfo("Imagem removida.");
+                }
+              }}
+            />
+          )}
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
 
       {/* ======= MODAL: Confirmação de exclusão ======= */}
       <dialog ref={confirmRef} className="rounded-xl border p-0 w-full max-w-sm">

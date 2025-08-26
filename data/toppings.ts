@@ -5,6 +5,8 @@ export interface Topping {
   id: number
   name: string
   imageUrl: string
+  /** miniaturas/variantes para otimização no painel */
+  image_meta?: any | null
 }
 
 export interface ToppingAdmin extends Topping {
@@ -15,7 +17,7 @@ export interface ToppingAdmin extends Topping {
   deleted_at: string | null
 }
 
-type Row = { id: number; name: string; image_url: string }
+type Row = { id: number; name: string; image_url: string; image_meta?: any | null }
 
 function supabaseBase() {
   const base = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -35,7 +37,7 @@ export async function getToppings(): Promise<Topping[]> {
 
   const url =
     `${base}/rest/v1/toppings` +
-    `?select=id,name,image_url` +
+    `?select=id,name,image_url,image_meta` +   // <-- inclui image_meta
     `&active=eq.true&deleted=eq.false` +
     `&order=name.asc`
 
@@ -50,7 +52,12 @@ export async function getToppings(): Promise<Topping[]> {
   }
 
   const rows = (await res.json()) as Row[]
-  return rows.map(r => ({ id: r.id, name: r.name, imageUrl: r.image_url }))
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    imageUrl: r.image_url,
+    image_meta: r.image_meta ?? null,
+  }))
 }
 
 /** Admin: com campos de status; apenas não deletados */
@@ -60,7 +67,7 @@ export async function getToppingsForAdmin(): Promise<ToppingAdmin[]> {
 
   const url =
     `${base}/rest/v1/toppings` +
-    `?select=id,name,image_url,active,deleted,created_at,updated_at,deleted_at` +
+    `?select=id,name,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` + // <-- inclui image_meta
     `&deleted=eq.false` +
     `&order=name.asc`
 
@@ -78,6 +85,7 @@ export async function getToppingsForAdmin(): Promise<ToppingAdmin[]> {
     id: r.id,
     name: r.name,
     imageUrl: r.image_url,
+    image_meta: r.image_meta ?? null,
     active: !!r.active,
     deleted: !!r.deleted,
     created_at: r.created_at,
@@ -92,7 +100,7 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
   const base = supabaseBase()
   const key  = serviceKey()
   const url =
-    `${base}/rest/v1/toppings?select=id,name,image_url` +
+    `${base}/rest/v1/toppings?select=id,name,image_url,image_meta` + // <-- inclui image_meta
     `&id=in.(${ids.join(",")})` +
     `&active=eq.true&deleted=eq.false` +
     `&order=name.asc`
@@ -106,8 +114,13 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
     const txt = await res.text().catch(() => "")
     throw new Error(`Falha ao listar toppings por ids: ${res.status} ${txt}`)
   }
-  const rows = await res.json() as { id:number; name:string; image_url:string }[]
-  return rows.map(r => ({ id: r.id, name: r.name, imageUrl: r.image_url }))
+  const rows = await res.json() as Row[]
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    imageUrl: r.image_url,
+    image_meta: r.image_meta ?? null,
+  }))
 }
 
 /** CRUD (server-only) */

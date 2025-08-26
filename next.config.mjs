@@ -23,7 +23,13 @@ const withPWA = nextPwa({
 const baseConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  images: { unoptimized: true },
+  images: {
+    unoptimized: true,
+    remotePatterns: [
+      { protocol: 'https', hostname: 'supa.nexii.com.br' },
+      { protocol: 'https', hostname: '**.supabase.co' },
+    ],
+  },
   async headers() {
     return [
       {

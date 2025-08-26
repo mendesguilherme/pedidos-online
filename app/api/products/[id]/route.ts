@@ -33,6 +33,8 @@ export async function PATCH(
     if ("name" in body)               updates.name = body.name
     if ("description" in body)        updates.description = body.description
     if ("price" in body)              updates.price = body.price
+
+    // `null` aqui significa: limpar imagem (o data/ vai zerar image_meta também)
     if ("imageUrl" in body)           updates.imageUrl = body.imageUrl
     else if ("image_url" in body)     updates.imageUrl = body.image_url
 

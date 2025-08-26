@@ -1,3 +1,4 @@
+// app/painel/_tabs/addonsTabs.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -7,11 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Save, Trash2, Plus, Image as ImageIcon } from "lucide-react";
 
+type ImageSources = Record<string, { url: string; size: number; format: string }>;
+type ImageMeta = {
+  bucket?: string;
+  folder?: string;
+  original?: { width?: number | null; height?: number | null; mime?: string | null };
+  sizes?: number[];
+  formats?: string[];
+  sources?: ImageSources;
+  updated_at?: string;
+} | null;
+
 type Addon = {
   id: number;
   name: string;
   price: number;
   imageUrl: string;
+  image_meta?: ImageMeta; // pode vir do GET
   active?: boolean;
   deleted?: boolean;
   created_at?: string;
@@ -28,17 +41,23 @@ const fmtBRL = (v?: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
 function parseBRLToNumber(input: string): number {
-  // aceita "12,34", "1.234,56", "12.34" etc
-  const s = String(input).trim()
+  const s = String(input)
+    .trim()
     .replace(/\s/g, "")
     .replace(/[R$\u00A0]/g, "")
-    .replace(/\./g, "")      // remove separadores de milhar
-    .replace(",", ".");      // vírgula -> ponto
+    .replace(/\./g, "")
+    .replace(",", ".");
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
 
-export default function AddonsTabs() {
+// escolhe miniatura 64px a partir do image_meta
+function pickThumb(meta?: ImageMeta): string | null {
+  const s = meta?.sources;
+  return s?.["avif-64"]?.url ?? s?.["webp-64"]?.url ?? null;
+}
+
+export default function AddonsTabs({ ImageUploader }: any) {
   const [rows, setRows] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -46,15 +65,18 @@ export default function AddonsTabs() {
 
   const [form, setForm] = useState<{ name: string; price: string; imageUrl: string }>({
     name: "",
-    price: "0,00", // deixa já no padrão BR
+    price: "0,00",
     imageUrl: "",
   });
 
   // ---- MODAIS ----
   const confirmRef = useRef<HTMLDialogElement | null>(null);
   const infoRef = useRef<HTMLDialogElement | null>(null);
+  const uploadRef = useRef<HTMLDialogElement | null>(null);
+
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
   const [infoMsg, setInfoMsg] = useState<string>("");
+  const [uploadRow, setUploadRow] = useState<Addon | null>(null);
 
   function openConfirm(id: number, name: string) {
     setConfirmData({ id, name });
@@ -72,6 +94,14 @@ export default function AddonsTabs() {
     try { infoRef.current?.close(); } catch {}
     setInfoMsg("");
   }
+  function openUpload(row: Addon) {
+    setUploadRow(row);
+    try { uploadRef.current?.showModal(); } catch {}
+  }
+  function closeUpload() {
+    try { uploadRef.current?.close(); } catch {}
+    setUploadRow(null);
+  }
 
   async function fetchRows() {
     setLoading(true);
@@ -80,15 +110,36 @@ export default function AddonsTabs() {
       if (!res.ok) res = await fetch("/api/addons", { cache: "no-store" });
 
       const json = await res.json().catch(() => ({}));
-      const data = (json?.data ?? []) as Addon[];
-      setRows(data);
-      setHasAdminFields(data.some((d: any) => Object.prototype.hasOwnProperty.call(d, "active")));
+      const data = (json?.data ?? []) as any[];
+
+      const normalized: Addon[] = data.map((d) => ({
+        id: d.id,
+        name: d.name,
+        price: typeof d.price === "number" ? d.price : Number(d.price ?? 0),
+        imageUrl: d.imageUrl ?? d.image_url ?? "",
+        image_meta: d.image_meta ?? d.imageMeta ?? null,
+        active:
+          typeof d.active === "boolean"
+            ? d.active
+            : typeof d.isActive === "boolean"
+            ? d.isActive
+            : true,
+        deleted: typeof d.deleted === "boolean" ? d.deleted : false,
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+        deleted_at: d.deleted_at ?? null,
+      }));
+
+      setRows(normalized);
+      setHasAdminFields(normalized.some((d) => Object.prototype.hasOwnProperty.call(d, "active")));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { fetchRows(); }, []);
+  useEffect(() => {
+    fetchRows();
+  }, []);
 
   // CREATE
   async function createAddon(e: React.FormEvent) {
@@ -175,9 +226,9 @@ export default function AddonsTabs() {
       {/* Inserção acima da tabela */}
       <form
         onSubmit={createAddon}
-        className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-7 gap-3"
+        className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-8 gap-3"
       >
-        <div className="md:col-span-3">
+        <div className="md:col-span-4">
           <Label className="text-xs text-gray-500">Nome</Label>
           <Input
             value={form.name}
@@ -213,7 +264,10 @@ export default function AddonsTabs() {
 
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-sm table-fixed">
+          {hasAdminFields
+            ? <colgroup><col className="w-[40%]"/><col className="w-[14%]"/><col className="w-[24%]"/><col className="w-[10%]"/><col className="w-[12%]"/></colgroup>
+            : <colgroup><col className="w-[48%]"/><col className="w-[16%]"/><col className="w-[24%]"/><col className="w-[12%]"/></colgroup>}
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Nome</th>
@@ -224,102 +278,121 @@ export default function AddonsTabs() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r) => (
-              <tr key={r.id} className="divide-x divide-slate-200">
-                {/* Nome */}
-                <td className="px-3 py-2">
-                  <InlineText
-                    value={r.name}
-                    onChange={(v) =>
-                      setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, name: v } : x)))
-                    }
-                  />
-                </td>
+            {rows.map((r) => {
+              const isActive = r.active !== false;
+              const thumb = pickThumb(r.image_meta);
 
-                {/* Preço (moeda) */}
-                <td className="px-3 py-2">
-                  <InlineCurrency
-                    value={r.price}
-                    onChange={(v) =>
-                      setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, price: v } : x)))
-                    }
-                  />
-                </td>
-
-                {/* Imagem */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    {r.imageUrl ? (
-                      <img
-                        src={r.imageUrl}
-                        alt={r.name}
-                        className="h-8 w-8 rounded-md object-cover border border-slate-200"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-md border border-dashed border-slate-300 flex items-center justify-center text-slate-400">
-                        <ImageIcon className="w-4 h-4" />
-                      </div>
-                    )}
+              return (
+                <tr key={r.id} className="divide-x divide-slate-200">
+                  {/* Nome */}
+                  <td className="px-3 py-2">
                     <InlineText
-                      value={r.imageUrl ?? ""}
-                      placeholder="https://..."
+                      value={r.name}
                       onChange={(v) =>
-                        setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x)))
+                        setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, name: v } : x)))
                       }
                     />
-                  </div>
-                </td>
+                  </td>
 
-                {/* Ativo */}
-                {hasAdminFields && (
+                  {/* Preço (moeda) */}
+                  <td className="px-3 py-2">
+                    <InlineCurrency
+                      value={r.price}
+                      onChange={(v) =>
+                        setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, price: v } : x)))
+                      }
+                    />
+                  </td>
+
+                  {/* Imagem (preview + caminho + botão Imagem) */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={!!r.active}
-                        onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })}
-                      />
-                      <span
-                        className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
-                          r.active
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-slate-300 bg-slate-50 text-slate-600"
-                        }`}
+                      {thumb || r.imageUrl ? (
+                        <img
+                          src={thumb || r.imageUrl}
+                          alt={r.name}
+                          className="h-8 w-8 rounded-md object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-md border border-dashed border-slate-300 flex items-center justify-center text-slate-400">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                      )}
+
+                      {/* campo do caminho da imagem (compacto) */}
+                      <div className="w-28 sm:w-40 md:w-56">
+                        <InlineText
+                          value={r.imageUrl ?? ""}
+                          placeholder="https://..."
+                          onChange={(v) =>
+                            setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x)))
+                          }
+                        />
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl shrink-0"
+                        onClick={() => openUpload(r)}
+                        title="Trocar imagem"
                       >
-                        {r.active ? "Ativo" : "Inativo"}
-                      </span>
+                        <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+                      </Button>
                     </div>
                   </td>
-                )}
 
-                {/* Ações */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-xl"
-                      onClick={() =>
-                        patch(r.id, {
-                          name: r.name,
-                          price: r.price,
-                          imageUrl: r.imageUrl ?? null,
-                        })
-                      }
-                    >
-                      <Save className="w-4 h-4 mr-1" /> Salvar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-xl"
-                      onClick={() => openConfirm(r.id, r.name)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" /> Excluir
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  {/* Ativo */}
+                  {hasAdminFields && (
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isActive}
+                          onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })}
+                        />
+                        <span
+                          className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
+                            isActive
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-slate-300 bg-slate-50 text-slate-600"
+                          }`}
+                        >
+                          {isActive ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
+                    </td>
+                  )}
+
+                  {/* Ações */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl"
+                        onClick={() =>
+                          patch(r.id, {
+                            name: r.name,
+                            price: r.price,
+                            imageUrl: r.imageUrl ?? null,
+                          })
+                        }
+                      >
+                        <Save className="w-4 h-4 mr-1" /> Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-xl"
+                        onClick={() => openConfirm(r.id, r.name)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
 
             {!rows.length && (
               <tr>
@@ -332,7 +405,54 @@ export default function AddonsTabs() {
         </table>
       </div>
 
-      {/* MODAL: Confirmação */}
+      {/* ======= MODAL: Upload de imagem ======= */}
+      <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">
+            {uploadRow ? `Imagem de "${uploadRow.name}"` : "Imagem"}
+          </h3>
+
+          {uploadRow && ImageUploader && (
+            <ImageUploader
+              entity="addon"
+              entityId={String(uploadRow.id)}
+              value={uploadRow.imageUrl ?? null}
+              onChange={(url: string | null) => {
+                if (url) {
+                  // Upload OK: atualiza local (URL principal), fecha modal e avisa
+                  setRows((rs) =>
+                    rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x))
+                  );
+                  closeUpload();
+                  showInfo("Imagem atualizada com sucesso!");
+                  // opcional: refetch para trazer image_meta/variantes atualizadas
+                  // void fetchRows();
+                } else {
+                  // Remoção: limpa no banco
+                  patch(uploadRow.id, { imageUrl: null }, { silent: true });
+                  setRows((rs) =>
+                    rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x))
+                  );
+                  closeUpload();
+                  showInfo("Imagem removida.");
+                }
+              }}
+            />
+          )}
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* ======= MODAL: Confirmação ======= */}
       <dialog ref={confirmRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5 text-center">
           <h3 className="text-base font-semibold mb-1">Excluir adicional</h3>
@@ -359,7 +479,7 @@ export default function AddonsTabs() {
         </form>
       </dialog>
 
-      {/* MODAL: Info */}
+      {/* ======= MODAL: Info ======= */}
       <dialog ref={infoRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5 text-center">
           <p className="text-base font-semibold">{infoMsg}</p>
@@ -398,7 +518,7 @@ function InlineText({
   );
 }
 
-/** Campo de moeda (exibe BRL). Chama onChange com número ao sair do campo. */
+/** Campo de moeda (exibe BRL). Chama onChange com número a cada digitação e normaliza ao sair. */
 function InlineCurrency({
   value,
   onChange,
@@ -415,20 +535,20 @@ function InlineCurrency({
 
   function handleFocus() {
     setFocused(true);
-    setTxt(String(value ?? 0).replace(".", ",")); // mostra "cru" p/ edição
+    setTxt(String(value ?? 0).replace(".", ","));
   }
 
   function handleBlur() {
     const n = parseBRLToNumber(txt);
     onChange(n);
-    setTxt(fmtBRL(n));   // formata BRL ao sair
+    setTxt(fmtBRL(n));
     setFocused(false);
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const next = e.target.value;
     setTxt(next);
-    onChange(parseBRLToNumber(next)); // <-- dispara a cada digitação
+    onChange(parseBRLToNumber(next));
   }
 
   return (
@@ -444,7 +564,7 @@ function InlineCurrency({
   );
 }
 
-/** Mesmo formato, mas usado no formulário de criação (string controlada). */
+/** Campo de moeda do formulário de criação (string controlada). */
 function CurrencyInput({
   value,
   onChangeText,
@@ -454,12 +574,9 @@ function CurrencyInput({
   onChangeText: (s: string) => void;
   className?: string;
 }) {
-  const [focused, setFocused] = useState(false);
-
   function handleBlur() {
     const n = parseBRLToNumber(value);
-    onChangeText(fmtBRL(n)); // normaliza para BRL ao sair
-    setFocused(false);
+    onChangeText(fmtBRL(n));
   }
 
   return (
@@ -467,7 +584,6 @@ function CurrencyInput({
       className={className}
       value={value}
       placeholder="R$ 0,00"
-      onFocus={() => setFocused(true)}
       onBlur={handleBlur}
       onChange={(e) => onChangeText(e.target.value)}
       inputMode="decimal"

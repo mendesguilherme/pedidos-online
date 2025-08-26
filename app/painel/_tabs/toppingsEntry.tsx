@@ -2,10 +2,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import ImageUploader from "../_components/ImageUploader";
 
-// carrega a aba sob demanda no cliente
-const ToppingsTabs = dynamic(() => import("./toppingsTabs"), { ssr: false });
+// Carrega as abas no cliente e permite props soltas (any) para não travar o TS
+const ToppingsTabs = dynamic<any>(() => import("./toppingsTabs"), { ssr: false });
 
 export default function ToppingsEntry() {
-  return <ToppingsTabs />;
+  // Injeta o ImageUploader para ser usado dentro do toppingsTabs quando editar um item
+  return <ToppingsTabs ImageUploader={ImageUploader} />;
 }
