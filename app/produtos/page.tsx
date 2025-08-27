@@ -431,7 +431,7 @@ export default function ProdutosPage() {
                       )}
 
                       <ProductSelector
-                        products={prods}
+                        products={prods.map(p => ({ ...p, image: (p as any).image ?? (p as any).imageUrl ?? "" }))}
                         selectedProductId={selectedProduct?.id ?? null}
                         onChange={(id) => {
                           const p = prods.find((x) => x.id === id);

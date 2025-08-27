@@ -48,6 +48,23 @@ function serviceKey() {
   return k
 }
 
+/** Escolhe a melhor URL a partir do image_meta (fallback para image_url) */
+function bestFromMeta(meta: any, fallback?: string): string {
+  try {
+    const src = meta?.sources || {}
+    return (
+      src["avif-256"]?.url ||
+      src["webp-256"]?.url ||
+      src["avif-128"]?.url ||
+      src["webp-128"]?.url ||
+      fallback ||
+      ""
+    )
+  } catch {
+    return fallback || ""
+  }
+}
+
 /** GET público (server-only) – mantém isActive para compat */
 export async function getAddons(): Promise<Addon[]> {
   const base = supabaseBase()
@@ -75,7 +92,7 @@ export async function getAddons(): Promise<Addon[]> {
     id: r.id,
     name: r.name,
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
-    imageUrl: r.image_url,
+    imageUrl: bestFromMeta(r.image_meta, r.image_url),
     image_meta: r.image_meta ?? null,
     isActive: r.active ?? true,
   }))
@@ -108,7 +125,7 @@ export async function getAddonsForAdmin(): Promise<AddonAdmin[]> {
     id: r.id,
     name: r.name,
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
-    imageUrl: r.image_url,
+    imageUrl: bestFromMeta(r.image_meta, r.image_url),
     image_meta: r.image_meta ?? null,
     active: !!r.active,
     deleted: !!r.deleted,

@@ -30,6 +30,23 @@ function serviceKey() {
   return k
 }
 
+/** Escolhe melhor URL do image_meta (fallback para image_url) */
+function bestFromMeta(meta: any, fallback?: string): string {
+  try {
+    const src = meta?.sources || {}
+    return (
+      src["avif-256"]?.url ||
+      src["webp-256"]?.url ||
+      src["avif-128"]?.url ||
+      src["webp-128"]?.url ||
+      fallback ||
+      ""
+    )
+  } catch {
+    return fallback || ""
+  }
+}
+
 /** Público (ou uso geral): somente ativos e não deletados */
 export async function getToppings(): Promise<Topping[]> {
   const base = supabaseBase()
@@ -37,7 +54,7 @@ export async function getToppings(): Promise<Topping[]> {
 
   const url =
     `${base}/rest/v1/toppings` +
-    `?select=id,name,image_url,image_meta` +   // <-- inclui image_meta
+    `?select=id,name,image_url,image_meta` +
     `&active=eq.true&deleted=eq.false` +
     `&order=name.asc`
 
@@ -55,7 +72,7 @@ export async function getToppings(): Promise<Topping[]> {
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    imageUrl: r.image_url,
+    imageUrl: bestFromMeta(r.image_meta, r.image_url),
     image_meta: r.image_meta ?? null,
   }))
 }
@@ -67,7 +84,7 @@ export async function getToppingsForAdmin(): Promise<ToppingAdmin[]> {
 
   const url =
     `${base}/rest/v1/toppings` +
-    `?select=id,name,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` + // <-- inclui image_meta
+    `?select=id,name,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` +
     `&deleted=eq.false` +
     `&order=name.asc`
 
@@ -84,7 +101,7 @@ export async function getToppingsForAdmin(): Promise<ToppingAdmin[]> {
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    imageUrl: r.image_url,
+    imageUrl: bestFromMeta(r.image_meta, r.image_url),
     image_meta: r.image_meta ?? null,
     active: !!r.active,
     deleted: !!r.deleted,
@@ -100,7 +117,7 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
   const base = supabaseBase()
   const key  = serviceKey()
   const url =
-    `${base}/rest/v1/toppings?select=id,name,image_url,image_meta` + // <-- inclui image_meta
+    `${base}/rest/v1/toppings?select=id,name,image_url,image_meta` +
     `&id=in.(${ids.join(",")})` +
     `&active=eq.true&deleted=eq.false` +
     `&order=name.asc`
@@ -118,7 +135,7 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    imageUrl: r.image_url,
+    imageUrl: bestFromMeta(r.image_meta, r.image_url),
     image_meta: r.image_meta ?? null,
   }))
 }

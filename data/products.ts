@@ -82,6 +82,23 @@ function serviceKey() {
   return k
 }
 
+/** Escolhe a melhor URL do image_meta (fallback para image_url) */
+function bestFromMeta(meta: any, fallback?: string): string {
+  try {
+    const src = meta?.sources || {}
+    return (
+      src["avif-256"]?.url ||
+      src["webp-256"]?.url ||
+      src["avif-128"]?.url ||
+      src["webp-128"]?.url ||
+      fallback ||
+      ""
+    )
+  } catch {
+    return fallback || ""
+  }
+}
+
 /** ---------- GET público (mantém seu contrato existente) ---------- */
 export async function getProducts(): Promise<Product[]> {
   const base = supabaseBase()
@@ -90,7 +107,7 @@ export async function getProducts(): Promise<Product[]> {
   const url =
     `${base}/rest/v1/products` +
     `?select=` +
-      `id,name,description,price,image_url,image_meta,` + // ← inclui image_meta
+      `id,name,description,price,image_url,image_meta,` +
       `max_toppings,volume_ml,` +
       `allowed_topping_ids,allowed_addon_ids,` +
       `category_id,` +
@@ -115,7 +132,7 @@ export async function getProducts(): Promise<Product[]> {
     name: r.name,
     description: r.description ?? "",
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
-    image: r.image_url,
+    image: bestFromMeta(r.image_meta, r.image_url), // ← usa miniatura otimizada
     image_meta: r.image_meta ?? null,
     maxToppings: r.max_toppings,
     volumeMl: r.volume_ml,
@@ -141,7 +158,7 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
   const url =
     `${base}/rest/v1/products` +
     `?select=` +
-      `id,name,description,price,image_url,image_meta,` + // ← inclui image_meta
+      `id,name,description,price,image_url,image_meta,` +
       `max_toppings,volume_ml,` +
       `allowed_topping_ids,allowed_addon_ids,` +
       `active,deleted,slug,position,` +
@@ -167,7 +184,7 @@ export async function getProductsForAdmin(): Promise<ProductAdmin[]> {
     name: r.name,
     description: r.description ?? "",
     price: typeof r.price === "string" ? parseFloat(r.price) : Number(r.price ?? 0),
-    image: r.image_url,
+    image: bestFromMeta(r.image_meta, r.image_url), // ← usa miniatura otimizada
     image_meta: r.image_meta ?? null,
     maxToppings: r.max_toppings,
     volumeMl: r.volume_ml,
