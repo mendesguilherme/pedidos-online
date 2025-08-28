@@ -20,14 +20,6 @@ import { useToppings, type Topping } from "@/hooks/use-toppings";
 
 import { ProductSelector } from "@/components/ProductSelector";
 import { useCart } from "@/context/CartContext";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogFooter,
-  DialogHeader,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { useOrders } from "@/context/OrderContext";
 
 /* ============================================================
@@ -115,7 +107,7 @@ export default function ProdutosPage() {
   };
 
   // Helpers do produto
-  const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;  
+  const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;
 
   // ---------- filtros ----------
   const visibleToppings: Topping[] = useMemo(() => {
@@ -303,8 +295,38 @@ export default function ProdutosPage() {
     return () => io.disconnect();
   }, []);
 
+  // --- Persistência de categoria na URL & scroll suave ---
+  const catFromURL = (searchParams.get("cat") ?? null) as string | null;
+
   // categoria ativa (scroll-spy)
-  const [activeCategory, setActiveCategory] = useState<string | null>(categories[0]?.id ?? null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(catFromURL ?? categories[0]?.id ?? null);
+
+  // scroll p/ seção
+  const scrollToCategory = (cid: string) => {
+    const el = sectionRefs.current[cid];
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - (catBarH + 8);
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
+  // handler chamado pelas tabs/gaveta: atualiza ?cat=... e faz scroll
+  const handleCategoryChange = (cid: string) => {
+    setActiveCategory(cid);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.set("cat", cid);
+    router.replace(`/produtos?${params.toString()}`, { scroll: false });
+    requestAnimationFrame(() => scrollToCategory(cid));
+  };
+
+  // quando entrar via URL com ?cat=..., rola até a seção após render
+  useEffect(() => {
+    if (!catFromURL) return;
+    const t = setTimeout(() => scrollToCategory(catFromURL), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories.length, catBarH, catFromURL]);
+
+  // scroll-spy que atualiza activeCategory (sem mexer na URL por enquanto)
   useEffect(() => {
     if (!categories.length) return;
     const observer = new IntersectionObserver(
@@ -329,17 +351,6 @@ export default function ProdutosPage() {
     }
     return () => observer.disconnect();
   }, [categories, catBarH]);
-
-  // scroll p/ seção
-  const scrollToCategory = (cid: string) => {
-    const el = sectionRefs.current[cid];
-    if (!el) return;
-    const y = el.getBoundingClientRect().top + window.scrollY - (catBarH + 8);
-    window.scrollTo({ top: y, behavior: "smooth" });
-  };
-
-  // modal com lista de categorias
-  const [catModalOpen, setCatModalOpen] = useState(false);
 
   // ==================== RENDER ====================
   return (
@@ -371,41 +382,10 @@ export default function ProdutosPage() {
             <CategoryTabs
               categories={categories}
               activeId={activeCategory}
-              onChange={scrollToCategory}
-              onOpenAll={() => setCatModalOpen(true)}
+              onChange={handleCategoryChange}
             />
           </div>
         )}
-
-        {/* MODAL – lista completa de categorias */}
-        <Dialog open={catModalOpen} onOpenChange={setCatModalOpen}>
-          <DialogContent className="rounded-xl sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Categorias</DialogTitle>
-            </DialogHeader>
-            <div className="mt-2 grid gap-2">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setCatModalOpen(false);
-                    setTimeout(() => scrollToCategory(c.id), 50);
-                  }}
-                  className={`w-full text-left rounded-xl px-3 py-2 uppercase tracking-wide ${
-                    activeCategory === c.id ? "bg-primary/5 text-primary" : "hover:bg-gray-50 text-gray-700"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-            <DialogFooter className="pt-3">
-              <Button onClick={() => setCatModalOpen(false)} className="rounded-xl">
-                Fechar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* CONTEÚDO */}
         <div className="container mx-auto px-4 py-2 pb-60">
@@ -452,13 +432,13 @@ export default function ProdutosPage() {
 
               {/* Se existir produto selecionado, mostram-se as outras seções */}
               {selectedProduct && (
-                <>                  
+                <>
                   {/* Acompanhamentos */}
                   {visibleToppings.length > 0 && (
-                    <div className="mt-2" ref={toppingsRef}>                      
+                    <div className="mt-2" ref={toppingsRef}>
                       <h2 className="text-sm font-semibold mb-1">
                         Acompanhamentos ({selectedToppingIds.length}/{maxToppings})
-                      </h2>   
+                      </h2>
 
                       {toppingsError && (
                         <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -491,7 +471,6 @@ export default function ProdutosPage() {
                       </p>
                     </div>
                   )}
-
 
                   {/* feedback adicionais */}
                   {addonsError && (
