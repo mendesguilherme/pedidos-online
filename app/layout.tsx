@@ -10,9 +10,15 @@ const BRAND = (process.env.NEXT_PUBLIC_BRAND || "acai").toLowerCase();
 const ICON_192 =
   BRAND === "limpeza" ? "/icon-192x192-limpeza.avif" : "/icon-192x192-acai.avif";
 
+const DESCRIPTION =
+  BRAND === "limpeza" ? "CHC Produtos de Limpeza e Piscina" : "Açaí Modelo";
+
+const TITLE =
+  BRAND === "limpeza" ? "Pedido Online CHC" : "Pedido Online Açaí";
+
 export const metadata: Metadata = {
-  title: "Pedido Online - CHC",
-  description: "CHC Produtos de Limpeza e Piscina",
+  title: TITLE,
+  description: DESCRIPTION,
   icons: {
     icon: [{ url: ICON_192, sizes: "192x192", type: "image/avif" }],
     apple: [{ url: ICON_192, sizes: "192x192", type: "image/avif" }],
@@ -29,6 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable}`}
       data-brand={brand} // controla o tema via CSS
     >
