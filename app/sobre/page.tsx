@@ -46,7 +46,7 @@ export default function SobrePage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Info className="w-5 h-5 mr-2 text-gray-600" />
-                Açaí Modelo - O melhor da cidade!
+                CHC - Produtos de Limpeza e de Piscina
               </CardTitle>
             </CardHeader>
           </Card>
