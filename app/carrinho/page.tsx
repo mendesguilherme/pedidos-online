@@ -8,7 +8,7 @@ import { BottomNavigation } from "@/components/bottom-navigation";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, ArrowLeft, Trash2, Home, Minus, Plus } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Home, Minus, Plus, Trash2 } from "lucide-react";
 import { isRestaurantOpen } from "@/utils/business-hours";
 
 const DEFAULT_DELIVERY_FEE = 0;
@@ -49,11 +49,13 @@ export default function CarrinhoPage() {
     router.push("/produtos");
   };
 
-  // 🔹 agora envia também o tipo para a página de produtos
+  // 🔹 Decide a aba conforme o tipo: retirada -> pagamento | entrega -> endereço
   const handleFinalize = () => {
     if (!isOpen || cartItems.length === 0) return;
-    const tipo = encodeURIComponent((cart?.tipo ?? "entrega").toString());
-    router.push(`/produtos?tab=endereco&tipo=${tipo}`);
+    const tipoRaw = (cart?.tipo ?? "entrega").toString().toLowerCase();
+    const tipoParam = encodeURIComponent(tipoRaw);
+    const targetTab = tipoRaw === "retirada" ? "pagamento" : "endereco";
+    router.push(`/produtos?tab=${targetTab}&tipo=${tipoParam}`);
   };
 
   return (
@@ -108,6 +110,7 @@ export default function CarrinhoPage() {
                 const toppingsList = Array.isArray(item.toppings) ? item.toppings : [];
                 const cremesList = Array.isArray(item.cremes) ? item.cremes : [];
                 const extrasList = Array.isArray(item.extras) ? item.extras : [];
+                const qty = item.quantity ?? 1;
 
                 return (
                   <Card key={item.id} className="rounded-xl">
@@ -143,22 +146,35 @@ export default function CarrinhoPage() {
                           <p className="text-green-600 font-bold text-sm mt-1">{fmtBRL(item.price)}</p>
                         </div>
 
-                        {/* Ações à direita: quantidade + lixeira */}
-                        <div className="self-stretch flex items-center justify-end gap-2">
-                          <div className="inline-flex items-center rounded-xl border px-2 py-1 gap-2">
+                        {/* Ações à direita: controle compacto (trash se qty=1, senão "-") e "+" */}
+                        <div className="self-stretch flex items-center justify-end">
+                          <div
+                            className={`inline-flex items-center rounded-xl border px-3 py-2 gap-4 ${
+                              !isOpen ? "opacity-40 pointer-events-none" : ""
+                            }`}
+                          >
                             <button
-                              onClick={() => updateQuantity(item.id, Math.max(1, (item.quantity ?? 1) - 1))}
-                              className={`p-1 ${!isOpen ? "opacity-40 cursor-not-allowed" : ""}`}
-                              aria-label="Diminuir quantidade"
-                              title="Diminuir quantidade"
+                              onClick={() => {
+                                if (qty <= 1) removeItem(item.id);
+                                else updateQuantity(item.id, qty - 1);
+                              }}
+                              className="p-1"
+                              aria-label={qty <= 1 ? "Remover item" : "Diminuir quantidade"}
+                              title={qty <= 1 ? "Remover item" : "Diminuir quantidade"}
                               disabled={!isOpen}
                             >
-                              <Minus className="w-4 h-4" />
+                              {qty <= 1 ? (
+                                <Trash2 className="w-4 h-4" />
+                              ) : (
+                                <Minus className="w-4 h-4" />
+                              )}
                             </button>
-                            <span className="min-w-[2ch] text-center">{item.quantity ?? 1}</span>
+
+                            <span className="min-w-[2ch] text-center">{qty}</span>
+
                             <button
-                              onClick={() => updateQuantity(item.id, (item.quantity ?? 1) + 1)}
-                              className={`p-1 ${!isOpen ? "opacity-40 cursor-not-allowed" : ""}`}
+                              onClick={() => updateQuantity(item.id, qty + 1)}
+                              className="p-1"
                               aria-label="Aumentar quantidade"
                               title="Aumentar quantidade"
                               disabled={!isOpen}
@@ -166,20 +182,6 @@ export default function CarrinhoPage() {
                               <Plus className="w-4 h-4" />
                             </button>
                           </div>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeItem(item.id)}
-                            aria-label="Remover item"
-                            title="Remover item"
-                            disabled={!isOpen}
-                            className={`w-10 h-10 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 ${
-                              !isOpen ? "opacity-40 pointer-events-none" : ""
-                            }`}
-                          >
-                            <Trash2 className="w-6 h-6" />
-                          </Button>
                         </div>
                       </div>
                     </CardContent>

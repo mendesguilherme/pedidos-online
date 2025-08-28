@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,10 +41,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
 export function OrderSummary({
-  subtotal,           // (mantidos na assinatura, mas não usados como fonte)
-  deliveryFee,        // idem
-  total,              // idem
-  itemCount,          // idem
+  subtotal,
+  deliveryFee,
+  total,
+  itemCount,
   currentTab,
   tipo,
   initialTipo,
@@ -57,6 +58,7 @@ export function OrderSummary({
   draftExtraIds,
   mustFillToppings = false,
 }: OrderSummaryProps) {
+  const router = useRouter()
   const [showModal, setShowModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
@@ -157,13 +159,14 @@ export function OrderSummary({
         : "Definir Forma de Pagamento",
   }
 
+  // ✅ Alterado: ao adicionar, redireciona para o carrinho (sem abrir o modal de “dois botões”)
   const handleAddProduct = () => {
     if (mustFillToppings && !canAddProduct) {
       setShowWarning(true);
       return;
     }
-    onAddProduct(true);   // força adicionar mesmo sem seleção completa quando não é obrigatório
-    setShowModal(true);
+    onAddProduct(true);   // força adicionar quando permitido
+    router.push("/carrinho");
   };
 
   const handleNextStepClick = () => {
@@ -235,56 +238,33 @@ export function OrderSummary({
         </CardContent>
       </Card>
 
-      {/* Modais */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent
-          aria-describedby="descricao-do-modal"
-          className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto"
-        >
-          <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg text-center">
-              {currentTab === "pagamento" && !cart.paymentMethod
-                ? "Selecione uma forma de pagamento!"
-                : currentTab === "endereco"
-                ? "Preencha todos os campos obrigatórios"
-                : "Item adicionado com sucesso!"}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Mantém os modais de validação, mas REMOVE o modal de “produto adicionado” */}
+      {currentTab !== "produtos" && (
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent
+            aria-describedby="descricao-do-modal"
+            className="rounded-lg sm:max-w-md w-full px-4 text-sm sm:mx-auto"
+          >
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg text-center">
+                {currentTab === "pagamento" && !cart.paymentMethod
+                  ? "Selecione uma forma de pagamento!"
+                  : "Preencha todos os campos obrigatórios"}
+              </DialogTitle>
+            </DialogHeader>
 
-          {currentTab === "endereco" && (
-            <DialogFooter className="flex justify-center pt-4">
-              <Button onClick={() => setShowModal(false)} className="rounded-md">
-                OK, Entendi!
-              </Button>
-            </DialogFooter>
-          )}
+            {currentTab === "endereco" && (
+              <DialogFooter className="flex justify-center pt-4">
+                <Button onClick={() => setShowModal(false)} className="rounded-md">
+                  OK, Entendi!
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
-          {currentTab === "produtos" && (
-            <DialogFooter className="flex justify-center pt-4 gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                onClick={() => setShowModal(false)}
-                className="rounded-xl px-6 py-2 text-sm"
-              >
-                Adicionar outro item
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setShowModal(false)
-                  setTab(effectiveTipo === "retirada" ? "pagamento" : "endereco")
-                }}
-                className="rounded-xl px-6 py-2 text-sm"
-              >
-                {effectiveTipo === "retirada"
-                  ? "Definir Forma de Pagamento"
-                  : "Ir para Endereço de Entrega"}
-              </Button>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
-
+      {/* Modal de aviso (seleção obrigatória) — mantém */}
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
         <DialogContent
           aria-describedby="descricao-do-modal"
