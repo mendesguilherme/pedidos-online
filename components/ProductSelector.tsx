@@ -50,7 +50,7 @@ export function ProductSelector({
             <h3 className="text-sm font-semibold">{p.name}</h3>
 
             {/* Linha auxiliar opcional — só aparece se houver dados */}
-            {(p.volumeMl || p.maxToppings !== undefined) && (
+            {(p.volumeMl || p.maxToppings !== undefined || p.maxToppings !== 0) && (
               <p className="text-xs text-gray-600">
                 {p.volumeMl ? `${p.volumeMl}ml` : null}
                 {p.volumeMl && p.maxToppings !== undefined ? " • " : null}
