@@ -5,7 +5,10 @@ import { updateAddon, softDeleteAddon } from "@/data/addons";
 export const dynamic = "force-dynamic";
 
 // Next 15+: params é assíncrono
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
     const body = await req.json();
@@ -14,10 +17,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const imageUrlRaw =
       "imageUrl" in body ? body.imageUrl :
       ("image_url" in body ? body.image_url : undefined);
+
     const imageUrl =
       imageUrlRaw === undefined
         ? undefined
-        : (typeof imageUrlRaw === "string" && imageUrlRaw.trim().length > 0 ? imageUrlRaw.trim() : null);
+        : (typeof imageUrlRaw === "string" && imageUrlRaw.trim().length > 0
+            ? imageUrlRaw.trim()
+            : null);
 
     // normaliza price (se enviado)
     let price: number | undefined = undefined;
@@ -40,11 +46,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ data }, { status: 200 });
   } catch (e: any) {
     console.error("[/api/addons/[id]:PATCH] error:", e);
-    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 });
+    const msg = String(e?.message ?? e);
+    const code = String(e?.code ?? "");
+    const is409 =
+      code === "23505" ||
+      /duplicate key|violates unique|unique constraint|23505/i.test(msg);
+
+    return NextResponse.json({ error: msg }, { status: is409 ? 409 : 500 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
     const data = await softDeleteAddon(id);

@@ -129,7 +129,9 @@ export default function ProductsTabs() {
   // form create
   const [form, setForm] = useState({
     name: "", description: "", price: "0.00", imageUrl: "",
-    maxToppings: 0, volumeMl: 0, categoryId: ""
+    maxToppings: 0, volumeMl: 0, categoryId: "",
+    // 🔹 recebe o meta quando usar o uploader “detached”
+    imageMeta: null as any | null,
   });
 
   // Modais
@@ -137,9 +139,12 @@ export default function ProductsTabs() {
   const confirmRef = useRef<HTMLDialogElement | null>(null);
   const pickRef = useRef<HTMLDialogElement | null>(null);
 
-  // Modal de upload
+  // Modal de upload (por linha)
   const uploadRef = useRef<HTMLDialogElement | null>(null);
   const [uploadRow, setUploadRow] = useState<Product | null>(null);
+
+  // Modal de upload “detached” (pré-criação)
+  const createUploadRef = useRef<HTMLDialogElement | null>(null);
 
   const [infoMsg, setInfoMsg] = useState("");
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
@@ -156,6 +161,12 @@ export default function ProductsTabs() {
   function closePicker() { try { pickRef.current?.close() } catch {}; setPickFor(null); }
   function openUpload(row: Product) { setUploadRow(row); try { uploadRef.current?.showModal(); } catch {} }
   function closeUpload() { try { uploadRef.current?.close(); } catch {}; setUploadRow(null); }
+
+  function openCreateUpload() {
+    setForm(f => ({ ...f, imageUrl: "", imageMeta: null }));
+    try { createUploadRef.current?.showModal(); } catch {}
+  }
+  function closeCreateUpload() { try { createUploadRef.current?.close(); } catch {} }
 
   async function fetchAll() {
     setLoading(true);
@@ -203,7 +214,9 @@ export default function ProductsTabs() {
           name,
           description: form.description || "",
           price: priceNum,
+          // 🔹 envia a URL e o META (se veio do uploader “detached”)
           image_url: form.imageUrl || "",
+          image_meta: form.imageMeta ?? null,
           maxToppings: Number(form.maxToppings || 0),
           volumeMl: Number(form.volumeMl || 0),
           categoryId: form.categoryId,
@@ -212,7 +225,7 @@ export default function ProductsTabs() {
       });
       const payload = await res.json().catch(() => ({} as any));
       if (!res.ok) return showInfo(payload?.error || `Falha ao criar (HTTP ${res.status}).`);
-      setForm({ name:"", description:"", price:"0.00", imageUrl:"", maxToppings:0, volumeMl:0, categoryId:"" });
+      setForm({ name:"", description:"", price:"0.00", imageUrl:"", maxToppings:0, volumeMl:0, categoryId:"", imageMeta: null });
       await fetchAll();
       showInfo("Produto criado com sucesso!");
     } catch (err:any) {
@@ -295,6 +308,18 @@ export default function ProductsTabs() {
           <Label className="text-xs text-gray-500">Imagem (URL)</Label>
           <Input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))} className={field} placeholder="https://..."/>
         </div>
+        {/* 🔹 Botão para abrir o uploader “detached” (pré-criação) */}
+        <div className="md:col-span-1 flex items-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl w-full"
+            onClick={openCreateUpload}
+            title="Selecionar imagem"
+          >
+            <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+          </Button>
+        </div>
         <div className="flex items-end">
           <Button type="submit" className="rounded-xl w-full" disabled={submitting}>
             <Plus className="w-4 h-4 mr-2" />
@@ -369,7 +394,7 @@ export default function ProductsTabs() {
                       ))}
                     </select>
                   </td>
-
+                  
                   {/* imagem (preview otimizado + caminho + botão) */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -385,8 +410,8 @@ export default function ProductsTabs() {
                         )}
                       </div>
 
-                      {/* campo do caminho (compacto) */}
-                      <div className="w-28 sm:w-40 md:w-56">
+                      {/* campo do caminho (um pouco menor para caber o botão ao lado) */}
+                      <div className="min-w-0 w-24 sm:w-32 md:w-40">
                         <InlineText
                           value={r.imageUrl ?? ""}
                           placeholder="https://..."
@@ -500,7 +525,35 @@ export default function ProductsTabs() {
         </table>
       </div>
 
-      {/* Modal: Upload de imagem */}
+      {/* Modal: Upload “detached” para inserção */}
+      <dialog ref={createUploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">Imagem do novo produto</h3>
+
+          <ImageUploader
+            entity="product"
+            detached
+            value={form.imageUrl || null}
+            onChange={(url: string | null, meta?: any) => {
+              setForm(f => ({ ...f, imageUrl: url || "", imageMeta: meta ?? null }));
+              closeCreateUpload();
+            }}
+            label="Imagem (opcional)"
+          />
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeCreateUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* Modal: Upload de imagem (por linha) */}
       <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5">
           <h3 className="text-base font-semibold mb-3">
@@ -512,17 +565,28 @@ export default function ProductsTabs() {
               entity="product"
               entityId={String(uploadRow.id)}
               value={uploadRow.imageUrl ?? null}
-              onChange={async (url) => {
+              onChange={(url: string | null, meta?: any) => {
                 if (url) {
-                  // Atualiza localmente e refaz fetch para pegar image_meta atualizado
-                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x)));
+                  // ✅ atualiza imediatamente: URL + META locais (preview troca na hora)
+                  setRows((rs) =>
+                    rs.map((x) =>
+                      x.id === uploadRow.id
+                        ? { ...x, imageUrl: url, imageMeta: meta ?? x.imageMeta }
+                        : x
+                    )
+                  );
                   closeUpload();
-                  await fetchAll();
                   showInfo("Imagem atualizada com sucesso!");
                 } else {
-                  // Remoção explícita
-                  await patch(uploadRow.id, { image_url: "" }, { silent: true });
-                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x)));
+                  // Remoção
+                  void patch(uploadRow.id, { image_url: "" }, { silent: true });
+                  setRows((rs) =>
+                    rs.map((x) =>
+                      x.id === uploadRow.id
+                        ? { ...x, imageUrl: "", imageMeta: null }
+                        : x
+                    )
+                  );
                   closeUpload();
                   showInfo("Imagem removida.");
                 }

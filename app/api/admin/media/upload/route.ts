@@ -34,7 +34,13 @@ export async function POST(req: NextRequest) {
     const entity = (form.get("entity") as string) || "";
     const entityId = (form.get("entityId") as string) || "";
 
-    if (!file || !entity || !entityId) {
+    // novo: suporte a modo "detached"
+    const mode = String(form.get("mode") || "").toLowerCase();
+    const detachedFlag = String(form.get("detached") || "").toLowerCase();
+    const isDetached = mode === "detached" || detachedFlag === "1" || detachedFlag === "true";
+
+    // validações mínimas por modo
+    if (!file || !entity || (!isDetached && !entityId)) {
       return NextResponse.json({ error: "Parâmetros ausentes." }, { status: 400 });
     }
     if (!["product", "topping", "addon"].includes(entity)) {
@@ -48,7 +54,12 @@ export async function POST(req: NextRequest) {
     // versionamento de caminho
     const stamp = Date.now();
     const shortHash = crypto.createHash("sha1").update(input).digest("hex").slice(0, 8);
-    const folder = `prod/${entity}/${entityId}/${stamp}-${shortHash}`;
+
+    // novo: pasta diferente quando detached (sem entityId)
+    const baseFolder = isDetached
+      ? `prod/${entity}/tmp`
+      : `prod/${entity}/${entityId}`;
+    const folder = `${baseFolder}/${stamp}-${shortHash}`;
 
     // meta original
     const base = sharp(input);
@@ -101,6 +112,17 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
+    // ───────── modo DETACHED: só retorna as URLs/metadata ─────────
+    if (isDetached) {
+      return NextResponse.json({
+        ok: true,
+        image_url: mainUrl,
+        image_meta,
+        debug: { mode: "detached" },
+      });
+    }
+
+    // ───────── modo ATTACH (padrão): atualiza o registro no DB ─────────
     const table = entity === "product" ? "products" : entity === "topping" ? "toppings" : "addons";
 
     // ---- UPDATE com verificação de persistência, schema explícito e fallbacks ----
@@ -172,7 +194,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       image_url: mainUrl,
       image_meta,
-      debug: { strategy, persisted_meta: persistedMeta },
+      debug: { strategy, persisted_meta: persistedMeta, mode: "attach" },
     });
   } catch (err: any) {
     console.error(err);

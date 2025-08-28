@@ -255,7 +255,8 @@ export async function createProduct(payload: {
   name: string
   description?: string
   price: number
-  imageUrl: string
+  imageUrl?: string | null             // <- agora opcional
+  imageMeta?: any | null               // <- aceita meta vindo do uploader “detached”
   maxToppings: number
   volumeMl: number
   categoryId: string
@@ -284,7 +285,8 @@ export async function createProduct(payload: {
     name,
     description: String(payload.description ?? ""),
     price,
-    image_url: String(payload.imageUrl ?? ""),
+    image_url: payload.imageUrl ? String(payload.imageUrl) : null,
+    image_meta: payload.imageMeta ?? null,   // <- persiste o meta quando já existir
     max_toppings,
     volume_ml,
     allowed_topping_ids: payload.allowedToppingIds ?? null,

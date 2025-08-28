@@ -34,9 +34,16 @@ export async function PATCH(
     if ("description" in body)        updates.description = body.description
     if ("price" in body)              updates.price = body.price
 
-    // `null` aqui significa: limpar imagem (o data/ vai zerar image_meta também)
-    if ("imageUrl" in body)           updates.imageUrl = body.imageUrl
-    else if ("image_url" in body)     updates.imageUrl = body.image_url
+    // 🔹 Normaliza imageUrl: aceita camel/snake; "" => null; ausente => undefined
+    const imageUrlRaw =
+      "imageUrl" in body ? body.imageUrl :
+      ("image_url" in body ? body.image_url : undefined)
+    if (imageUrlRaw !== undefined) {
+      updates.imageUrl =
+        typeof imageUrlRaw === "string" && imageUrlRaw.trim().length > 0
+          ? imageUrlRaw.trim()
+          : null
+    }
 
     if ("maxToppings" in body)        updates.maxToppings = body.maxToppings
     else if ("max_toppings" in body)  updates.maxToppings = body.max_toppings

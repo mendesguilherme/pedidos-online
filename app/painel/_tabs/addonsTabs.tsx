@@ -63,16 +63,18 @@ export default function AddonsTabs({ ImageUploader }: any) {
   const [submitting, setSubmitting] = useState(false);
   const [hasAdminFields, setHasAdminFields] = useState(false);
 
-  const [form, setForm] = useState<{ name: string; price: string; imageUrl: string }>({
+  const [form, setForm] = useState<{ name: string; price: string; imageUrl: string; imageMeta?: any | null }>({
     name: "",
     price: "0,00",
     imageUrl: "",
+    imageMeta: null,
   });
 
   // ---- MODAIS ----
   const confirmRef = useRef<HTMLDialogElement | null>(null);
   const infoRef = useRef<HTMLDialogElement | null>(null);
   const uploadRef = useRef<HTMLDialogElement | null>(null);
+  const createUploadRef = useRef<HTMLDialogElement | null>(null);
 
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
   const [infoMsg, setInfoMsg] = useState<string>("");
@@ -101,6 +103,14 @@ export default function AddonsTabs({ ImageUploader }: any) {
   function closeUpload() {
     try { uploadRef.current?.close(); } catch {}
     setUploadRow(null);
+  }
+  function openCreateUpload() {
+    // limpa preview anterior do modal detached
+    setForm(f => ({ ...f, imageUrl: "", imageMeta: null }));
+    try { createUploadRef.current?.showModal(); } catch {}
+  }
+  function closeCreateUpload() {
+    try { createUploadRef.current?.close(); } catch {}
   }
 
   async function fetchRows() {
@@ -159,15 +169,20 @@ export default function AddonsTabs({ ImageUploader }: any) {
           name,
           price: priceNum,
           imageUrl: form.imageUrl?.trim() || null,
+          imageMeta: form.imageMeta ?? null, // <- envia meta quando houver (detached)
         }),
       });
       const payload = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        const msg = payload?.error || `Falha ao criar adicional (HTTP ${res.status}).`;
-        showInfo(msg);
+        const raw = (payload?.message || payload?.error || "");
+        if (res.status === 409 || /duplicate key|already exists|23505/i.test(raw + payload?.code)) {
+          showInfo("Já existe um adicional com esse nome.");
+          return;
+        }
+        showInfo(payload?.error || `Falha ao criar adicional (HTTP ${res.status}).`);
         return;
       }
-      setForm({ name: "", price: "0,00", imageUrl: "" });
+      setForm({ name: "", price: "0,00", imageUrl: "", imageMeta: null });
       await fetchRows();
       showInfo("Adicional criado com sucesso!");
     } catch (err: any) {
@@ -228,7 +243,7 @@ export default function AddonsTabs({ ImageUploader }: any) {
         onSubmit={createAddon}
         className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-8 gap-3"
       >
-        <div className="md:col-span-4">
+        <div className="md:col-span-3">
           <Label className="text-xs text-gray-500">Nome</Label>
           <Input
             value={form.name}
@@ -253,6 +268,18 @@ export default function AddonsTabs({ ImageUploader }: any) {
             className={field}
             placeholder="https://..."
           />
+        </div>
+        {/* Botão de seleção de imagem (detached) */}
+        <div className="md:col-span-1 flex items-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl w-full"
+            onClick={openCreateUpload}
+            title="Selecionar imagem"
+          >
+            <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+          </Button>
         </div>
         <div className="flex items-end">
           <Button type="submit" className="rounded-xl w-full" disabled={submitting}>
@@ -405,7 +432,37 @@ export default function AddonsTabs({ ImageUploader }: any) {
         </table>
       </div>
 
-      {/* ======= MODAL: Upload de imagem ======= */}
+      {/* ======= MODAL: Upload “detached” para a faixa de inserção ======= */}
+      <dialog ref={createUploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">Imagem do novo adicional</h3>
+
+          {ImageUploader && (
+            <ImageUploader
+              entity="addon"
+              detached
+              value={form.imageUrl || null}
+              onChange={(url: string | null, meta?: any) => {
+                setForm((f) => ({ ...f, imageUrl: url || "", imageMeta: meta ?? null }));
+                closeCreateUpload();
+              }}
+              label="Imagem (opcional)"
+            />
+          )}
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeCreateUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* ======= MODAL: Upload por linha (registro existente) ======= */}
       <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5">
           <h3 className="text-base font-semibold mb-3">
@@ -417,21 +474,27 @@ export default function AddonsTabs({ ImageUploader }: any) {
               entity="addon"
               entityId={String(uploadRow.id)}
               value={uploadRow.imageUrl ?? null}
-              onChange={(url: string | null) => {
+              onChange={(url: string | null, meta?: any) => {
                 if (url) {
-                  // Upload OK: atualiza local (URL principal), fecha modal e avisa
+                  // atualiza preview imediato: URL principal + meta para o thumb
                   setRows((rs) =>
-                    rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x))
+                    rs.map((x) =>
+                      x.id === uploadRow.id
+                        ? { ...x, imageUrl: url, image_meta: meta ?? x.image_meta }
+                        : x
+                    )
                   );
                   closeUpload();
                   showInfo("Imagem atualizada com sucesso!");
-                  // opcional: refetch para trazer image_meta/variantes atualizadas
+                  // opcional: refetch para sincronizar com a view
                   // void fetchRows();
                 } else {
-                  // Remoção: limpa no banco
+                  // remoção: limpa no banco e local
                   patch(uploadRow.id, { imageUrl: null }, { silent: true });
                   setRows((rs) =>
-                    rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x))
+                    rs.map((x) =>
+                      x.id === uploadRow.id ? { ...x, imageUrl: "", image_meta: null } : x
+                    )
                   );
                   closeUpload();
                   showInfo("Imagem removida.");

@@ -74,7 +74,7 @@ export async function getAddons(): Promise<Addon[]> {
     `${base}/rest/v1/addons` +
     `?select=id,name,price,image_url,image_meta,active` +
     `&deleted=eq.false` +
-    `&order=id.asc`
+    `&order=created_at.desc,id.desc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -107,7 +107,7 @@ export async function getAddonsForAdmin(): Promise<AddonAdmin[]> {
     `${base}/rest/v1/addons` +
     `?select=id,name,price,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` +
     `&deleted=eq.false` +
-    `&order=id.asc`
+    `&order=created_at.desc,id.desc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -138,7 +138,13 @@ export async function getAddonsForAdmin(): Promise<AddonAdmin[]> {
 }
 
 /** CREATE (server-only) */
-export async function createAddon(payload: { name: string; price: number; imageUrl?: string | null }) {
+export async function createAddon(payload: {
+  name: string
+  price: number
+  imageUrl?: string | null
+  /** novo: permite já salvar o meta quando vier do upload “desacoplado” */
+  imageMeta?: any | null
+}) {
   const base = supabaseBase()
   const key  = serviceKey()
 
@@ -146,6 +152,7 @@ export async function createAddon(payload: { name: string; price: number; imageU
     name: String(payload.name).trim(),
     price: Number(payload.price ?? 0),
     image_url: payload.imageUrl ?? null,
+    image_meta: payload.imageMeta ?? null,
     active: true,
     deleted: false,
     deleted_at: null,
@@ -177,6 +184,8 @@ export async function updateAddon(
     name?: string
     price?: number
     imageUrl?: string | null
+    /** novo: permitir atualizar o meta diretamente */
+    imageMeta?: any | null
     active?: boolean
     deleted?: boolean
   }
@@ -187,7 +196,14 @@ export async function updateAddon(
   const body: any = {}
   if (updates.name !== undefined)      body.name = String(updates.name)
   if (updates.price !== undefined)     body.price = Number(updates.price)
-  if (updates.imageUrl !== undefined)  body.image_url = updates.imageUrl
+
+  if (updates.imageUrl !== undefined) {
+    body.image_url = updates.imageUrl
+    // se remover a imagem, zera também o meta
+    if (updates.imageUrl === null) body.image_meta = null
+  }
+  if (updates.imageMeta !== undefined) body.image_meta = updates.imageMeta
+
   if (updates.active !== undefined)    body.active = !!updates.active
   if (updates.deleted !== undefined)   body.deleted = !!updates.deleted
 

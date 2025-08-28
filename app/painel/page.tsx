@@ -352,6 +352,41 @@ export default async function AdminPedidosPage({
     ? (sp.tab as string)
     : "pedidos";
 
+  // ---------- NOVO: sub-abas e contadores por status ----------
+  const statusTabs = [
+    { value: "todos",             label: "Todos" },
+    { value: "pendente",          label: "Em processamento" },
+    { value: "em_preparo",        label: "Em preparo" },
+    { value: "saiu_para_entrega", label: "Saiu p/ entrega" },
+    { value: "entregue",          label: "Entregue" },
+    { value: "cancelado",         label: "Cancelado" },
+  ] as const;
+  const statusTab = statusTabs.some(t => t.value === (f_status || "")) ? (f_status as string) : "todos";
+
+  // Helper para aplicar os MESMOS filtros (exceto status) nas contagens
+  const applyCommonFilters = (q: ReturnType<typeof supa.from> extends infer T ? any : never) => {
+    let _q = q as ReturnType<typeof supa.from>["select"];
+    if (f_code) _q = _q.ilike("order_code", `%${f_code}%`);
+    if (f_tipo && !["todos","all"].includes(f_tipo)) _q = _q.eq("tipo", f_tipo);
+    if (f_pgto && !["todos","all"].includes(f_pgto)) _q = _q.eq("payment_method", f_pgto);
+    if (f_total_min && !Number.isNaN(Number(f_total_min))) _q = _q.gte("total", Number(f_total_min));
+    if (f_total_max && !Number.isNaN(Number(f_total_max))) _q = _q.lte("total", Number(f_total_max));
+    _q = _q.gte("created_at", fromISO).lte("created_at", toISO);
+    return _q;
+  };
+
+  const countsByStatus: Record<string, number> = {};
+  await Promise.all(
+    statusTabs.map(async (t) => {
+      let cq = supa.from("orders").select("id", { count: "exact", head: true });
+      cq = applyCommonFilters(cq as any);
+      if (t.value !== "todos") cq = cq.eq("status", t.value);
+      const { count: c } = await cq;
+      countsByStatus[t.value] = c ?? 0;
+    })
+  );
+  // -----------------------------------------------------------
+
   // links com redirect a /painel (preserva filtros e aba atual)
   const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
   const currentQS: Record<string, string | undefined> = {
@@ -554,6 +589,28 @@ export default async function AdminPedidosPage({
               <Link href="/painel" className={btnGhost}>Limpar</Link>
             </div>
           </form>
+
+          {/* Sub-abas por status (entre filtros e grid) */}
+          <Tabs defaultValue={statusTab} className="mt-3">
+            <TabsList className="rounded-xl bg-white">
+              {statusTabs.map((t) => (
+                <TabsTrigger key={t.value} value={t.value} className="rounded-xl" asChild>
+                  <Link
+                    href={buildQS(
+                      { ...currentQS, tab: currentTab },
+                      { status: t.value === "todos" ? null : t.value, p: "1" }
+                    )}
+                    className="flex items-center gap-2"
+                  >
+                    <span>{t.label}</span>
+                    <span className="inline-flex items-center justify-center rounded-full bg-slate-200 text-slate-700 min-w-[20px] h-5 px-2 text-[11px]">
+                      {(countsByStatus[t.value] ?? 0).toLocaleString("pt-BR")}
+                    </span>
+                  </Link>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {/* Tabela */}
           <div className="mt-6 overflow-x-auto rounded-xl border bg-white [--border:0_0%85%]">

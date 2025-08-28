@@ -23,9 +23,8 @@ type ImageMeta = {
 type Topping = {
   id: number;
   name: string;
-  imageUrl: string; // camelCase no client (API aceita imageUrl/image_url)
-  image_meta?: ImageMeta; // <- passa a considerar o meta vindo da API
-  // podem ou não vir do GET
+  imageUrl: string;
+  image_meta?: ImageMeta;
   active?: boolean;
   deleted?: boolean;
   created_at?: string;
@@ -37,7 +36,7 @@ const field =
   "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] " +
   "focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
 
-// helper para escolher miniatura a partir do image_meta
+// miniatura a partir do image_meta
 function pickThumb(meta?: ImageMeta): string | null {
   const s = meta?.sources;
   return s?.["avif-64"]?.url ?? s?.["webp-64"]?.url ?? null;
@@ -47,17 +46,22 @@ export default function ToppingsTabs() {
   const [rows, setRows] = useState<Topping[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<{ name: string; imageUrl: string }>({ name: "", imageUrl: "" });
+  const [form, setForm] = useState<{ name: string; imageUrl: string; imageMeta?: any | null }>({
+    name: "", imageUrl: "", imageMeta: null
+  })
 
-  // ---- MODAIS (confirmação + mensagens) ----
+  // modais (confirmação + mensagens)
   const confirmRef = useRef<HTMLDialogElement | null>(null);
   const infoRef = useRef<HTMLDialogElement | null>(null);
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
   const [infoMsg, setInfoMsg] = useState<string>("");
 
-  // ---- MODAL (upload de imagem) ----
+  // modal de upload por linha (registro existente)
   const uploadRef = useRef<HTMLDialogElement | null>(null);
   const [uploadRow, setUploadRow] = useState<Topping | null>(null);
+
+  // modal de upload “detached” (pré-criação, só devolve URL)
+  const createUploadRef = useRef<HTMLDialogElement | null>(null);
 
   function openConfirm(id: number, name: string) {
     setConfirmData({ id, name });
@@ -85,17 +89,24 @@ export default function ToppingsTabs() {
     setUploadRow(null);
   }
 
+  function openCreateUpload() {
+    setForm(f => ({ ...f, imageUrl: "", imageMeta: null }));
+    try { createUploadRef.current?.showModal(); } catch {}
+  }
+  
+  function closeCreateUpload() {
+    try { createUploadRef.current?.close(); } catch {}
+  }
+
   async function fetchRows() {
     setLoading(true);
     try {
-      // tenta rota com admin (que pode incluir active/deleted); se não rolar, cai no básico
       let res = await fetch("/api/toppings?admin=1", { cache: "no-store" });
       if (!res.ok) res = await fetch("/api/toppings", { cache: "no-store" });
 
       const json = await res.json().catch(() => ({}));
       const data = (json?.data ?? []) as any[];
 
-      // normaliza keys + defaults (inclui image_meta se vier)
       const normalized: Topping[] = data.map((d) => ({
         id: d.id,
         name: d.name,
@@ -125,13 +136,19 @@ export default function ToppingsTabs() {
       const res = await fetch("/api/toppings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, imageUrl: form.imageUrl?.trim() || null }),
+        body: JSON.stringify({
+          name,
+          imageUrl: form.imageUrl?.trim() || null,
+          imageMeta: form.imageMeta ?? null,   
+        })
       });
       const payload = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        const msg = payload?.error || `Falha ao criar acompanhamento (HTTP ${res.status}).`;
-        showInfo(msg);
-        return;
+        const raw = (payload?.message || payload?.error || "");
+        if (res.status === 409 || /duplicate key|already exists|23505/i.test(raw + payload?.code)) {
+          return showInfo("Já existe um acompanhamento com esse nome.");
+        }
+        return showInfo(payload?.error || `Falha ao criar acompanhamento (HTTP ${res.status}).`);
       }
       setForm({ name: "", imageUrl: "" });
       await fetchRows();
@@ -190,7 +207,10 @@ export default function ToppingsTabs() {
   return (
     <div className="mt-4">
       {/* Inserção acima da tabela */}
-      <form onSubmit={createTopping} className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+      <form
+        onSubmit={createTopping}
+        className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-8 gap-3"
+      >
         <div className="md:col-span-3">
           <Label className="text-xs text-gray-500">Nome</Label>
           <Input
@@ -200,7 +220,8 @@ export default function ToppingsTabs() {
             required
           />
         </div>
-        <div className="md:col-span-2">
+
+        <div className="md:col-span-3">
           <Label className="text-xs text-gray-500">URL da Imagem (opcional)</Label>
           <Input
             value={form.imageUrl}
@@ -209,7 +230,21 @@ export default function ToppingsTabs() {
             placeholder="https://..."
           />
         </div>
-        <div className="flex items-end">
+
+        {/* Botão de seleção de imagem (detached, pré-criação) */}
+        <div className="md:col-span-1 flex items-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl w-full"
+            onClick={openCreateUpload}
+            title="Selecionar imagem"
+          >
+            <ImageIcon className="w-4 h-4 mr-1" /> Imagem
+          </Button>
+        </div>
+
+        <div className="md:col-span-1 flex items-end">
           <Button type="submit" className="rounded-xl w-full" disabled={submitting}>
             <Plus className="w-4 h-4 mr-2" />
             {submitting ? "Adicionando..." : "Adicionar"}
@@ -220,7 +255,12 @@ export default function ToppingsTabs() {
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
         <table className="min-w-full text-sm table-fixed">
-          <colgroup><col className="w-[50%]"/><col className="w-[22%]"/><col className="w-[12%]"/><col className="w-[16%]"/></colgroup>
+          <colgroup>
+            <col className="w-[50%]" />
+            <col className="w-[22%]" />
+            <col className="w-[12%]" />
+            <col className="w-[16%]" />
+          </colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
               <th className="px-3 py-2 text-left">Nome</th>
@@ -231,8 +271,8 @@ export default function ToppingsTabs() {
           </thead>
           <tbody className="divide-y divide-slate-200">
             {rows.map((r) => {
-              const isActive = r.active !== false; // default para true quando não vier da API
-              const thumb = pickThumb(r.image_meta); // usa o 64px do image_meta se disponível
+              const isActive = r.active !== false;
+              const thumb = pickThumb(r.image_meta);
               return (
                 <tr key={r.id} className="divide-x divide-slate-200">
                   {/* Nome */}
@@ -245,7 +285,7 @@ export default function ToppingsTabs() {
                     />
                   </td>
 
-                  {/* Imagem (preview + caminho + botão Imagem) */}
+                  {/* Imagem */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       {thumb || r.imageUrl ? (
@@ -260,13 +300,14 @@ export default function ToppingsTabs() {
                         </div>
                       )}
 
-                      {/* campo do caminho da imagem (mais compacto) */}
                       <div className="w-28 sm:w-40 md:w-56">
                         <InlineText
                           value={r.imageUrl ?? ""}
                           placeholder="https://..."
                           onChange={(v) =>
-                            setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x)))
+                            setRows((rs) =>
+                              rs.map((x) => (x.id === r.id ? { ...x, imageUrl: v } : x))
+                            )
                           }
                         />
                       </div>
@@ -302,7 +343,7 @@ export default function ToppingsTabs() {
                     </div>
                   </td>
 
-                  {/* Ações (mantidas apenas Salvar/Excluir) */}
+                  {/* Ações */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Button
@@ -338,7 +379,35 @@ export default function ToppingsTabs() {
         </table>
       </div>
 
-      {/* ======= MODAL: Upload de imagem ======= */}
+      {/* MODAL: Upload “detached” para a faixa de inserção */}
+      <dialog ref={createUploadRef} className="rounded-xl border p-0 w-full max-w-sm">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">Imagem do novo acompanhamento</h3>
+
+          <ImageUploader
+            entity="topping"
+            detached
+            value={form.imageUrl || null}
+            onChange={(url: string | null, meta?: any) => {
+              setForm((f: any) => ({ ...f, imageUrl: url || "", imageMeta: meta ?? null }));
+              closeCreateUpload();
+            }}
+            label="Imagem (opcional)"
+          />
+
+          <div className="mt-4 flex justify-center">
+            <button
+              autoFocus
+              className="rounded-xl bg-gray-900 text-white px-4 py-2 text-sm hover:bg-black"
+              onClick={closeCreateUpload}
+            >
+              Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* MODAL: Upload por linha (registro existente) */}      
       <dialog ref={uploadRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5">
           <h3 className="text-base font-semibold mb-3">
@@ -350,18 +419,30 @@ export default function ToppingsTabs() {
               entity="topping"
               entityId={String(uploadRow.id)}
               value={uploadRow.imageUrl ?? null}
-              onChange={(url) => {
+              onChange={(url: string | null, meta?: any) => {
                 if (url) {
-                  // Upload OK: atualiza local, fecha modal e avisa
-                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: url } : x)));
+                  // ✅ atualiza imediatamente a miniatura: imageUrl + image_meta
+                  setRows((rs) =>
+                    rs.map((x) =>
+                      x.id === uploadRow.id
+                        ? { ...x, imageUrl: url, image_meta: meta ?? x.image_meta }
+                        : x
+                    )
+                  );
                   closeUpload();
                   showInfo("Imagem atualizada com sucesso!");
-                  // opcional: refetch para trazer image_meta/variantes
+                  // opcional: refetch para garantir persistência do meta vindo da view
                   // void fetchRows();
                 } else {
-                  // Remoção: limpa no banco
+                  // remoção
                   patch(uploadRow.id, { imageUrl: null }, { silent: true });
-                  setRows((rs) => rs.map((x) => (x.id === uploadRow.id ? { ...x, imageUrl: "" } : x)));
+                  setRows((rs) =>
+                    rs.map((x) =>
+                      x.id === uploadRow.id
+                        ? { ...x, imageUrl: "", image_meta: null }
+                        : x
+                    )
+                  );
                   closeUpload();
                   showInfo("Imagem removida.");
                 }
@@ -381,7 +462,8 @@ export default function ToppingsTabs() {
         </form>
       </dialog>
 
-      {/* ======= MODAL: Confirmação de exclusão ======= */}
+
+      {/* MODAL: Confirmação de exclusão */}
       <dialog ref={confirmRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5 text-center">
           <h3 className="text-base font-semibold mb-1">Excluir acompanhamento</h3>
@@ -408,7 +490,7 @@ export default function ToppingsTabs() {
         </form>
       </dialog>
 
-      {/* ======= MODAL: Mensagens de sucesso/erro ======= */}
+      {/* MODAL: Mensagens */}
       <dialog ref={infoRef} className="rounded-xl border p-0 w-full max-w-sm">
         <form method="dialog" className="p-5 text-center">
           <p className="text-base font-semibold">{infoMsg}</p>

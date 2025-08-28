@@ -23,6 +23,7 @@ export function useAddons() {
         const json: ApiResp = await res.json();
         if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
 
+        // o endpoint público já filtra ativos, mas manter esse filtro é ok
         if (!ignore) setData((json.data ?? []).filter(a => a.isActive ?? true));
       } catch (e: any) {
         if (e?.name === "AbortError") return;
@@ -34,11 +35,11 @@ export function useAddons() {
 
     return () => {
       ignore = true;
-      // em produção, pode abortar para economizar rede; em dev, evita o overlay de erro
+      // em produção, aborta pra economizar rede; em dev, evita overlay do Next
       if (process.env.NODE_ENV === "production") {
-          try { ab.abort(); } catch {}
+        try { ab.abort(); } catch {}
       }
-    };    
+    };
 
   }, []);
 

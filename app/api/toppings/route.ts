@@ -34,7 +34,12 @@ export async function POST(req: Request) {
     const body = await req.json()
     const name = String(body?.name ?? "").trim()
     if (!name) return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 })
-    const data = await createTopping({ name, imageUrl: body?.imageUrl ?? null })
+
+    // 🔹 Aceita tanto camelCase quanto snake_case
+    const imageUrl  = body?.imageUrl  ?? body?.image_url  ?? null
+    const imageMeta = body?.imageMeta ?? body?.image_meta ?? null
+
+    const data = await createTopping({ name, imageUrl, imageMeta })
     return NextResponse.json({ data }, { status: 201 })
   } catch (e:any) {
     console.error("[/api/toppings:POST] error:", e)

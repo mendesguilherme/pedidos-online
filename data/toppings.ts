@@ -56,7 +56,7 @@ export async function getToppings(): Promise<Topping[]> {
     `${base}/rest/v1/toppings` +
     `?select=id,name,image_url,image_meta` +
     `&active=eq.true&deleted=eq.false` +
-    `&order=name.asc`
+    `&order=created_at.desc,id.desc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -86,7 +86,7 @@ export async function getToppingsForAdmin(): Promise<ToppingAdmin[]> {
     `${base}/rest/v1/toppings` +
     `?select=id,name,image_url,image_meta,active,deleted,created_at,updated_at,deleted_at` +
     `&deleted=eq.false` +
-    `&order=name.asc`
+    `&order=created_at.desc,id.desc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -120,7 +120,7 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
     `${base}/rest/v1/toppings?select=id,name,image_url,image_meta` +
     `&id=in.(${ids.join(",")})` +
     `&active=eq.true&deleted=eq.false` +
-    `&order=name.asc`
+    `&order=created_at.desc,id.desc`
 
   const res = await fetch(url, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
@@ -141,30 +141,41 @@ export async function getToppingsByIds(ids: number[]): Promise<Topping[]> {
 }
 
 /** CRUD (server-only) */
-export async function createTopping(payload: { name: string; imageUrl?: string | null }) {
+// antes:
+// export async function createTopping(payload: { name: string; imageUrl?: string | null }) {
+
+export async function createTopping(payload: {
+  name: string
+  imageUrl?: string | null
+  imageMeta?: any | null
+}) {
   const base = supabaseBase()
   const key  = serviceKey()
+
   const res = await fetch(`${base}/rest/v1/toppings`, {
     method: "POST",
     headers: {
       apikey: key, Authorization: `Bearer ${key}`,
-      "Content-Type":"application/json", Prefer:"return=representation"
+      "Content-Type": "application/json", Prefer: "return=representation",
     },
     body: JSON.stringify({
       name: String(payload.name).trim(),
       image_url: payload.imageUrl ?? null,
+      image_meta: payload.imageMeta ?? null,   // 👈 inclui o meta na criação
       active: true,
       deleted: false,
       deleted_at: null,
     }),
     cache: "no-store",
   })
+
   if (!res.ok) {
     const txt = await res.text().catch(() => "")
     throw new Error(`Falha ao criar topping: ${res.status} ${txt}`)
   }
   return res.json()
 }
+
 
 export async function updateTopping(
   id: number | string,

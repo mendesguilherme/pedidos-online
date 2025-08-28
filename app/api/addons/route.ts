@@ -37,14 +37,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const name = String(body?.name ?? "").trim();
     const priceRaw = body?.price;
     const price = Number(priceRaw);
+
     const imageUrlInput = body?.imageUrl ?? body?.image_url ?? null;
     const imageUrl =
       typeof imageUrlInput === "string" && imageUrlInput.trim().length > 0
         ? imageUrlInput.trim()
         : null;
+
+    // novo: aceitar meta vindo do uploader “detached”
+    const imageMeta = body?.imageMeta ?? body?.image_meta ?? null;
 
     if (!name) {
       return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
@@ -53,10 +58,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Preço inválido." }, { status: 400 });
     }
 
-    const data = await createAddon({ name, price, imageUrl });
+    const data = await createAddon({ name, price, imageUrl, imageMeta });
     return NextResponse.json({ data }, { status: 201 });
   } catch (e: any) {
     console.error("[/api/addons:POST] error:", e);
-    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 });
+    const msg = String(e?.message ?? e);
+    const code = String(e?.code ?? "");
+    const is409 =
+      code === "23505" ||
+      /duplicate key|violates unique|unique constraint|23505/i.test(msg);
+    return NextResponse.json({ error: msg }, { status: is409 ? 409 : 500 });
   }
 }
