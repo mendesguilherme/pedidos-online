@@ -1,0 +1,4 @@
+[build.environment]
+NODE_VERSION = "20"
+PNPM_FLAGS = "--include-optional"
+NPM_FLAGS = "--include=optional"
