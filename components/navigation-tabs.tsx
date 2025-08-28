@@ -27,19 +27,6 @@ export function NavigationTabs({ activeTab, onTabChange, tipo, initialTipo }: Na
   return (
     <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
       <div className="container mx-auto px-2 sm:px-4">
-        {/* Botão Voltar ao Menu Principal */}
-        <div className="flex justify-center py-0 border-b border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToHome}
-            className="text-muted-foreground hover:text-foreground hover:bg-muted text-sm sm:text-base"
-          >
-            <Home className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            Voltar ao Menu Principal
-          </Button>
-        </div>
-
         {/* Tabs de Navegação */}
         <div className="flex">
           {tabs.map((tab) => {
