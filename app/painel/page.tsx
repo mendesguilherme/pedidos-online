@@ -363,28 +363,39 @@ export default async function AdminPedidosPage({
   ] as const;
   const statusTab = statusTabs.some(t => t.value === (f_status || "")) ? (f_status as string) : "todos";
   
-  // Helper para aplicar os MESMOS filtros (exceto status) nas contagens
-  const applyCommonFilters = (q: any) => {
+  // Helper para aplicar os filtros (compatível com o type-check do Netlify)
+  function applyCommonFilters<T>(q: T): T {
+    // Cast pontual para destravar os métodos do PostgrestFilterBuilder
     let _q = q as any;
+
     if (f_code) _q = _q.ilike("order_code", `%${f_code}%`);
     if (f_tipo && !["todos", "all"].includes(f_tipo)) _q = _q.eq("tipo", f_tipo);
     if (f_pgto && !["todos", "all"].includes(f_pgto)) _q = _q.eq("payment_method", f_pgto);
+
     if (f_total_min && !Number.isNaN(Number(f_total_min))) _q = _q.gte("total", Number(f_total_min));
     if (f_total_max && !Number.isNaN(Number(f_total_max))) _q = _q.lte("total", Number(f_total_max));
-    _q = _q.gte("created_at", fromISO).lte("created_at", toISO);
-    return _q;
-  };
 
+    _q = _q.gte("created_at", fromISO).lte("created_at", toISO);
+    return _q as T;
+  }
+
+  // Contagem por status (para as bolinhas nas abas)
   const countsByStatus: Record<string, number> = {};
   await Promise.all(
     statusTabs.map(async (t) => {
-      let cq = supa.from("orders").select("id", { count: "exact", head: true });
-      cq = applyCommonFilters(cq as any);
-      if (t.value !== "todos") cq = cq.eq("status", t.value);
-      const { count: c } = await cq;
-      countsByStatus[t.value] = c ?? 0;
+      let cq: any = supa.from("orders").select("id", { count: "exact", head: true });
+      cq = applyCommonFilters(cq);
+
+      // se não for a aba "todos", filtra pelo status
+      if (t.value !== "todos") {
+        cq = cq.eq("status", t.value as any);
+      }
+
+      const { count } = await cq;
+      countsByStatus[t.value] = count ?? 0;
     })
   );
+
   // -----------------------------------------------------------
 
   // links com redirect a /painel (preserva filtros e aba atual)
