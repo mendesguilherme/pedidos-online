@@ -22,8 +22,9 @@ type Category = {
 };
 
 const field =
-  "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] " +
-  "focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
+  "mt-1 w-full h-10 rounded-xl border bg-white px-3 text-[15px] " +
+  "border-[hsl(var(--border))] focus:outline-none focus:ring-2 " +
+  "focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]";
 
 export default function CategoriesTabs() {
   const [rows, setRows] = useState<Category[]>([]);

@@ -51,8 +51,9 @@ const btnEntregue =
 const btnPager = "h-9 rounded-xl px-3";
 
 const baseField =
-  "mt-1 w-full h-10 rounded-xl border border-purple-300 bg-white px-3 text-[15px] \
-focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300";
+  "mt-1 w-full h-10 rounded-xl border bg-white px-3 text-[15px] \
+border-[hsl(var(--border))] focus:outline-none focus:ring-2 \
+focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]";
 
 const inputClass = baseField;
 const selectClass = `${baseField} leading-[2.5rem] appearance-none pr-8`;
@@ -750,7 +751,8 @@ export default async function AdminPedidosPage({
               </p>
               <textarea
                 id="denyReason"
-                className="w-full h-28 rounded-xl border border-purple-300 p-2 outline-none focus:ring-2 focus:ring-purple-200"
+                className="w-full h-28 rounded-xl border border-[hsl(var(--border))] p-2 \
+                outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]"
                 maxLength={500}
                 placeholder="Ex.: Endereço fora da área de entrega, item indisponível, etc."
               />

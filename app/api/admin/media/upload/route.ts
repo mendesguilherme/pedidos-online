@@ -1,6 +1,6 @@
 // app/api/admin/media/upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
+// ⬇️ sharp agora é carregado sob demanda (lazy) dentro do handler
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
@@ -14,6 +14,31 @@ const FORMATS = ["avif", "webp"] as const;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Carrega o sharp somente em runtime, e segue sem processamento se indisponível */
+async function loadSharp() {
+  try {
+    const m = await import("sharp");
+    return (m as any).default ?? (m as any);
+  } catch {
+    return null;
+  }
+}
+
+function extFromMime(mime?: string | null) {
+  if (!mime) return null;
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/avif": "avif",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+  };
+  return map[mime] || null;
+}
 
 // garante que o bucket exista (cria se faltar)
 async function ensureBucket() {
@@ -56,61 +81,93 @@ export async function POST(req: NextRequest) {
     const shortHash = crypto.createHash("sha1").update(input).digest("hex").slice(0, 8);
 
     // novo: pasta diferente quando detached (sem entityId)
-    const baseFolder = isDetached
-      ? `prod/${entity}/tmp`
-      : `prod/${entity}/${entityId}`;
+    const baseFolder = isDetached ? `prod/${entity}/tmp` : `prod/${entity}/${entityId}`;
     const folder = `${baseFolder}/${stamp}-${shortHash}`;
 
+    // tenta carregar o sharp apenas agora
+    const sharpLib = await loadSharp();
+
     // meta original
-    const base = sharp(input);
-    const meta = await base.metadata();
-    const origW = meta.width ?? null;
-    const origH = meta.height ?? null;
+    let origW: number | null = null;
+    let origH: number | null = null;
 
-    // gera + envia variantes
-    const uploaded: Record<string, { url: string; size: number; format: string }> = {};
-    for (const size of SIZES) {
-      const resized = sharp(input).resize({ width: size, withoutEnlargement: true });
-
-      // AVIF
-      {
-        const buf = await resized.avif({ quality: 55 }).toBuffer();
-        const key = `${folder}/${size}.avif`;
-        const { error } = await supabase.storage.from(BUCKET).upload(key, buf, {
-          contentType: "image/avif",
-          cacheControl: "31536000",
-          upsert: true,
-        });
-        if (error) throw error;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
-        uploaded[`avif-${size}`] = { url: data.publicUrl, size, format: "avif" };
-      }
-      // WEBP
-      {
-        const buf = await resized.webp({ quality: 72 }).toBuffer();
-        const key = `${folder}/${size}.webp`;
-        const { error } = await supabase.storage.from(BUCKET).upload(key, buf, {
-          contentType: "image/webp",
-          cacheControl: "31536000",
-          upsert: true,
-        });
-        if (error) throw error;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
-        uploaded[`webp-${size}`] = { url: data.publicUrl, size, format: "webp" };
+    if (sharpLib) {
+      try {
+        const base = sharpLib(input);
+        const meta = await base.metadata();
+        origW = meta.width ?? null;
+        origH = meta.height ?? null;
+      } catch {
+        // ignora erro de meta
       }
     }
 
-    const mainUrl = uploaded["avif-256"]?.url || uploaded["webp-256"]?.url;
+    // gera + envia variantes
+    const uploaded: Record<string, { url: string; size: number; format: string }> = {};
 
-    const image_meta = {
+    if (sharpLib) {
+      // fluxo normal com processamento
+      for (const size of SIZES) {
+        const resized = sharpLib(input).resize({ width: size, withoutEnlargement: true });
+
+        // AVIF
+        {
+          const buf = await resized.avif({ quality: 55 }).toBuffer();
+          const key = `${folder}/${size}.avif`;
+          const { error } = await supabase.storage.from(BUCKET).upload(key, buf, {
+            contentType: "image/avif",
+            cacheControl: "31536000",
+            upsert: true,
+          });
+          if (error) throw error;
+          const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
+          uploaded[`avif-${size}`] = { url: data.publicUrl, size, format: "avif" };
+        }
+        // WEBP
+        {
+          const buf = await resized.webp({ quality: 72 }).toBuffer();
+          const key = `${folder}/${size}.webp`;
+          const { error } = await supabase.storage.from(BUCKET).upload(key, buf, {
+            contentType: "image/webp",
+            cacheControl: "31536000",
+            upsert: true,
+          });
+          if (error) throw error;
+          const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
+          uploaded[`webp-${size}`] = { url: data.publicUrl, size, format: "webp" };
+        }
+      }
+    } else {
+      // fallback sem sharp: sobe o arquivo original uma única vez
+      const ext = extFromMime(file.type) || "bin";
+      const key = `${folder}/original.${ext}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(key, input, {
+        contentType: file.type || "application/octet-stream",
+        cacheControl: "31536000",
+        upsert: true,
+      });
+      if (error) throw error;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(key);
+      uploaded["original"] = { url: data.publicUrl, size: 0, format: ext };
+    }
+
+    const mainUrl =
+      uploaded["avif-256"]?.url ||
+      uploaded["webp-256"]?.url ||
+      uploaded["original"]?.url ||
+      Object.values(uploaded)[0]?.url ||
+      "";
+
+    const image_meta: any = {
       bucket: BUCKET,
       folder,
-      original: { width: origW, height: origH, mime: file.type || meta.format },
+      original: { width: origW, height: origH, mime: file.type || null },
       sizes: SIZES,
       formats: FORMATS,
       sources: uploaded,
       updated_at: new Date().toISOString(),
     };
+    if (!sharpLib) image_meta.originalOnly = true;
 
     // ───────── modo DETACHED: só retorna as URLs/metadata ─────────
     if (isDetached) {
@@ -118,7 +175,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         image_url: mainUrl,
         image_meta,
-        debug: { mode: "detached" },
+        debug: { mode: "detached", sharp: Boolean(sharpLib) },
       });
     }
 
@@ -194,7 +251,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       image_url: mainUrl,
       image_meta,
-      debug: { strategy, persisted_meta: persistedMeta, mode: "attach" },
+      debug: { strategy, persisted_meta: persistedMeta, mode: "attach", sharp: Boolean(sharpLib) },
     });
   } catch (err: any) {
     console.error(err);
