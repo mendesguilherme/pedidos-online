@@ -362,13 +362,13 @@ export default async function AdminPedidosPage({
     { value: "cancelado",         label: "Cancelado" },
   ] as const;
   const statusTab = statusTabs.some(t => t.value === (f_status || "")) ? (f_status as string) : "todos";
-
+  
   // Helper para aplicar os MESMOS filtros (exceto status) nas contagens
-  const applyCommonFilters = (q: ReturnType<typeof supa.from> extends infer T ? any : never) => {
-    let _q = q as ReturnType<typeof supa.from>["select"];
+  const applyCommonFilters = (q: any) => {
+    let _q = q as any;
     if (f_code) _q = _q.ilike("order_code", `%${f_code}%`);
-    if (f_tipo && !["todos","all"].includes(f_tipo)) _q = _q.eq("tipo", f_tipo);
-    if (f_pgto && !["todos","all"].includes(f_pgto)) _q = _q.eq("payment_method", f_pgto);
+    if (f_tipo && !["todos", "all"].includes(f_tipo)) _q = _q.eq("tipo", f_tipo);
+    if (f_pgto && !["todos", "all"].includes(f_pgto)) _q = _q.eq("payment_method", f_pgto);
     if (f_total_min && !Number.isNaN(Number(f_total_min))) _q = _q.gte("total", Number(f_total_min));
     if (f_total_max && !Number.isNaN(Number(f_total_max))) _q = _q.lte("total", Number(f_total_max));
     _q = _q.gte("created_at", fromISO).lte("created_at", toISO);
