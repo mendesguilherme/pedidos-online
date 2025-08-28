@@ -6,20 +6,24 @@ import { CartProvider } from "@/context/CartContext"
 import { OrderProvider } from "@/context/OrderContext"
 import AuthProvider from "./providers" // ⬅️ wrapper client com <SessionProvider>
 
+const BRAND = (process.env.NEXT_PUBLIC_BRAND || "acai").toLowerCase();
+const ICON_192 =
+  BRAND === "limpeza" ? "/icon-192x192-limpeza.avif" : "/icon-192x192-acai.avif";
+
 export const metadata: Metadata = {
-  title: "Pedido Online - Açaí Modelo",
-  description: "O melhor açaí da cidade!",
+  title: "Pedido Online - CHC",
+  description: "CHC Produtos de Limpeza e Piscina",
   icons: {
-    icon: "/images/icon-192x192.avif",
-    apple: "/images/icon-192x192.avif",
+    icon: [{ url: ICON_192, sizes: "192x192", type: "image/avif" }],
+    apple: [{ url: ICON_192, sizes: "192x192", type: "image/avif" }],
   },
   manifest: "/manifest.json",
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const brand = (process.env.NEXT_PUBLIC_BRAND || "acai").toLowerCase()
+  const brand = (BRAND || "acai").toLowerCase()
   const themeColor = brand === "limpeza" ? "#18B7F2" : "#6b21a8"
 
   return (
