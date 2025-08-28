@@ -3,21 +3,20 @@
 @tailwind utilities;
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }
 
 @layer base {
   :root {
+    /* ==== BRAND: acai (default) ==== */
     --background: 240 20% 98%;
-    --foreground: 278 100% 10%;        /* roxo escuro para textos */
-    --primary: 278 100% 27%;           /* roxo vibrante */
-    --primary-foreground: 0 0% 100%;   /* branco */
-    --secondary: 45 98% 53%;           /* amarelo destaque */
+    --foreground: 278 100% 10%;
+    --primary: 278 100% 27%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 98% 53%;
     --secondary-foreground: 278 100% 10%;
 
-    --accent: 278 100% 85%;            /* roxo claro de apoio */
+    --accent: 278 100% 85%;
     --accent-foreground: 278 100% 10%;
 
     --muted: 278 100% 94%;
@@ -50,6 +49,51 @@
     --sidebar-border: 278 100% 85%;
     --sidebar-ring: 278 100% 27%;
   }
+
+  /* ==== BRAND: limpeza (CHC) ==== */
+  html[data-brand="limpeza"] {
+    /* base bem próxima ao azul do logo e ciano piscina */
+    --background: 210 33% 98%;
+    --foreground: 222 47% 11%;
+    --primary: 214 86% 45%;             /* azul CHC */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 196 89% 52%;           /* azul piscina/ciano */
+    --secondary-foreground: 222 47% 11%;
+
+    --accent: 214 75% 92%;
+    --accent-foreground: 222 47% 11%;
+
+    --muted: 214 60% 96%;
+    --muted-foreground: 215 25% 35%;
+
+    --border: 214 50% 85%;
+    --input: 214 50% 85%;
+    --ring: 214 86% 45%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --chart-1: 214 86% 45%;
+    --chart-2: 196 89% 52%;
+    --chart-3: 214 60% 50%;
+    --chart-4: 214 75% 85%;
+    --chart-5: 0 0% 100%;
+
+    --sidebar-background: 210 33% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 214 86% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 196 89% 52%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 50% 85%;
+    --sidebar-ring: 214 86% 45%;
+  }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -87,26 +131,20 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
 }
 
 .address-fields input,
 .address-fields textarea,
-.address-fields select {
-  @apply bg-yellow-50;
-}
+.address-fields select { @apply bg-yellow-50; }
 
+/* Chevron do select passa a herdar a cor do tema via currentColor */
 .select-like-chevron{
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='hsl(278,100%,27%)' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>");
+  color: hsl(var(--primary));
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat:no-repeat;
   background-position:right .65rem center;
   background-size:1rem 1rem;
   padding-right:2rem; /* bate com o pr-8 do selectClass */
 }
-
-

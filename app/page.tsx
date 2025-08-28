@@ -53,7 +53,11 @@ export default function HomePage() {
         <div className="relative mt-2">
           <div className="w-36 h-36 rounded-full shadow-lg border-2 border-muted overflow-hidden">
             <Image
-              src="/images/logo.webp"
+              src={
+                (process.env.NEXT_PUBLIC_BRAND?.toLowerCase() === "limpeza")
+                  ? "/images/logolimpeza.webp"
+                  : "/images/logoacai.webp"
+              }
               alt="Logo da empresa"
               width={192}
               height={192}
