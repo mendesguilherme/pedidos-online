@@ -853,6 +853,50 @@ export default async function AdminPedidosPage({
         </TabsContent>
 
       </Tabs>
+
+      {/* ===== Overlay de Loading (Carregando...) ===== */}
+      <div
+        id="globalLoadingOverlay"
+        className="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+        aria-hidden="true"
+      >
+        <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
+          <p className="text-sm sm:text-base font-medium">Carregando...</p>
+          <div className="mt-4 w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+
+      {/* Script: mostra overlay ao trocar de ABA (?tab=...) e ao aplicar filtros (submit do form) */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(){
+  var ov = document.getElementById('globalLoadingOverlay');
+  if(!ov) return;
+  function show(){ ov.classList.remove('hidden'); ov.classList.add('flex'); }
+
+  // 1) Cliques nas abas principais (links com ?tab=...)
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.closest) return;
+    var a = t.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href') || '';
+    if (/[?&]tab=/.test(href)) show();
+  }, true);
+
+  // 2) Aplicar filtros (submit do formulário de filtros da aba Pedidos)
+  document.addEventListener('submit', function(e){
+    var f = e.target;
+    if(!f || f.nodeName !== 'FORM') return;
+    // heurística simples: possui estes campos típicos do filtro
+    var isFilters = f.querySelector('select[name="status"]') && f.querySelector('input[name="cf"]') && f.querySelector('input[name="ct"]');
+    if (isFilters) show();
+  }, true);
+})();`
+        }}
+      />
+      {/* ===== Fim do overlay ===== */}
     </main>
   );
 }

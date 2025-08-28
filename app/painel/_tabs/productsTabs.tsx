@@ -37,6 +37,9 @@ const field =
   "border-[hsl(var(--border))] focus:outline-none focus:ring-2 " +
   "focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]";
 
+const btnPager = "h-9 rounded-xl px-3"; // pager igual ao de Pedidos
+const RPP = 25; // máximo 25 linhas por página
+
 /* ===== helpers de moeda (iguais aos de Addons) ===== */
 const fmtBRL = (v?: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
@@ -127,6 +130,16 @@ export default function ProductsTabs() {
   const [loading, setLoading]       = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // paginação local (25 por página)
+  const [page, setPage] = useState(1);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / RPP));
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * RPP;
+    return rows.slice(start, start + RPP);
+  }, [rows, page]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
+
   // form create
   const [form, setForm] = useState({
     name: "", description: "", price: "0.00", imageUrl: "",
@@ -146,6 +159,10 @@ export default function ProductsTabs() {
 
   // Modal de upload “detached” (pré-criação)
   const createUploadRef = useRef<HTMLDialogElement | null>(null);
+
+  // 🔹 Tela de edição de detalhes
+  const editRef = useRef<HTMLDialogElement | null>(null);
+  const [editRow, setEditRow] = useState<Product | null>(null);
 
   const [infoMsg, setInfoMsg] = useState("");
   const [confirmData, setConfirmData] = useState<{ id: number; name: string } | null>(null);
@@ -168,6 +185,20 @@ export default function ProductsTabs() {
     try { createUploadRef.current?.showModal(); } catch {}
   }
   function closeCreateUpload() { try { createUploadRef.current?.close(); } catch {} }
+
+  // abrir/fechar edição
+  function openEdit(row: Product) {
+    setEditRow({
+      ...row,
+      description: row.description ?? "",
+      price: Number(row.price ?? 0),
+      category_id: row.category_id ?? "",
+      volumeMl: Number(row.volumeMl ?? 0),
+      maxToppings: Number(row.maxToppings ?? 0),
+    });
+    try { editRef.current?.showModal(); } catch {}
+  }
+  function closeEdit() { try { editRef.current?.close(); } catch {}; setEditRow(null); }
 
   async function fetchAll() {
     setLoading(true);
@@ -215,7 +246,6 @@ export default function ProductsTabs() {
           name,
           description: form.description || "",
           price: priceNum,
-          // 🔹 envia a URL e o META (se veio do uploader “detached”)
           image_url: form.imageUrl || "",
           image_meta: form.imageMeta ?? null,
           maxToppings: Number(form.maxToppings || 0),
@@ -267,6 +297,12 @@ export default function ProductsTabs() {
     } finally { setLoading(false); }
   }
 
+  // linha observada (para status de toppings/addons dentro do dialog)
+  const editRowLive = useMemo(
+    () => (editRow ? rows.find(r => r.id === editRow.id) ?? editRow : null),
+    [rows, editRow]
+  );
+
   /** UI */
   return (
     <div className="mt-4">
@@ -309,7 +345,7 @@ export default function ProductsTabs() {
           <Label className="text-xs text-gray-500">Imagem (URL)</Label>
           <Input value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))} className={field} placeholder="https://..."/>
         </div>
-        {/* 🔹 Botão para abrir o uploader “detached” (pré-criação) */}
+        {/* Botão uploader “detached” */}
         <div className="md:col-span-1 flex items-end">
           <Button
             type="button"
@@ -332,28 +368,37 @@ export default function ProductsTabs() {
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
         <table className="min-w-full text-sm table-fixed">
-          {/* colgroup em UMA linha (evita hidratação quebrar) */}
-          <colgroup><col className="w-[22%]" /><col className="w-[18%]" /><col className="w-[90px]" /><col className="w-[14%]" /><col className="w-[20%]" /><col className="w-[84px]" /><col className="w-[96px]" /><col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[120px]" /><col className="w-[180px]" /></colgroup>
+          {/* 4 colunas: Ativo | Nome | Imagem | Ações */}
+          <colgroup>
+            <col className="w-[120px]" />
+            <col className="w-[40%]" />
+            <col className="w-[32%]" />
+            <col className="w-[180px]" />
+          </colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
-              <th className="px-3 py-2 text-left">Nome</th>
-              <th className="px-3 py-2 text-left">Descrição</th>
-              <th className="px-3 py-2 text-left">Preço</th>
-              <th className="px-3 py-2 text-left">Categoria</th>
-              <th className="px-3 py-2 text-left">Imagem</th>
-              <th className="px-3 py-2 text-left">Volume</th>
-              <th className="px-3 py-2 text-left whitespace-nowrap">Máx. Acomp.</th>
-              <th className="px-3 py-2 text-left">Acompanhamentos</th>
-              <th className="px-3 py-2 text-left">Adicionais</th>
               <th className="px-3 py-2 text-left">Ativo</th>
+              <th className="px-3 py-2 text-left">Nome</th>
+              <th className="px-3 py-2 text-left">Imagem</th>
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r) => {
+            {pagedRows.map((r) => {
               const thumb = pickThumb(r.imageMeta, r.imageUrl);
               return (
                 <tr key={r.id} className="divide-x divide-slate-200">
+                  {/* ativo */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={!!r.active} onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })} />
+                      <span className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
+                        r.active ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                 : "border-slate-300 bg-slate-50 text-slate-600"
+                      }`}>{r.active ? "Ativo" : "Inativo"}</span>
+                    </div>
+                  </td>
+
                   {/* nome */}
                   <td className="px-3 py-2 min-w-[260px]">
                     <InlineText
@@ -362,41 +407,7 @@ export default function ProductsTabs() {
                     />
                   </td>
 
-                  {/* descrição */}
-                  <td className="px-3 py-2 min-w-[220px]">
-                    <InlineText
-                      value={r.description}
-                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, description: v}) : x))}
-                      placeholder="Opcional"
-                    />
-                  </td>
-
-                  {/* preço */}
-                  <td className="px-3 py-2">
-                    <InlineCurrency
-                      value={r.price}
-                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, price: v}) : x))}
-                    />
-                  </td>
-
-                  {/* categoria */}
-                  <td className="px-3 py-2">
-                    <select
-                      className="h-9 rounded-xl border border-slate-300 bg-white px-2 text-sm"
-                      value={r.category_id ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value || null;
-                        setRows(rs => rs.map(x => x.id === r.id ? ({...x, category_id: val}) : x));
-                      }}
-                    >
-                      <option value="">—</option>
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  
-                  {/* imagem (preview otimizado + caminho + botão) */}
+                  {/* imagem */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <div className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden bg-white flex items-center justify-center">
@@ -411,7 +422,6 @@ export default function ProductsTabs() {
                         )}
                       </div>
 
-                      {/* campo do caminho (um pouco menor para caber o botão ao lado) */}
                       <div className="min-w-0 w-24 sm:w-32 md:w-40">
                         <InlineText
                           value={r.imageUrl ?? ""}
@@ -432,63 +442,6 @@ export default function ProductsTabs() {
                     </div>
                   </td>
 
-                  {/* volume */}
-                  <td className="px-3 py-2">
-                    <InlineNumber
-                      value={r.volumeMl}
-                      onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, volumeMl: v}) : x))}
-                    />
-                  </td>
-
-                  {/* máx. acompanh. */}
-                  <td className="px-3 py-2">
-                    <div className="flex justify-center">
-                      <InlineNumber
-                        value={r.maxToppings}
-                        onChange={(v) => setRows(rs => rs.map(x => x.id === r.id ? ({...x, maxToppings: v}) : x))}
-                      />
-                    </div>
-                  </td>
-
-                  {/* Acompanhamentos (status + editar) */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
-                        {triLabel(r.allowedToppingIds)}
-                      </span>
-                      <Button size="sm" variant="outline" className="h-8 rounded-xl"
-                        onClick={() => openPicker(r.id, "toppings")}
-                        title="Selecionar acompanhamentos">
-                        <ListChecks className="w-4 h-4 mr-1" /> Editar
-                      </Button>
-                    </div>
-                  </td>
-
-                  {/* Adicionais (status + editar) */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium border-slate-300 bg-slate-50 text-slate-700">
-                        {triLabel(r.allowedAddonIds)}
-                      </span>
-                      <Button size="sm" variant="outline" className="h-8 rounded-xl"
-                        onClick={() => openPicker(r.id, "addons")}
-                        title="Selecionar adicionais">
-                        <ListChecks className="w-4 h-4 mr-1" /> Editar
-                      </Button>
-                    </div>
-                  </td>
-
-                  {/* ativo */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={!!r.active} onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })} />
-                      <span className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
-                        r.active ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                 : "border-slate-300 bg-slate-50 text-slate-600"
-                      }`}>{r.active ? "Ativo" : "Inativo"}</span>
-                    </div>
-                  </td>
-
                   {/* ações */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -496,18 +449,22 @@ export default function ProductsTabs() {
                         size="sm" variant="outline" className="h-8 rounded-xl"
                         onClick={() => patch(r.id, {
                           name: r.name,
-                          description: r.description,
-                          price: r.price,
-                          category_id: r.category_id,
-                          volume_ml: r.volumeMl,
-                          max_toppings: r.maxToppings,
                           image_url: r.imageUrl ?? "",
+                          active: r.active,
                         })}
                       >
                         <Save className="w-4 h-4 mr-1" /> Salvar
                       </Button>
+
                       <Button size="sm" variant="outline" className="h-8 rounded-xl" onClick={() => openConfirm(r.id, r.name)}>
                         <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                      </Button>
+
+                      <Button
+                        size="sm" variant="outline" className="h-8 rounded-xl"
+                        onClick={() => openEdit(r)}
+                      >
+                        Editar detalhes
                       </Button>
                     </div>
                   </td>
@@ -517,13 +474,35 @@ export default function ProductsTabs() {
 
             {!rows.length && (
               <tr>
-                <td colSpan={11} className="px-3 py-8 text-center text-gray-500">
+                <td colSpan={4} className="px-3 py-8 text-center text-gray-500">
                   {loading ? "Carregando..." : "Nenhum produto"}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* paginação (mesma da aba Pedidos) */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
+        <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page > 1 && setPage(page - 1)}
+          >
+            ← Anterior
+          </Button>
+
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page < totalPages && setPage(page + 1)}
+          >
+            Próxima →
+          </Button>
+        </div>
       </div>
 
       {/* Modal: Upload “detached” para inserção */}
@@ -568,7 +547,6 @@ export default function ProductsTabs() {
               value={uploadRow.imageUrl ?? null}
               onChange={(url: string | null, meta?: any) => {
                 if (url) {
-                  // ✅ atualiza imediatamente: URL + META locais (preview troca na hora)
                   setRows((rs) =>
                     rs.map((x) =>
                       x.id === uploadRow.id
@@ -579,7 +557,6 @@ export default function ProductsTabs() {
                   closeUpload();
                   showInfo("Imagem atualizada com sucesso!");
                 } else {
-                  // Remoção
                   void patch(uploadRow.id, { image_url: "" }, { silent: true });
                   setRows((rs) =>
                     rs.map((x) =>
@@ -602,6 +579,135 @@ export default function ProductsTabs() {
               onClick={closeUpload}
             >
               Fechar
+            </button>
+          </div>
+        </form>
+      </dialog>      
+      
+      {/* MODAL: Edição de detalhes */}
+      <dialog ref={editRef} className="rounded-xl border p-0 w-full max-w-lg">
+        <form method="dialog" className="p-5">
+          <h3 className="text-base font-semibold mb-3">
+            {editRow ? `Editar detalhes de "${editRow.name}"` : "Editar detalhes"}
+          </h3>
+
+          {editRow && (
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
+              {/* Descrição + Categoria */}
+              <div className="md:col-span-5">
+                <Label className="text-xs text-gray-500">Descrição</Label>
+                <Input
+                  value={editRow.description ?? ""}
+                  onChange={(e) => setEditRow(er => er ? ({ ...er, description: e.target.value }) : er)}
+                  className={field}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Label className="text-xs text-gray-500">Categoria</Label>
+                <select
+                  value={editRow.category_id ?? ""}
+                  onChange={(e) => setEditRow(er => er ? ({ ...er, category_id: e.target.value || "" }) : er)}
+                  className={`${field} leading-[2.5rem] appearance-none pr-8`}
+                >
+                  <option value="">Selecione</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              {/* Preço (expandir e alinhar à esquerda) */}
+              <div className="md:col-span-3">
+                <Label className="text-xs text-gray-500">Preço</Label>
+                <div className="mt-1 h-10 flex items-center w-full [&>input]:w-full [&>input]:text-left">
+                  <InlineCurrency
+                    value={editRow.price ?? 0}
+                    onChange={(v) => setEditRow(er => er ? ({ ...er, price: v }) : er)}
+                  />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label className="text-xs text-gray-500 whitespace-nowrap">Volume (ml)</Label>
+                <Input
+                  type="number"
+                  value={Number(editRow.volumeMl ?? 0)}
+                  onChange={(e) => setEditRow(er => er ? ({ ...er, volumeMl: Number(e.target.value || 0) }) : er)}
+                  className={field}
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Label className="text-xs text-gray-500 whitespace-nowrap">Máx. Acompanh.</Label>
+                <Input
+                  type="number"
+                  value={Number(editRow.maxToppings ?? 0)}
+                  onChange={(e) => setEditRow(er => er ? ({ ...er, maxToppings: Number(e.target.value || 0) }) : er)}
+                  className={field}
+                />
+              </div>
+
+              {/* Acompanhamentos */}
+              <div className="md:col-span-8">
+                <Label className="text-xs text-gray-500">Acompanhamentos</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="inline-flex h-10 items-center rounded-xl border px-3 text-sm border-slate-300 bg-white">
+                    {triLabel(editRowLive?.allowedToppingIds)}
+                  </span>
+                  <Button
+                    size="sm" variant="outline" className="h-10 rounded-xl"
+                    onClick={() => editRow && openPicker(editRow.id, "toppings")}
+                    type="button"
+                  >
+                    <ListChecks className="w-4 h-4 mr-1" /> Editar
+                  </Button>
+                </div>
+              </div>
+
+              {/* Adicionais */}
+              <div className="md:col-span-8">
+                <Label className="text-xs text-gray-500">Adicionais</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="inline-flex h-10 items-center rounded-xl border px-3 text-sm border-slate-300 bg-white">
+                    {triLabel(editRowLive?.allowedAddonIds)}
+                  </span>
+                  <Button
+                    size="sm" variant="outline" className="h-10 rounded-xl"
+                    onClick={() => editRow && openPicker(editRow.id, "addons")}
+                    type="button"
+                  >
+                    <ListChecks className="w-4 h-4 mr-1" /> Editar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-center gap-2">
+            <button
+              type="button"
+              className="rounded-xl bg-gray-200 px-3 py-2 text-sm hover:bg-gray-300"
+              onClick={closeEdit}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="rounded-xl bg-gray-900 text-white px-3 py-2 text-sm hover:bg-black"
+              onClick={async () => {
+                if (!editRow) return closeEdit();
+                const live = rows.find(r => r.id === editRow.id);
+                await patch(editRow.id, {
+                  description: editRow.description ?? "",
+                  price: Number(editRow.price ?? 0),
+                  category_id: editRow.category_id || null,
+                  volume_ml: Number(editRow.volumeMl ?? 0),
+                  max_toppings: Number(editRow.maxToppings ?? 0),
+                  allowed_topping_ids: live?.allowedToppingIds ?? null,
+                  allowed_addon_ids: live?.allowedAddonIds ?? null,
+                });
+                closeEdit();
+              }}
+            >
+              Salvar
             </button>
           </div>
         </form>
@@ -647,9 +753,10 @@ export default function ProductsTabs() {
           <div className="max-h-[360px] overflow-y-auto grid grid-cols-1 gap-1">
             {(pickFor?.kind === "toppings" ? toppings : addons).map((it) => {
               const isToppings = pickFor?.kind === "toppings";
+              const row = currentRow;
               const isChecked = isToppings
-                ? !!currentRow?.allowedToppingIds?.includes(it.id)
-                : !!currentRow?.allowedAddonIds?.includes(it.id);
+                ? !!row?.allowedToppingIds?.includes(it.id)
+                : !!row?.allowedAddonIds?.includes(it.id);
 
               return (
                 <label key={it.id} className="flex items-center gap-2 rounded-lg border p-2">
@@ -658,18 +765,18 @@ export default function ProductsTabs() {
                     className="h-4 w-4"
                     checked={isChecked}
                     onChange={(e) => {
-                      if (!pickFor || !currentRow) return;
+                      if (!pickFor || !row) return;
                       const checked = e.target.checked;
                       const id = it.id;
 
                       if (pickFor.kind === "toppings") {
-                        const cur = currentRow.allowedToppingIds ?? [];
+                        const cur = row.allowedToppingIds ?? [];
                         const next = checked ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
-                        setRows((rs) => rs.map((x) => (x.id === currentRow.id ? { ...x, allowedToppingIds: next } : x)));
+                        setRows((rs) => rs.map((x) => (x.id === row.id ? { ...x, allowedToppingIds: next } : x)));
                       } else {
-                        const cur = currentRow.allowedAddonIds ?? [];
+                        const cur = row.allowedAddonIds ?? [];
                         const next = checked ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter((x) => x !== id);
-                        setRows((rs) => rs.map((x) => (x.id === currentRow.id ? { ...x, allowedAddonIds: next } : x)));
+                        setRows((rs) => rs.map((x) => (x.id === row.id ? { ...x, allowedAddonIds: next } : x)));
                       }
                     }}
                   />

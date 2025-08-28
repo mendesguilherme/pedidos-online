@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -26,11 +26,27 @@ const field =
   "border-[hsl(var(--border))] focus:outline-none focus:ring-2 " +
   "focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]";
 
+const btnPager = "h-9 rounded-xl px-3"; // mesmo estilo dos paginadores da aba Pedidos
+const RPP = 25; // linhas por página (fixo)
+
 export default function CategoriesTabs() {
   const [rows, setRows] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false); // ⬅️ novo
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", position: 0 });
+
+  // paginação
+  const [page, setPage] = useState(1);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / RPP));
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * RPP;
+    return rows.slice(start, start + RPP);
+  }, [rows, page]);
+  useEffect(() => {
+    // garante que a página atual exista ao mudar o dataset
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
 
   // ---- MODAIS ----
   const confirmRef = useRef<HTMLDialogElement | null>(null);
@@ -80,7 +96,6 @@ export default function CategoriesTabs() {
       return n;
     });
 
-  // ⬇️ atualizado: trata sucesso/erro e atualiza a lista
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
     const name = form.name.trim();
@@ -99,7 +114,6 @@ export default function CategoriesTabs() {
         }),
       });
 
-      // tenta ler o JSON mesmo em erro para extrair mensagem
       const payload = await res.json().catch(() => ({} as any));
       if (!res.ok) {
         const msg = payload?.error || `Falha ao criar categoria (HTTP ${res.status}).`;
@@ -107,9 +121,8 @@ export default function CategoriesTabs() {
         return;
       }
 
-      // sucesso
       setForm({ name: "", position: 0 });
-      await fetchRows(); // atualiza a tabela
+      await fetchRows();
       showInfo("Categoria criada com sucesso!");
     } catch (err: any) {
       showInfo(`Falha ao criar categoria: ${String(err?.message ?? err)}`);
@@ -132,7 +145,6 @@ export default function CategoriesTabs() {
           res.status === 409
             ? "Não é possível inativar/excluir: existem produtos ativos nessa categoria."
             : payload?.error || `Falha ao editar (HTTP ${res.status}).`;
-        // erro sempre aparece, sucesso só quando não-silent
         showInfo(msg);
         return false;
       }
@@ -206,41 +218,25 @@ export default function CategoriesTabs() {
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
         <table className="min-w-full text-sm">
+          <colgroup>
+            <col className="w-[12%]" />
+            <col className="w-[30%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+          </colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
+              <th className="px-3 py-2 text-left">Ativa</th>
               <th className="px-3 py-2 text-left">Nome</th>
               <th className="px-3 py-2 text-left">Slug</th>
               <th className="px-3 py-2 text-left">Ordem</th>
-              <th className="px-3 py-2 text-left">Ativa</th>
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r) => (
+            {pagedRows.map((r) => (
               <tr key={r.id} className="divide-x divide-slate-200">
-                <td className="px-3 py-2">
-                  <InlineText
-                    value={r.name}
-                    onChange={(v) =>
-                      setRows((rs) =>
-                        rs.map((x) => (x.id === r.id ? { ...x, name: v } : x))
-                      )
-                    }
-                  />
-                </td>
-                <td className="px-3 py-2 text-gray-600">{r.slug}</td>
-                <td className="px-3 py-2">
-                  <InlineNumber
-                    value={r.position}
-                    onChange={(v) =>
-                      setRows((rs) =>
-                        rs.map((x) =>
-                          x.id === r.id ? { ...x, position: v } : x
-                        )
-                      )
-                    }
-                  />
-                </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
                     <Switch
@@ -265,6 +261,29 @@ export default function CategoriesTabs() {
                       {r.active ? "Ativa" : "Inativa"}
                     </span>
                   </div>
+                </td>
+                <td className="px-3 py-2">
+                  <InlineText
+                    value={r.name}
+                    onChange={(v) =>
+                      setRows((rs) =>
+                        rs.map((x) => (x.id === r.id ? { ...x, name: v } : x))
+                      )
+                    }
+                  />
+                </td>
+                <td className="px-3 py-2 text-gray-600">{r.slug}</td>
+                <td className="px-3 py-2">
+                  <InlineNumber
+                    value={r.position}
+                    onChange={(v) =>
+                      setRows((rs) =>
+                        rs.map((x) =>
+                          x.id === r.id ? { ...x, position: v } : x
+                        )
+                      )
+                    }
+                  />
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
@@ -296,16 +315,35 @@ export default function CategoriesTabs() {
 
             {!rows.length && (
               <tr>
-                <td
-                  colSpan={5}
-                  className="px-3 py-8 text-center text-gray-500"
-                >
+                <td colSpan={5} className="px-3 py-8 text-center text-gray-500">
                   {loading ? "Carregando..." : "Nenhuma categoria"}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* paginação (mesmo layout da aba Pedidos, sem filtros) */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
+        <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page > 1 && setPage(page - 1)}
+          >
+            ← Anterior
+          </Button>
+
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page < totalPages && setPage(page + 1)}
+          >
+            Próxima →
+          </Button>
+        </div>
       </div>
 
       {/* ======= MODAL: Confirmação de exclusão ======= */}

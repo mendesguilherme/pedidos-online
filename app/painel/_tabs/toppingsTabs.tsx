@@ -1,7 +1,7 @@
 // app/painel/_tabs/toppingsTabs.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,9 @@ const field =
   "border-[hsl(var(--border))] focus:outline-none focus:ring-2 " +
   "focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]";
 
+const btnPager = "h-9 rounded-xl px-3"; // mesmo estilo usado na aba Pedidos
+const RPP = 25; // linhas por página (fixo)
+
 // miniatura a partir do image_meta
 function pickThumb(meta?: ImageMeta): string | null {
   const s = meta?.sources;
@@ -49,7 +52,17 @@ export default function ToppingsTabs() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<{ name: string; imageUrl: string; imageMeta?: any | null }>({
     name: "", imageUrl: "", imageMeta: null
-  })
+  });
+
+  // paginação
+  const [page, setPage] = useState(1);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / RPP));
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * RPP;
+    return rows.slice(start, start + RPP);
+  }, [rows, page]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
 
   // modais (confirmação + mensagens)
   const confirmRef = useRef<HTMLDialogElement | null>(null);
@@ -257,25 +270,44 @@ export default function ToppingsTabs() {
       <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
         <table className="min-w-full text-sm table-fixed">
           <colgroup>
-            <col className="w-[50%]" />
-            <col className="w-[22%]" />
             <col className="w-[12%]" />
+            <col className="w-[50%]" />
+            <col className="w-[22%]" />            
             <col className="w-[16%]" />
           </colgroup>
           <thead className="bg-[hsl(var(--primary))] text-white">
             <tr className="divide-x divide-white/30">
-              <th className="px-3 py-2 text-left">Nome</th>
-              <th className="px-3 py-2 text-left">Imagem</th>
               <th className="px-3 py-2 text-left">Ativo</th>
+              <th className="px-3 py-2 text-left">Nome</th>
+              <th className="px-3 py-2 text-left">Imagem</th>              
               <th className="px-3 py-2 text-left">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {rows.map((r) => {
+            {pagedRows.map((r) => {
               const isActive = r.active !== false;
               const thumb = pickThumb(r.image_meta);
               return (
                 <tr key={r.id} className="divide-x divide-slate-200">
+                  {/* Ativo */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={isActive}
+                        onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })}
+                      />
+                      <span
+                        className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
+                          isActive
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : "border-slate-300 bg-slate-50 text-slate-600"
+                        }`}
+                      >
+                        {isActive ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                  </td>
+
                   {/* Nome */}
                   <td className="px-3 py-2">
                     <InlineText
@@ -323,26 +355,7 @@ export default function ToppingsTabs() {
                         <ImageIcon className="w-4 h-4 mr-1" /> Imagem
                       </Button>
                     </div>
-                  </td>
-
-                  {/* Ativo */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={isActive}
-                        onCheckedChange={(val) => patch(r.id, { active: val }, { silent: true })}
-                      />
-                      <span
-                        className={`inline-flex items-center rounded-xl border px-2 py-1 text-xs font-medium ${
-                          isActive
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-slate-300 bg-slate-50 text-slate-600"
-                        }`}
-                      >
-                        {isActive ? "Ativo" : "Inativo"}
-                      </span>
-                    </div>
-                  </td>
+                  </td>                  
 
                   {/* Ações */}
                   <td className="px-3 py-2">
@@ -378,6 +391,28 @@ export default function ToppingsTabs() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* paginação (mesma da aba Pedidos) */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
+        <div>{totalRows.toLocaleString("pt-BR")} resultado(s) • Página {page} de {totalPages}</div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page <= 1 ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page > 1 && setPage(page - 1)}
+          >
+            ← Anterior
+          </Button>
+
+          <Button
+            variant="outline"
+            className={`${btnPager} ${page >= totalPages ? "pointer-events-none opacity-40" : ""}`}
+            onClick={() => page < totalPages && setPage(page + 1)}
+          >
+            Próxima →
+          </Button>
+        </div>
       </div>
 
       {/* MODAL: Upload “detached” para a faixa de inserção */}
@@ -432,8 +467,6 @@ export default function ToppingsTabs() {
                   );
                   closeUpload();
                   showInfo("Imagem atualizada com sucesso!");
-                  // opcional: refetch para garantir persistência do meta vindo da view
-                  // void fetchRows();
                 } else {
                   // remoção
                   patch(uploadRow.id, { imageUrl: null }, { silent: true });
@@ -462,7 +495,6 @@ export default function ToppingsTabs() {
           </div>
         </form>
       </dialog>
-
 
       {/* MODAL: Confirmação de exclusão */}
       <dialog ref={confirmRef} className="rounded-xl border p-0 w-full max-w-sm">
