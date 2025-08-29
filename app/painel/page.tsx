@@ -6,6 +6,8 @@ import CategoriesEntry from "./_tabs/categoriesEntry";
 import ToppingssEntry from "./_tabs/toppingsEntry";
 import AddonsEntry from "./_tabs/addonsEntry";
 import ProductsEntry from "./_tabs/productsEntry";
+import OrdersBusyBridge from "./_components/OrdersBusyBridge";
+
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileText as OrdersIcon, Folder, ChefHat, Utensils, Shapes, Layers, Package } from "lucide-react";
@@ -683,29 +685,52 @@ export default async function AdminPedidosPage({
                       <div className="w-full flex flex-wrap justify-center gap-2">
                         {o.actions.includes("aceitar") && (
                           <Button asChild variant="outline" className={btnAceitar}>
-                            <a href={o.links.aceitar} data-busy-text="Atualizando status...">Aceitar Pedido</a>
+                            <a
+                              href={o.links.aceitar}
+                              data-busy-text="Atualizando status..."
+                              data-busy-delay="1000"
+                            >
+                              Aceitar Pedido
+                            </a>
                           </Button>
                         )}
 
-                        {o.actions.includes("negar") && (
-                          <DenyWithReasonButton orderId={o.id} className={btnNegar} />
+                        { o.actions.includes("negar") && (
+                          <DenyWithReasonButton
+                            orderId={o.id}
+                            className={btnNegar}
+                            busyText="Atualizando status..."
+                            // opcional: redirectTo={o.links.negarComRedirectSeTiver}
+                          />
                         )}
 
                         {o.actions.includes("saiu_para_entrega") && (
                           <Button asChild variant="outline" className={btnSaiu}>
-                            <a href={o.links.saiu} data-busy-text="Atualizando status...">
-                              {(o.tipo ?? "").toLowerCase() === "entrega" ? "Saiu p/ entrega" : "Pronto p/ retirada"}
+                            <a
+                              href={o.links.saiu}
+                              data-busy-text="Atualizando status..."
+                              data-busy-delay="600"
+                            >
+                              {(o.tipo ?? "").toLowerCase() === "entrega"
+                                ? "Saiu p/ entrega"
+                                : "Pronto p/ retirada"}
                             </a>
                           </Button>
                         )}
 
                         {o.actions.includes("entregue") && (
                           <Button asChild variant="outline" className={btnEntregue}>
-                            <a href={o.links.entregue} data-busy-text="Atualizando status...">Entregue</a>
+                            <a
+                              href={o.links.entregue}
+                              data-busy-text="Atualizando status..."
+                              data-busy-delay="600"
+                            >
+                              Entregue
+                            </a>
                           </Button>
                         )}
 
-                        {(o.status !== "pendente" && o.status !== "cancelado") && (
+                        {o.status !== "pendente" && o.status !== "cancelado" && (
                           <>
                             <Button
                               asChild
@@ -714,15 +739,20 @@ export default async function AdminPedidosPage({
                                           bg-emerald-600 hover:bg-emerald-600/90 text-white
                                           border border-emerald-600 focus-visible:ring-emerald-600/30`}
                             >
-                              <a href={o.links.notify} title="Enviar os detalhes no WhatsApp" data-busy-text="Enviando no WhatsApp...">
+                              <a
+                                href={o.links.notify}
+                                title="Enviar os detalhes no WhatsApp"
+                                data-busy-text="Enviando no WhatsApp..."
+                                data-busy-delay="600"
+                              >
                                 Enviar WhatsApp
                               </a>
-                            </Button>                           
-
+                            </Button>
                           </>
                         )}
                       </div>
                     </td>
+
 
                   </tr>
                 ))}
@@ -848,151 +878,9 @@ export default async function AdminPedidosPage({
           <ProductsEntry />
         </TabsContent>
 
-      </Tabs>
+      </Tabs>      
 
-      {/* ===== Overlay de Busy (texto dinâmico) ===== */}
-      <div
-        id="globalBusyOverlay"
-        className="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
-        aria-hidden="true"
-      >
-        <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
-          <p id="globalBusyText" className="text-sm sm:text-base font-medium">Carregando...</p>
-          <div className="mt-4 w-8 h-8 border-4 border-[hsl(var(--primary))] border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
-      </div>
-
-
-      {/* Script: mostra overlay ao trocar de ABA (?tab=...) e ao aplicar filtros (submit do form) */}
-     <script
-  dangerouslySetInnerHTML={{
-    __html: `
-(function(){
-  var ov = document.getElementById('globalBusyOverlay');
-  var txtEl = ov ? ov.querySelector('#globalBusyText') : null;
-  var DEFAULT_DELAY = 700; // <- ajuste global aqui (ms)
-
-  function show(text){
-    if (!ov) return;
-    if (txtEl) txtEl.textContent = text || 'Processando...';
-    ov.classList.remove('hidden'); ov.classList.add('flex');
-  }
-  function hide(){
-    if (!ov) return;
-    ov.classList.add('hidden'); ov.classList.remove('flex');
-  }
-  function afterNextPaint(fn){
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(function(){ requestAnimationFrame(fn); });
-    } else {
-      setTimeout(fn, 80);
-    }
-  }
-  function readDelay(el){
-    var v = (el && el.getAttribute && el.getAttribute('data-busy-delay')) || '';
-    var n = Number(v);
-    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DELAY;
-  }
-  function navWithBusy(href, text, delay){
-    show(text);
-    afterNextPaint(function(){
-      setTimeout(function(){ window.location.assign(href); }, delay);
-    });
-  }
-
-  // expõe global (reutilizado no modal de negação)
-  window.__showBusyOverlay = show;
-  window.__hideBusyOverlay = hide;
-
-  // 1) Cliques em links (ações) e abas (?tab=...)
-  document.addEventListener('click', function(e){
-    var t = e.target;
-    if (!t || !t.closest) return;
-
-    var a = t.closest('a[href]');
-    if (a) {
-      var busyText = a.getAttribute('data-busy-text');
-      var href = a.getAttribute('href') || '';
-
-      if (busyText) {
-        e.preventDefault();
-        navWithBusy(href, busyText, readDelay(a));
-        return;
-      }
-      if (/[?&]tab=/.test(href)) {
-        e.preventDefault();
-        navWithBusy(href, 'Carregando...', readDelay(a));
-        return;
-      }
-    }
-
-    // Botões NÃO-links com data-busy-text
-    var btn = t.closest('[data-busy-text]');
-    if (btn && !btn.closest('a[href]')) {
-      show(btn.getAttribute('data-busy-text') || 'Processando...');
-    }
-  }, true);
-
-  // 2) Submit do formulário de filtros
-  document.addEventListener('submit', function(e){
-    var f = e.target;
-    if (!f || f.nodeName !== 'FORM') return;
-    var isFilters = f.querySelector('select[name="status"]') &&
-                    f.querySelector('input[name="cf"]') &&
-                    f.querySelector('input[name="ct"]');
-    if (isFilters) {
-      e.preventDefault();
-      var delay = readDelay(f);
-      show('Carregando...');
-      afterNextPaint(function(){ setTimeout(function(){ f.submit(); }, delay); });
-    }
-  }, true);
-
-  // 3) Modal "Negar": mantém overlay e atrasa redirect um tico
-  (function(){
-    var dlg = document.getElementById('denyModal');
-    if(!dlg) return;
-    var reasonEl = dlg.querySelector('#denyReason');
-
-    document.addEventListener('click', function(e){
-      var target = e.target;
-      if(!target) return;
-      var btn = target.closest && target.closest('[data-deny-token]');
-      if(!btn) return;
-      e.preventDefault();
-      dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
-      dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/painel';
-      if (reasonEl) reasonEl.value = '';
-      try { dlg.showModal(); } catch(_) {}
-    });
-
-    var confirmBtn = dlg.querySelector('[data-confirm]');
-    if (confirmBtn) {
-      confirmBtn.addEventListener('click', async function(){
-        var token = dlg.dataset.token || '';
-        var redirect = dlg.dataset.redirect || '/painel';
-        try{
-          show('Atualizando status...');
-          if (token) {
-            await fetch(token, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reason: String((reasonEl && reasonEl.value) || '').slice(0,500) })
-            });
-          }
-        }catch(_){} finally {
-          afterNextPaint(function(){
-            setTimeout(function(){ window.location.assign(redirect); }, DEFAULT_DELAY);
-          });
-        }
-      });
-    }
-  })();
-})();`
-  }}
-/>
-
-
+      <OrdersBusyBridge/>
 
       {/* ===== Fim do overlay ===== */}
     </main>
