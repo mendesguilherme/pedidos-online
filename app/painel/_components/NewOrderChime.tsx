@@ -1,174 +1,134 @@
-// app/painel/_components/NewOrderChime.tsx
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { useCallback, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 type Props = {
-  /** Tocar só quando a aba estiver ativa (evita susto em abas no background). Default: true */
+  /** Só tocar quando a aba estiver ativa (se estiver oculta, não toca) */
   onlyWhenTabActive?: boolean;
-  /** Tocar apenas quando o pedido entrar com status="pendente". Default: true */
+  /** Tocar apenas para pedidos com status=pendente */
   onlyStatusPendente?: boolean;
+  /** Caminho do arquivo de som (em /public) */
+  src?: string; // ex.: "/sons/neworder.wav"
 };
 
 declare global {
   interface Window {
-    __ordersAudioCtx?: AudioContext;
-    webkitAudioContext?: typeof AudioContext;
+    /** usado pelo toggle para forçar o desbloqueio do áudio */
+    dispatchEvent: (e: Event) => boolean;
   }
 }
 
 export default function NewOrderChime({
   onlyWhenTabActive = true,
   onlyStatusPendente = true,
+  src = "/sons/neworder.wav",
 }: Props) {
-  const [enabled, setEnabled] = useState(false);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const seenIdsRef = useRef<Set<string>>(new Set());
+  const enabledRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const seenIds = useRef<Set<string>>(new Set());
 
-  // Lê preferência
+  // lê e observa a preferência (localStorage) – integrada ao OrdersSoundToggle
   useEffect(() => {
-    try {
-      setEnabled(localStorage.getItem("ordersSoundEnabled") === "1");
-    } catch {}
-  }, []);
+    const read = () => {
+      try { enabledRef.current = localStorage.getItem("ordersSoundEnabled") === "1"; } catch {}
+    };
+    read();
 
-  // Sincroniza preferência entre abas
-  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "ordersSoundEnabled") setEnabled(e.newValue === "1");
+      if (e.key === "ordersSoundEnabled") read();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Cria/reutiliza e tenta "resumir" o AudioContext
-  const unlockCtx = useCallback(async (): Promise<AudioContext | null> => {
-    if (typeof window === "undefined") return null;
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-
-    let ctx = window.__ordersAudioCtx ?? ctxRef.current ?? null;
-    if (!ctx) {
-      try {
-        ctx = new Ctx();
-      } catch {
-        return null;
-      }
-      window.__ordersAudioCtx = ctx;
-      ctxRef.current = ctx;
-    }
-    if (ctx.state === "suspended") {
-      try {
-        await ctx.resume();
-      } catch {}
-    }
-    return ctx;
-  }, []);
-
-  // Desbloqueia no primeiro gesto do usuário e quando o toggle dispara o evento custom
+  // cria e “desbloqueia” o <audio> no 1º gesto do usuário (ou quando o toggle mandar)
   useEffect(() => {
-    const handler = () => {
-      void unlockCtx();
+    const unlock = () => {
+      // instancia e pré-carrega
+      if (!audioRef.current) {
+        const a = new Audio(src);
+        a.preload = "auto";
+        audioRef.current = a;
+      }
+      // tentativa de desbloqueio: tocar mudo rapidamente
+      const a = audioRef.current!;
+      a.muted = true;
+      a.play().catch(() => {}).finally(() => {
+        a.pause();
+        a.muted = false;
+        a.currentTime = 0;
+      });
     };
-    const onPointer = () => {
-      handler();
-      cleanup();
-    };
-    const onKey = () => {
-      handler();
-      cleanup();
-    };
+
+    const onPointer = () => { unlock(); cleanup(); };
+    const onKey = () => { unlock(); cleanup(); };
     const cleanup = () => {
       document.removeEventListener("pointerdown", onPointer, true);
       document.removeEventListener("keydown", onKey, true);
     };
+
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("orders-sound-unlock", handler as any);
+    // o OrdersSoundToggle deve disparar este evento ao ligar o som
+    window.addEventListener("orders-sound-unlock", unlock as any);
+
     return () => {
       cleanup();
-      window.removeEventListener("orders-sound-unlock", handler as any);
+      window.removeEventListener("orders-sound-unlock", unlock as any);
     };
-  }, [unlockCtx]);
+  }, [src]);
 
-  // Beep curtinho
-  const beep = useCallback(
-    async (freq = 987, duration = 0.28) => {
-      const ctx = await unlockCtx();
-      if (!ctx) return;
+  const play = useCallback(() => {
+    if (!enabledRef.current) return;
+    if (onlyWhenTabActive && document.hidden) return;
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    let a = audioRef.current;
+    if (!a) {
+      a = new Audio(src);
+      a.preload = "auto";
+      audioRef.current = a;
+    }
+    try {
+      a.currentTime = 0; // reinicia se já tiver tocado
+      void a.play();
+    } catch {}
+  }, [src, onlyWhenTabActive]);
 
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + duration);
-      osc.onended = () => {
-        try {
-          osc.disconnect();
-          gain.disconnect();
-        } catch {}
-      };
-    },
-    [unlockCtx]
-  );
-
-  // Supabase Realtime: toca ao inserir pedido
+  // Supabase Realtime – toca no INSERT de orders (opcionalmente filtrado)
   useEffect(() => {
-    if (!enabled) return;
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     if (!url || !key) return;
 
-    const supa: SupabaseClient = createClient(url, key, {
-      realtime: { params: { eventsPerSecond: 3 } },
-    });
+    const supa = createClient(url, key, { realtime: { params: { eventsPerSecond: 3 } } });
+    const filter = onlyStatusPendente ? "status=eq.pendente" : undefined;
 
-    const changesOpts: any = {
-      schema: "public",
-      table: "orders",
-      event: "INSERT",
-    };
-    // Algumas versões do supabase-js ignoram silently se 'filter' não existir
-    if (onlyStatusPendente) {
-      changesOpts.filter = "status=eq.pendente";
-    }
-
-    const channel = supa
+    const ch = supa
       .channel("orders-new-chime")
-      .on("postgres_changes", changesOpts, (payload) => {
-        const row: any = payload?.new ?? {};
+      .on(
+        "postgres_changes",
+        { schema: "public", table: "orders", event: "INSERT", filter },
+        (payload) => {
+          const row: any = payload.new || {};
+          if (onlyStatusPendente && row?.status !== "pendente") return;
 
-        if (onlyWhenTabActive && document.hidden) return;
-        if (onlyStatusPendente && row?.status !== "pendente") return;
-
-        // Dedup simples (evita toques repetidos em reconexões)
-        const id = String(row?.id ?? "");
-        if (id) {
-          const seen = seenIdsRef.current;
-          if (seen.has(id)) return;
-          seen.add(id);
-          if (seen.size > 200) {
-            seenIdsRef.current = new Set(Array.from(seen).slice(-100));
+          const id = String(row.id || "");
+          if (id && seenIds.current.has(id)) return;
+          if (id) {
+            seenIds.current.add(id);
+            if (seenIds.current.size > 200) {
+              seenIds.current = new Set(Array.from(seenIds.current).slice(-100));
+            }
           }
-        }
 
-        void beep();
-      })
+          play();
+        }
+      )
       .subscribe();
 
-    return () => {
-      supa.removeChannel(channel);
-    };
-  }, [enabled, beep, onlyWhenTabActive, onlyStatusPendente]);
+    return () => { supa.removeChannel(ch); };
+  }, [onlyStatusPendente, play]);
 
   return null; // sem UI
 }

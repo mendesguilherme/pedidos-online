@@ -485,7 +485,7 @@ export default async function AdminPedidosPage({
 
         {/* === Aba Pedidos (DEFAULT) === */}
         <TabsContent value="pedidos" className="mt-4">  
-          <NewOrderChime onlyWhenTabActive onlyStatusPendente />        
+          <NewOrderChime src="/sons/neworder.wav" onlyStatusPendente onlyWhenTabActive />
           <p className="text-sm text-gray-500 mt-2">
             Clique em Aceitar/Negar para atualizar o status. Você retornará a esta página após a ação.
           </p>
