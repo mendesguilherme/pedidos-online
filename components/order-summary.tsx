@@ -31,10 +31,14 @@ interface OrderSummaryProps {
   onAddProduct: (force?: boolean) => void
   setTab: (tab: string) => void
 
-  /** seleção atual na aba produtos (opcional) */
-  draftProductPrice?: number
-  draftExtraIds?: number[]
+  /** Pré-visualização (tela de produtos) */
+  draftProductPrice?: number               // preço do produto ativo (para manter compat.)
+  draftExtraIds?: number[]                 // extras selecionados no produto ativo
   mustFillToppings?: boolean
+
+  /** NOVO: prévia de seleção múltipla */
+  draftSelectionBaseTotal?: number         // soma de (preço * quantidade) de todos os itens selecionados (sem extras)
+  draftActiveQty?: number                  // quantidade do produto ativo (aplica extras * qty)
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -57,20 +61,22 @@ export function OrderSummary({
   draftProductPrice,
   draftExtraIds,
   mustFillToppings = false,
+
+  // 🔹 novos
+  draftSelectionBaseTotal = 0,
+  draftActiveQty = 0,
 }: OrderSummaryProps) {
   const router = useRouter()
   const [showModal, setShowModal] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
-  const [forceAdd, setForceAdd] = useState(false)
 
   const { cart } = useCart()
   const paymentMethod = cart.paymentMethod
 
-  // addons para pré-visualização dos extras na aba produtos
+  // addons para calcular o total dos extras
   const { data: addonsDb } = useAddons()
 
-  // ======== FONTE DE VERDADE: CONTEXTO (cart) =========
+  // ======== TOTAIS DO CARRINHO (contexto) =========
   const itemsSubtotal = useMemo(
     () =>
       round2(
@@ -96,30 +102,36 @@ export function OrderSummary({
 
   const shouldShowDeliveryRow = effectiveTipo === "entrega"
 
-  // ======== PRÉ-VISUALIZAÇÃO DA ABA PRODUTOS =========
-  const draftExtrasTotal = useMemo(() => {
+  // ======== PRÉ-VISUALIZAÇÃO (tela de produtos) =========
+  // soma dos extras do produto ativo (por unidade)
+  const extrasPerUnit = useMemo(() => {
     if (currentTab !== "produtos" || !hasSelectedProduct) return 0
     const ids = Array.isArray(draftExtraIds) ? draftExtraIds : []
     const list = addonsDb ?? []
     const priceMap = new Map<number, number>(list.map(a => [a.id, Number(a.price ?? 0)]))
     const sum = ids.reduce((acc, id) => acc + (priceMap.get(id) ?? 0), 0)
-    return round2(sum)
+    return Number.isFinite(sum) ? sum : 0
   }, [currentTab, hasSelectedProduct, draftExtraIds, addonsDb])
 
-  const draftProductSafe = useMemo(() => {
-    if (currentTab !== "produtos" || !hasSelectedProduct) return 0
-    return round2(Number(draftProductPrice ?? 0))
-  }, [currentTab, hasSelectedProduct, draftProductPrice])
+  // total dos extras considerando a quantidade do produto ativo
+  const extrasTotalForActive = useMemo(
+    () => round2(extrasPerUnit * Number(draftActiveQty ?? 0)),
+    [extrasPerUnit, draftActiveQty]
+  )
 
-  // Subtotal exibido: carrinho (contexto) + prévia (se na aba produtos)
+  // Subtotal exibido: carrinho (contexto) + prévia múltipla (se na aba produtos)
   const displaySubtotal = useMemo(() => {
     if (currentTab === "produtos") {
-      return round2(itemsSubtotal + draftProductSafe + draftExtrasTotal)
+      // draftSelectionBaseTotal já considera (preço * qty) de todos os itens selecionados
+      return round2(itemsSubtotal + draftSelectionBaseTotal + extrasTotalForActive)
     }
     return itemsSubtotal
-  }, [currentTab, itemsSubtotal, draftProductSafe, draftExtrasTotal])
+  }, [currentTab, itemsSubtotal, draftSelectionBaseTotal, extrasTotalForActive])
 
-  const displayDeliveryFee = useMemo(() => (shouldShowDeliveryRow ? feeFromCart : 0), [shouldShowDeliveryRow, feeFromCart])
+  const displayDeliveryFee = useMemo(
+    () => (shouldShowDeliveryRow ? feeFromCart : 0),
+    [shouldShowDeliveryRow, feeFromCart]
+  )
 
   const displayTotal = useMemo(
     () => round2(displaySubtotal + displayDeliveryFee),
@@ -159,13 +171,13 @@ export function OrderSummary({
         : "Definir Forma de Pagamento",
   }
 
-  // ✅ Alterado: ao adicionar, redireciona para o carrinho (sem abrir o modal de “dois botões”)
+  // ✅ Ao adicionar, vai direto ao carrinho
   const handleAddProduct = () => {
     if (mustFillToppings && !canAddProduct) {
       setShowWarning(true);
       return;
     }
-    onAddProduct(true);   // força adicionar quando permitido
+    onAddProduct(true);   // força adicionar (quando permitido)
     router.push("/carrinho");
   };
 
@@ -216,7 +228,7 @@ export function OrderSummary({
               <Button
                 size="sm"
                 onClick={handleAddProduct}
-                disabled={!hasSelectedProduct}
+                disabled={!hasSelectedProduct || !canAddProduct}
                 className="text-xs sm:text-sm px-4 py-6 w-full rounded-md bg-primary hover:bg-primary/90 text-white"
                 style={{ borderRadius: "6px" }}
               >
@@ -238,7 +250,7 @@ export function OrderSummary({
         </CardContent>
       </Card>
 
-      {/* Mantém os modais de validação, mas REMOVE o modal de “produto adicionado” */}
+      {/* Mantém modais de validação; sem modal “produto adicionado” */}
       {currentTab !== "produtos" && (
         <Dialog open={showModal} onOpenChange={setShowModal}>
           <DialogContent

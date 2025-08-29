@@ -54,6 +54,9 @@ export default function ToppingsTabs() {
     name: "", imageUrl: "", imageMeta: null
   });
 
+  // 🔹 Overlay “Salvando alterações...”
+  const [busy, setBusy] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
+
   // paginação
   const [page, setPage] = useState(1);
   const totalRows = rows.length;
@@ -175,8 +178,13 @@ export default function ToppingsTabs() {
   }
 
   // PATCH
-  async function patch(id: number, body: any, opts?: { silent?: boolean }) {
+  async function patch(
+    id: number,
+    body: any,
+    opts?: { silent?: boolean; overlayText?: string }
+  ) {
     setLoading(true);
+    if (opts?.overlayText) setBusy({ open: true, text: opts.overlayText });
     try {
       const res = await fetch(`/api/toppings/${id}`, {
         method: "PATCH",
@@ -193,6 +201,7 @@ export default function ToppingsTabs() {
       if (!opts?.silent) showInfo("Edição realizada com sucesso!");
     } finally {
       setLoading(false);
+      if (opts?.overlayText) setBusy({ open: false, text: "" });
     }
   }
 
@@ -364,7 +373,13 @@ export default function ToppingsTabs() {
                         size="sm"
                         variant="outline"
                         className="h-8 rounded-xl"
-                        onClick={() => patch(r.id, { name: r.name, imageUrl: r.imageUrl ?? null })}
+                        onClick={() =>
+                          patch(
+                            r.id,
+                            { name: r.name, imageUrl: r.imageUrl ?? null },
+                            { overlayText: "Salvando alterações..." }
+                          )
+                        }
                       >
                         <Save className="w-4 h-4 mr-1" /> Salvar
                       </Button>
@@ -538,6 +553,16 @@ export default function ToppingsTabs() {
           </div>
         </form>
       </dialog>
+
+      {/* 🔹 Overlay global de processo (igual ao “Criando pedido...”) */}
+      {busy.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
+            <p className="text-sm sm:text-base font-medium">{busy.text || "Processando..."}</p>
+            <div className="mt-4 w-8 h-8 border-4 border-[hsl(var(--primary))] border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

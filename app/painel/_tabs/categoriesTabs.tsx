@@ -35,6 +35,9 @@ export default function CategoriesTabs() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", position: 0 });
 
+  // 🔹 Overlay “Salvando alterações...”
+  const [busy, setBusy] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
+
   // paginação
   const [page, setPage] = useState(1);
   const totalRows = rows.length;
@@ -89,7 +92,7 @@ export default function CategoriesTabs() {
 
   // controle de busy por linha para o switch
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  const setBusy = (id: string, on: boolean) =>
+  const setBusyId = (id: string, on: boolean) =>
     setBusyIds((prev) => {
       const n = new Set(prev);
       on ? n.add(id) : n.delete(id);
@@ -131,8 +134,13 @@ export default function CategoriesTabs() {
     }
   }
 
-  async function patch(id: string, body: any, opts?: { silent?: boolean }) {
+  async function patch(
+    id: string,
+    body: any,
+    opts?: { silent?: boolean; overlayText?: string }
+  ) {
     setLoading(true);
+    if (opts?.overlayText) setBusy({ open: true, text: opts.overlayText });
     try {
       const res = await fetch(`/api/categories/${id}`, {
         method: "PATCH",
@@ -153,6 +161,7 @@ export default function CategoriesTabs() {
       return true;
     } finally {
       setLoading(false);
+      if (opts?.overlayText) setBusy({ open: false, text: "" });
     }
   }
 
@@ -243,11 +252,11 @@ export default function CategoriesTabs() {
                       checked={r.active}
                       disabled={busyIds.has(r.id)}
                       onCheckedChange={async (val) => {
-                        setBusy(r.id, true);
+                        setBusyId(r.id, true);
                         try {
                           await patch(r.id, { active: val }, { silent: true });
                         } finally {
-                          setBusy(r.id, false);
+                          setBusyId(r.id, false);
                         }
                       }}
                     />
@@ -292,10 +301,14 @@ export default function CategoriesTabs() {
                       variant="outline"
                       className="h-8 rounded-xl"
                       onClick={() =>
-                        patch(r.id, {
-                          name: r.name,
-                          position: r.position,
-                        })
+                        patch(
+                          r.id,
+                          {
+                            name: r.name,
+                            position: r.position,
+                          },
+                          { overlayText: "Salvando alterações..." }
+                        )
                       }
                     >
                       <Save className="w-4 h-4 mr-1" /> Salvar
@@ -391,6 +404,16 @@ export default function CategoriesTabs() {
           </div>
         </form>
       </dialog>
+
+      {/* 🔹 Overlay global de processo (igual ao “Criando pedido...”) */}
+      {busy.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
+            <p className="text-sm sm:text-base font-medium">{busy.text || "Processando..."}</p>
+            <div className="mt-4 w-8 h-8 border-4 border-[hsl(var(--primary))] border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

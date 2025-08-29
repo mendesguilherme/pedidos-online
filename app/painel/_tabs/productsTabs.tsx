@@ -130,6 +130,9 @@ export default function ProductsTabs() {
   const [loading, setLoading]       = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // 🔹 Overlay “Salvando alterações...”
+  const [busy, setBusy] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
+
   // paginação local (25 por página)
   const [page, setPage] = useState(1);
   const totalRows = rows.length;
@@ -265,8 +268,13 @@ export default function ProductsTabs() {
   }
 
   /** PATCH helper */
-  async function patch(id: number, body: any, opts?: { silent?: boolean }) {
+  async function patch(
+    id: number,
+    body: any,
+    opts?: { silent?: boolean; overlayText?: string }
+  ) {
     setLoading(true);
+    if (opts?.overlayText) setBusy({ open: true, text: opts.overlayText });
     try {
       const res = await fetch(`/api/products/${id}`, {
         method: "PATCH",
@@ -281,7 +289,10 @@ export default function ProductsTabs() {
       }
       await fetchAll();
       if (!opts?.silent) showInfo("Edição realizada com sucesso!");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      if (opts?.overlayText) setBusy({ open: false, text: "" });
+    }
   }
 
   /** DELETE (soft) */
@@ -451,7 +462,7 @@ export default function ProductsTabs() {
                           name: r.name,
                           image_url: r.imageUrl ?? "",
                           active: r.active,
-                        })}
+                        }, { overlayText: "Salvando alterações..." })}
                       >
                         <Save className="w-4 h-4 mr-1" /> Salvar
                       </Button>
@@ -703,7 +714,7 @@ export default function ProductsTabs() {
                   max_toppings: Number(editRow.maxToppings ?? 0),
                   allowed_topping_ids: live?.allowedToppingIds ?? null,
                   allowed_addon_ids: live?.allowedAddonIds ?? null,
-                });
+                }, { overlayText: "Salvando alterações..." });
                 closeEdit();
               }}
             >
@@ -842,6 +853,16 @@ export default function ProductsTabs() {
           </div>
         </form>
       </dialog>
+
+      {/* 🔹 Overlay global de processo (igual ao “Criando pedido...”) */}
+      {busy.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl px-6 py-4 text-center shadow-lg">
+            <p className="text-sm sm:text-base font-medium">{busy.text || "Processando..."}</p>
+            <div className="mt-4 w-8 h-8 border-4 border-[hsl(var(--primary))] border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

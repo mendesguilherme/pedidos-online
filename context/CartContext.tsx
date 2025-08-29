@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Cart, CartItem, Address } from "@/data/cart"
 import type { Order } from "@/data/orders"
-import { generateUniqueOrderId } from "@/data/orders"
 import { getOrCreateClientId } from "@/lib/client-id"
 
 interface CartContextProps {
@@ -13,17 +12,17 @@ interface CartContextProps {
   removeItem: (id: number) => void
   updateQuantity: (id: number, quantity: number) => void
   updateAddress: (address: Address) => void
-  updatePaymentMethod: (method: string) => void 
+  updatePaymentMethod: (method: string) => void
   updateTipo: (tipo: "entrega" | "retirada") => void
-  itemCount: number, 
-  clearCart: () => void, 
+  itemCount: number
+  clearCart: () => void
   saveOrder: () => Promise<void>
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined)
 
-const round2 = (n:number) => Math.round(n*100)/100
-const DEFAULT_DELIVERY_FEE = 0 // mantém seu fallback atual
+const round2 = (n: number) => Math.round(n * 100) / 100
+const DEFAULT_DELIVERY_FEE = 0
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Cart>({
@@ -41,51 +40,64 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     tipo: null,
   })
 
-  const updateTipo = (tipo: "entrega" | "retirada") => {
-    updateCart({ ...cart, tipo })
+  // Helper: aplica updater funcional + persiste
+  const setCartAndPersist = (updater: (prev: Cart) => Cart) => {
+    setCart(prev => {
+      const next = updater(prev)
+      try {
+        localStorage.setItem("cart", JSON.stringify(next))
+      } catch {}
+      return next
+    })
   }
 
   useEffect(() => {
-    const stored = localStorage.getItem("cart")
-    if (stored) {
-      setCart(JSON.parse(stored))
-    }
+    try {
+      const stored = localStorage.getItem("cart")
+      if (stored) setCart(JSON.parse(stored))
+    } catch {}
   }, [])
 
   const updateCart = (updatedCart: Cart) => {
-    setCart(updatedCart)
-    localStorage.setItem("cart", JSON.stringify(updatedCart))
+    setCartAndPersist(() => updatedCart)
+  }
+
+  const updateTipo = (tipo: "entrega" | "retirada") => {
+    setCartAndPersist(prev => ({ ...prev, tipo }))
   }
 
   const addItem = (item: CartItem) => {
-    const updatedItems = [...cart.items, item]
-    updateCart({ ...cart, items: updatedItems })
+    setCartAndPersist(prev => ({
+      ...prev,
+      items: [...prev.items, item],
+    }))
   }
 
   const removeItem = (id: number) => {
-    const updatedItems = cart.items.filter((item) => item.id !== id)
-    updateCart({ ...cart, items: updatedItems })
+    setCartAndPersist(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== id),
+    }))
   }
 
   const updateQuantity = (id: number, quantity: number) => {
-    const updatedItems = cart.items
-      .map((item) =>
-        item.id === id ? { ...item, quantity } : item
-      )
-      .filter((item) => item.quantity > 0)
-
-    updateCart({ ...cart, items: updatedItems })
+    setCartAndPersist(prev => {
+      const items = prev.items
+        .map(it => (it.id === id ? { ...it, quantity } : it))
+        .filter(it => (it.quantity ?? 0) > 0)
+      return { ...prev, items }
+    })
   }
 
   const updateAddress = (address: Address) => {
-    updateCart({ ...cart, deliveryAddress: address })
+    setCartAndPersist(prev => ({ ...prev, deliveryAddress: address }))
   }
 
   const updatePaymentMethod = (method: string) => {
-    updateCart({ ...cart, paymentMethod: method })
+    setCartAndPersist(prev => ({ ...prev, paymentMethod: method }))
   }
 
-  const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+  const itemCount = cart.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0)
 
   const clearCart = () => {
     const emptyAddress = {
@@ -97,17 +109,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       zipCode: "",
       reference: "",
     }
-
-  const emptyCart: Cart = {
+    const emptyCart: Cart = {
       items: [],
       paymentMethod: "",
       deliveryAddress: emptyAddress,
-      tipo: null, 
+      tipo: null,
     }
-
-    setCart(emptyCart)
-    localStorage.setItem("cart", JSON.stringify(emptyCart))
-}
+    setCartAndPersist(() => emptyCart)
+  }
 
   const saveOrder = async () => {
     if (!cart.tipo) throw new Error("Tipo de pedido não definido.")
@@ -116,27 +125,23 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (cart.tipo === "entrega" && (!cart.deliveryAddress || !cart.deliveryAddress.street))
       throw new Error("Endereço de entrega incompleto.")
 
-    // 🔹 subtotal = itens
     const subtotal = round2(
       cart.items.reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity ?? 1), 0)
     )
-
-    // 🔹 frete separado (0 em retirada)
     const frete = cart.tipo === "entrega" ? round2(DEFAULT_DELIVERY_FEE) : 0
 
     const payload = {
-      // ✅ inclui deliveryFee no cart para o servidor reconhecer
       cart: {
         ...cart,
         deliveryFee: frete,
         items: cart.items.map(it => ({ ...it, quantity: it.quantity ?? 1 })),
       },
-      address: cart.tipo === "entrega"
-        ? cart.deliveryAddress
-        : { street:"", number:"", complement:"", neighborhood:"", city:"", zipCode:"", reference:"" },
+      address:
+        cart.tipo === "entrega"
+          ? cart.deliveryAddress
+          : { street: "", number: "", complement: "", neighborhood: "", city: "", zipCode: "", reference: "" },
       paymentMethod: cart.paymentMethod,
       tipo: cart.tipo,
-      // ✅ também envia campos explícitos (servidor prioriza, mas recalcula)
       subtotal,
       frete,
     }
@@ -155,8 +160,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (!data?.order) throw new Error("API não retornou o objeto do pedido.")
 
     const created = data.order
-
-    // espelho local
     const existingOrders: Order[] = JSON.parse(localStorage.getItem("orders") || "[]")
 
     const localOrder: Order = {
@@ -167,7 +170,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       items: cart.items,
       address: payload.address,
       paymentMethod: payload.paymentMethod,
-      // @ts-ignore: seu tipo Order local pode ainda não ter estes campos
+      // @ts-ignore
       subtotal: created.subtotal ?? subtotal,
       // @ts-ignore
       frete: created.frete ?? frete,
@@ -191,11 +194,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         removeItem,
         updateQuantity,
         updateAddress,
-        updatePaymentMethod, 
+        updatePaymentMethod,
         updateTipo,
         itemCount,
-        clearCart, 
-        saveOrder
+        clearCart,
+        saveOrder,
       }}
     >
       {children}

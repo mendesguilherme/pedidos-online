@@ -1,4 +1,3 @@
-// src/app/produtos/page.tsx
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -66,10 +65,21 @@ export default function ProdutosPage() {
     }
   }, [searchParams, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Produto selecionado
+  // Produto ativo (para toppings/adicionais)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Estados por ID
+  // Quantidades escolhidas (seleção múltipla)
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const setQty = useCallback((id: number, qty: number) => {
+    setQuantities((q) => {
+      const next = { ...q };
+      if (!qty || qty <= 0) delete next[id];
+      else next[id] = qty;
+      return next;
+    });
+  }, []);
+
+  // Estados (toppings/adicionais) do produto ATIVO
   const [selectedToppingIds, setSelectedToppingIds] = useState<number[]>([]);
   const [selectedExtraIds, setSelectedExtraIds] = useState<number[]>([]);
   const maxToppings = useMemo(() => {
@@ -109,7 +119,7 @@ export default function ProdutosPage() {
   // Helpers do produto
   const productCfg = (selectedProduct ?? null) as ProductOptionWithLimits | null;
 
-  // ---------- filtros ----------
+  // ---------- filtros (apenas p/ produto ativo) ----------
   const visibleToppings: Topping[] = useMemo(() => {
     if (!selectedProduct) return [];
     const allow = (selectedProduct as ProductOptionWithLimits).allowedToppingIds;
@@ -131,10 +141,10 @@ export default function ProdutosPage() {
   }, [selectedProduct, addonsDb]);
 
   const mustFillToppings = useMemo(() => {
-    const max = selectedProduct?.maxToppings ?? 0
-    const hasVisibleToppings = visibleToppings.length > 0
-    return max > 0 && hasVisibleToppings
-  }, [selectedProduct?.maxToppings, visibleToppings])
+    const max = selectedProduct?.maxToppings ?? 0;
+    const hasVisibleToppings = visibleToppings.length > 0;
+    return max > 0 && hasVisibleToppings;
+  }, [selectedProduct?.maxToppings, visibleToppings]);
 
   // ---------- toggles ----------
   const handleToppingToggle = (toppingId: number) => {
@@ -155,39 +165,79 @@ export default function ProdutosPage() {
     }
   };
 
+  // ➕ Agora adiciona TODOS os itens com qty > 0.
+  // Para o produto ativo, inclui toppings/adicionais; os demais vão "simples".
   const handleAddToCart = (force = false) => {
-    if (!selectedProduct) return;
+    const entries = Object.entries(quantities).filter(([, q]) => Number(q) > 0);
+    if (entries.length === 0) return;
 
-    const toppingsOk = selectedToppingIds.length === selectedProduct.maxToppings;
-    if (!force && !toppingsOk) return;
+    // Se o produto ativo tiver quantidade > 0 e toppings obrigatórios, valida
+    const activeQty = selectedProduct ? quantities[selectedProduct.id] ?? 0 : 0;
+    if (selectedProduct && activeQty > 0) {
+      const toppingsOk = selectedToppingIds.length === (selectedProduct.maxToppings ?? 0);
+      if (!force && mustFillToppings && !toppingsOk) return;
+    }
 
-    const toppingNames = selectedToppingIds
-      .map((id) => visibleToppings.find((t) => t.id === id)?.name)
-      .filter(Boolean) as string[];
-
-    const extraObjs = selectedExtraIds.map((id) => visibleAddons.find((a) => a.id === id)).filter(Boolean);
-    const extrasNames = extraObjs.map((e) => e!.name);
-    const extrasTotal = extraObjs.reduce((acc, e) => acc + (e?.price ?? 0), 0);
-
-    // 👉 usa a imagem já resolvida no Product (bestFromMeta(image_meta, image_url))
-    const productImage =
-      (selectedProduct as any)?.image ||
-      (selectedProduct as any)?.imageUrl ||
-      (selectedProduct as any)?.image_url ||
-      "/placeholder.svg";
-
-    const newItem = {
-      id: Date.now(),
-      name: `${selectedProduct.name} com ${toppingNames.length} acompanhamentos`,
-      price: selectedProduct.price + extrasTotal,
-      quantity: 1,
-      image: productImage,
-      toppings: toppingNames,
-      extras: extrasNames,
+    // Função auxiliar para montar item “simples”
+    const makeSimpleItem = (p: Product, qty: number) => {
+      const productImage =
+        (p as any)?.image || (p as any)?.imageUrl || (p as any)?.image_url || "/placeholder.svg";
+      return {
+        id: Date.now() + Math.floor(Math.random() * 100000),
+        name: p.name,
+        price: p.price,
+        quantity: qty,
+        image: productImage,
+        toppings: [] as string[],
+        extras: [] as string[],
+      };
     };
 
-    addItem(newItem);
-    resetMontagem();
+    // 1) Se houver produto ativo com qty > 0, monta com toppings/adicionais
+    if (selectedProduct && activeQty > 0) {
+      const toppingNames = selectedToppingIds
+        .map((id) => visibleToppings.find((t) => t.id === id)?.name)
+        .filter(Boolean) as string[];
+
+      const extraObjs = selectedExtraIds
+        .map((id) => visibleAddons.find((a) => a.id === id))
+        .filter(Boolean);
+      const extrasNames = extraObjs.map((e) => e!.name);
+      const extrasTotal = extraObjs.reduce((acc, e) => acc + (e?.price ?? 0), 0);
+
+      const productImage =
+        (selectedProduct as any)?.image ||
+        (selectedProduct as any)?.imageUrl ||
+        (selectedProduct as any)?.image_url ||
+        "/placeholder.svg";
+
+      addItem({
+        id: Date.now(),
+        name: `${selectedProduct.name} com ${toppingNames.length} acompanhamentos`,
+        price: Number(selectedProduct.price) + Number(extrasTotal),
+        quantity: activeQty,
+        image: productImage,
+        toppings: toppingNames,
+        extras: extrasNames,
+      });
+    }
+
+    // 2) Demais produtos com qty > 0 vão simples
+    for (const [idStr, qty] of entries) {
+      const id = Number(idStr);
+      if (selectedProduct && id === selectedProduct.id) continue;
+      const p = productsDb.find((x) => x.id === id);
+      if (!p) continue;
+      addItem(makeSimpleItem(p, Number(qty)));
+    }
+
+    // reset de montagem (mantém quantidades? Vamos limpar para evitar duplicidades)
+    setSelectedProduct(null);
+    setSelectedToppingIds([]);
+    setSelectedExtraIds([]);
+    setQuantities({});
+
+    // dá um scroll back para o selector
     document.getElementById("product-selector")?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -195,7 +245,10 @@ export default function ProdutosPage() {
     if (activeTab === "produtos") {
       if (cart.items.length === 0) return;
       setActiveTab(initialTipo === "retirada" ? "pagamento" : "endereco");
-      router.replace(`/produtos?tab=${initialTipo === "retirada" ? "pagamento" : "endereco"}&tipo=${tipo}`, { scroll: false });
+      router.replace(
+        `/produtos?tab=${initialTipo === "retirada" ? "pagamento" : "endereco"}&tipo=${tipo}`,
+        { scroll: false }
+      );
     } else if (activeTab === "endereco") {
       setActiveTab("pagamento");
       router.replace(`/produtos?tab=pagamento&tipo=${tipo}`, { scroll: false });
@@ -217,12 +270,6 @@ export default function ProdutosPage() {
     } finally {
       setIsCreatingOrder(false);
     }
-  };
-
-  const resetMontagem = () => {
-    setSelectedProduct(null);
-    setSelectedToppingIds([]);
-    setSelectedExtraIds([]);
   };
 
   // troca de abas + sincroniza URL
@@ -299,7 +346,9 @@ export default function ProdutosPage() {
   const catFromURL = (searchParams.get("cat") ?? null) as string | null;
 
   // categoria ativa (scroll-spy)
-  const [activeCategory, setActiveCategory] = useState<string | null>(catFromURL ?? categories[0]?.id ?? null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(
+    catFromURL ?? categories[0]?.id ?? null
+  );
 
   // scroll p/ seção
   const scrollToCategory = (cid: string) => {
@@ -351,6 +400,28 @@ export default function ProdutosPage() {
     }
     return () => observer.disconnect();
   }, [categories, catBarH]);
+
+  // Mapa de preços e prévia da seleção múltipla
+  const priceMap = useMemo(
+    () => new Map<number, number>(productsDb.map(p => [p.id, Number(p.price ?? 0)])),
+    [productsDb]
+  );
+
+  const draftSelectionBaseTotal = useMemo(() => {
+    const entries = Object.entries(quantities);
+    const sum = entries.reduce((acc, [idStr, q]) => {
+      const id = Number(idStr);
+      const qty = Number(q);
+      const price = priceMap.get(id) ?? 0;
+      return acc + price * qty;
+    }, 0);
+    return Math.round(sum * 100) / 100;
+  }, [quantities, priceMap]);
+
+  const draftActiveQty = useMemo(
+    () => (selectedProduct ? Number(quantities[selectedProduct.id] ?? 0) : 0),
+    [selectedProduct, quantities]
+  );
 
   // ==================== RENDER ====================
   return (
@@ -418,19 +489,24 @@ export default function ProdutosPage() {
                       )}
 
                       <ProductSelector
-                        products={prods.map(p => ({ ...p, image: (p as any).image ?? (p as any).imageUrl ?? "" }))}
+                        products={prods.map((p) => ({
+                          ...p,
+                          image: (p as any).image ?? (p as any).imageUrl ?? "",
+                        }))}
                         selectedProductId={selectedProduct?.id ?? null}
                         onChange={(id) => {
                           const p = prods.find((x) => x.id === id);
                           if (p) handleProductSelect(p);
                         }}
+                        quantities={quantities}
+                        onQuantityChange={setQty}
                       />
                     </div>
                   </div>
                 );
               })}
 
-              {/* Se existir produto selecionado, mostram-se as outras seções */}
+              {/* Se existir produto ativo, mostram-se as outras seções */}
               {selectedProduct && (
                 <>
                   {/* Acompanhamentos */}
@@ -455,13 +531,21 @@ export default function ProdutosPage() {
                             key={t.id}
                             onClick={() => handleToppingToggle(t.id)}
                             className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                              selectedToppingIds.includes(t.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
+                              selectedToppingIds.includes(t.id)
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-300 bg-white"
                             }`}
                           >
                             {t.imageUrl && (
-                              <img src={t.imageUrl} alt={t.name} className="w-14 h-14 rounded-full object-cover mb-1" />
+                              <img
+                                src={t.imageUrl}
+                                alt={t.name}
+                                className="w-14 h-14 rounded-full object-cover mb-1"
+                              />
                             )}
-                            <span className="text-[11px] text-center text-gray-800 font-medium">{t.name}</span>
+                            <span className="text-[11px] text-center text-gray-800 font-medium">
+                              {t.name}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -492,7 +576,9 @@ export default function ProdutosPage() {
                             key={extra.id}
                             onClick={() => handleExtraToggle(extra.id)}
                             className={`flex flex-col items-center p-1.5 border rounded-xl transition-all ${
-                              selectedExtraIds.includes(extra.id) ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
+                              selectedExtraIds.includes(extra.id)
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-300 bg-white"
                             }`}
                           >
                             {extra.imageUrl && (
@@ -505,7 +591,9 @@ export default function ProdutosPage() {
                             <span className="text-[11px] text-center text-gray-800 font-medium">
                               {extra.name}
                             </span>
-                            <span className="text-[10px] text-gray-500">+R$ {extra.price.toFixed(2)}</span>
+                            <span className="text-[10px] text-gray-500">
+                              +R$ {extra.price.toFixed(2)}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -530,10 +618,13 @@ export default function ProdutosPage() {
                 cardData={cardData}
                 onCardDataChange={setCardData}
                 total={cart.items.reduce((sum, item) => {
-                  const extrasTotal = (Array.isArray(item.extras) ? item.extras : []).reduce((acc, name) => {
-                    const found = addonsDb.find((a) => a.name === name);
-                    return acc + (found?.price ?? 0);
-                  }, 0);
+                  const extrasTotal = (Array.isArray(item.extras) ? item.extras : []).reduce(
+                    (acc, name) => {
+                      const found = addonsDb.find((a) => a.name === name);
+                      return acc + (found?.price ?? 0);
+                    },
+                    0
+                  );
                   return sum + item.price + extrasTotal;
                 }, 0)}
                 tipo={tipo}
@@ -557,16 +648,23 @@ export default function ProdutosPage() {
           initialTipo={initialTipo}
           hasItems={cart.items.length > 0}
           canAddProduct={
-            !!selectedProduct &&
-            selectedToppingIds.length === (selectedProduct?.maxToppings ?? 0)
+            Object.values(quantities).some((q) => Number(q) > 0) &&
+            (!selectedProduct ||
+              (quantities[selectedProduct.id] ?? 0) === 0 ||
+              selectedToppingIds.length === (selectedProduct?.maxToppings ?? 0))
           }
-          hasSelectedProduct={!!selectedProduct}
+          hasSelectedProduct={Object.values(quantities).some((q) => Number(q) > 0)}
           onNextStep={handleNextStep}
           onAddProduct={handleAddToCart}
+          // para prévia dos extras do ativo:
           draftProductPrice={selectedProduct?.price ?? 0}
           draftExtraIds={selectedProduct ? selectedExtraIds : []}
           mustFillToppings={mustFillToppings}
+          // 🔹 novos:
+          draftSelectionBaseTotal={draftSelectionBaseTotal}
+          draftActiveQty={draftActiveQty}
         />
+
       </div>
 
       {isCreatingOrder && (
