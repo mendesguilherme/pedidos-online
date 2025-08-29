@@ -864,123 +864,134 @@ export default async function AdminPedidosPage({
 
 
       {/* Script: mostra overlay ao trocar de ABA (?tab=...) e ao aplicar filtros (submit do form) */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-      (function(){
-        var ov = document.getElementById('globalBusyOverlay');
-        var txtEl = ov ? ov.querySelector('#globalBusyText') : null;
+     <script
+  dangerouslySetInnerHTML={{
+    __html: `
+(function(){
+  var ov = document.getElementById('globalBusyOverlay');
+  var txtEl = ov ? ov.querySelector('#globalBusyText') : null;
+  var DEFAULT_DELAY = 700; // <- ajuste global aqui (ms)
 
-        function show(text){
-          if (!ov) return;
-          if (txtEl) txtEl.textContent = text || 'Processando...';
-          ov.classList.remove('hidden'); ov.classList.add('flex');
-        }
-        function hide(){
-          if (!ov) return;
-          ov.classList.add('hidden'); ov.classList.remove('flex');
-        }
-        // garante pelo menos 1 pintura antes de navegar/submitar
-        function afterNextPaint(fn){
-          if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(function(){ requestAnimationFrame(fn); });
-          } else {
-            setTimeout(fn, 80);
-          }
-        }
+  function show(text){
+    if (!ov) return;
+    if (txtEl) txtEl.textContent = text || 'Processando...';
+    ov.classList.remove('hidden'); ov.classList.add('flex');
+  }
+  function hide(){
+    if (!ov) return;
+    ov.classList.add('hidden'); ov.classList.remove('flex');
+  }
+  function afterNextPaint(fn){
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function(){ requestAnimationFrame(fn); });
+    } else {
+      setTimeout(fn, 80);
+    }
+  }
+  function readDelay(el){
+    var v = (el && el.getAttribute && el.getAttribute('data-busy-delay')) || '';
+    var n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DELAY;
+  }
+  function navWithBusy(href, text, delay){
+    show(text);
+    afterNextPaint(function(){
+      setTimeout(function(){ window.location.assign(href); }, delay);
+    });
+  }
 
-        // expõe global (usado no modal de negação)
-        window.__showBusyOverlay = show;
-        window.__hideBusyOverlay = hide;
+  // expõe global (reutilizado no modal de negação)
+  window.__showBusyOverlay = show;
+  window.__hideBusyOverlay = hide;
 
-        // 1) Cliques em links das AÇÕES (com data-busy-text) e troca de abas (?tab=...)
-        document.addEventListener('click', function(e){
-          var t = e.target;
-          if (!t || !t.closest) return;
+  // 1) Cliques em links (ações) e abas (?tab=...)
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
 
-          var a = t.closest('a[href]');
-          if (a) {
-            var busyText = a.getAttribute('data-busy-text');
-            var href = a.getAttribute('href') || '';
+    var a = t.closest('a[href]');
+    if (a) {
+      var busyText = a.getAttribute('data-busy-text');
+      var href = a.getAttribute('href') || '';
 
-            if (busyText) {
-              e.preventDefault();
-              show(busyText);
-              afterNextPaint(function(){ window.location.assign(href); });
-              return;
-            }
-            if (/[?&]tab=/.test(href)) {
-              e.preventDefault();
-              show('Carregando...');
-              afterNextPaint(function(){ window.location.assign(href); });
-              return;
-            }
-          }
+      if (busyText) {
+        e.preventDefault();
+        navWithBusy(href, busyText, readDelay(a));
+        return;
+      }
+      if (/[?&]tab=/.test(href)) {
+        e.preventDefault();
+        navWithBusy(href, 'Carregando...', readDelay(a));
+        return;
+      }
+    }
 
-          // Botões (não-links) com data-busy-text
-          var btn = t.closest('[data-busy-text]');
-          if (btn && !btn.closest('a[href]')) {
-            show(btn.getAttribute('data-busy-text') || 'Processando...');
-          }
-        }, true);
+    // Botões NÃO-links com data-busy-text
+    var btn = t.closest('[data-busy-text]');
+    if (btn && !btn.closest('a[href]')) {
+      show(btn.getAttribute('data-busy-text') || 'Processando...');
+    }
+  }, true);
 
-        // 2) Submit do formulário de filtros: bloqueia, mostra overlay e submete após pintar
-        document.addEventListener('submit', function(e){
-          var f = e.target;
-          if (!f || f.nodeName !== 'FORM') return;
-          var isFilters = f.querySelector('select[name="status"]') &&
-                          f.querySelector('input[name="cf"]') &&
-                          f.querySelector('input[name="ct"]');
-          if (isFilters) {
-            e.preventDefault();
-            show('Carregando...');
-            afterNextPaint(function(){ f.submit(); });
-          }
-        }, true);
+  // 2) Submit do formulário de filtros
+  document.addEventListener('submit', function(e){
+    var f = e.target;
+    if (!f || f.nodeName !== 'FORM') return;
+    var isFilters = f.querySelector('select[name="status"]') &&
+                    f.querySelector('input[name="cf"]') &&
+                    f.querySelector('input[name="ct"]');
+    if (isFilters) {
+      e.preventDefault();
+      var delay = readDelay(f);
+      show('Carregando...');
+      afterNextPaint(function(){ setTimeout(function(){ f.submit(); }, delay); });
+    }
+  }, true);
 
-        // 3) Modal "Negar": fetch + redirect (overlay permanece até concluir)
-        (function(){
-          var dlg = document.getElementById('denyModal');
-          if(!dlg) return;
-          var reasonEl = dlg.querySelector('#denyReason');
+  // 3) Modal "Negar": mantém overlay e atrasa redirect um tico
+  (function(){
+    var dlg = document.getElementById('denyModal');
+    if(!dlg) return;
+    var reasonEl = dlg.querySelector('#denyReason');
 
-          document.addEventListener('click', function(e){
-            var target = e.target;
-            if(!target) return;
-            var btn = target.closest && target.closest('[data-deny-token]');
-            if(!btn) return;
-            e.preventDefault();
-            dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
-            dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/painel';
-            if (reasonEl) reasonEl.value = '';
-            try { dlg.showModal(); } catch(_) {}
-          });
+    document.addEventListener('click', function(e){
+      var target = e.target;
+      if(!target) return;
+      var btn = target.closest && target.closest('[data-deny-token]');
+      if(!btn) return;
+      e.preventDefault();
+      dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
+      dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/painel';
+      if (reasonEl) reasonEl.value = '';
+      try { dlg.showModal(); } catch(_) {}
+    });
 
-          var confirmBtn = dlg.querySelector('[data-confirm]');
-          if (confirmBtn) {
-            confirmBtn.addEventListener('click', async function(){
-              var token = dlg.dataset.token || '';
-              var redirect = dlg.dataset.redirect || '/painel';
-              var reason = reasonEl ? reasonEl.value : '';
-              try{
-                show('Atualizando status...');
-                if (token) {
-                  await fetch(token, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason: String(reason || '').slice(0,500) })
-                  });
-                }
-              }catch(_){} finally {
-                try { dlg.close(); } catch(_) {}
-                window.location.assign(redirect);
-              }
+    var confirmBtn = dlg.querySelector('[data-confirm]');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async function(){
+        var token = dlg.dataset.token || '';
+        var redirect = dlg.dataset.redirect || '/painel';
+        try{
+          show('Atualizando status...');
+          if (token) {
+            await fetch(token, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reason: String((reasonEl && reasonEl.value) || '').slice(0,500) })
             });
           }
-        })();
-      })();`
-        }}
-      />
+        }catch(_){} finally {
+          afterNextPaint(function(){
+            setTimeout(function(){ window.location.assign(redirect); }, DEFAULT_DELAY);
+          });
+        }
+      });
+    }
+  })();
+})();`
+  }}
+/>
+
 
 
       {/* ===== Fim do overlay ===== */}
