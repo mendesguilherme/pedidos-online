@@ -717,17 +717,7 @@ export default async function AdminPedidosPage({
                               <a href={o.links.notify} title="Enviar os detalhes no WhatsApp" data-busy-text="Enviando no WhatsApp...">
                                 Enviar WhatsApp
                               </a>
-                            </Button>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled
-                              className={`${btnCellBase} bg-slate-200 text-slate-500 border border-slate-200 cursor-not-allowed`}
-                              data-busy-text="Processando..."
-                            >
-                              Imprimir Cupom (em breve)
-                            </Button>
+                            </Button>                           
 
                           </>
                         )}
@@ -890,12 +880,10 @@ export default async function AdminPedidosPage({
           if (!ov) return;
           ov.classList.add('hidden'); ov.classList.remove('flex');
         }
-
-        // expoe globalmente p/ outros scripts (e p/ o modal de negação)
         window.__showBusyOverlay = show;
         window.__hideBusyOverlay = hide;
 
-        // 1) Cliques em links com data-busy-text (todas as AÇÕES)
+        // 1) Links de AÇÃO com data-busy-text (aceitar, saiu, entregue, WhatsApp, etc.)
         document.addEventListener('click', function(e){
           var t = e.target;
           if (!t || !t.closest) return;
@@ -904,19 +892,24 @@ export default async function AdminPedidosPage({
           if (a) {
             var busyText = a.getAttribute('data-busy-text');
             var href = a.getAttribute('href') || '';
-
+            // Se tiver data-busy-text, impede a navegação, mostra overlay e navega depois
             if (busyText) {
-              show(busyText); // deixa navegar e o overlay fica até a navegação
+              e.preventDefault();
+              show(busyText);
+              // dá um "tick" para o overlay pintar antes de sair da página
+              setTimeout(function(){ window.location.assign(href); }, 50);
               return;
             }
-            // Troca de abas (?tab=...)
+            // Troca de abas (?tab=...) — também dá um pequeno delay para pintar
             if (/[?&]tab=/.test(href)) {
+              e.preventDefault();
               show('Carregando...');
+              setTimeout(function(){ window.location.assign(href); }, 20);
               return;
             }
           }
 
-          // Botões que tenham data-busy-text (fallback geral)
+          // Botões genéricos com data-busy-text (caso existam)
           var btn = t.closest('[data-busy-text]');
           if (btn && !btn.closest('a[href]')) {
             show(btn.getAttribute('data-busy-text') || 'Processando...');
@@ -926,7 +919,7 @@ export default async function AdminPedidosPage({
         // 2) Submit do formulário de filtros
         document.addEventListener('submit', function(e){
           var f = e.target;
-          if (!f || f.nodeName !== 'FORM') return;
+          if(!f || f.nodeName !== 'FORM') return;
           var isFilters = f.querySelector('select[name="status"]') && f.querySelector('input[name="cf"]') && f.querySelector('input[name="ct"]');
           if (isFilters) show('Carregando...');
         }, true);
@@ -956,7 +949,7 @@ export default async function AdminPedidosPage({
               var redirect = dlg.dataset.redirect || '/painel';
               var reason = reasonEl ? reasonEl.value : '';
               try{
-                window.__showBusyOverlay && window.__showBusyOverlay('Atualizando status...');
+                show('Atualizando status...');
                 if (token) {
                   await fetch(token, {
                     method: 'POST',
