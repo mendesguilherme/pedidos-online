@@ -880,10 +880,20 @@ export default async function AdminPedidosPage({
           if (!ov) return;
           ov.classList.add('hidden'); ov.classList.remove('flex');
         }
+        // garante pelo menos 1 pintura antes de navegar/submitar
+        function afterNextPaint(fn){
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function(){ requestAnimationFrame(fn); });
+          } else {
+            setTimeout(fn, 80);
+          }
+        }
+
+        // expõe global (usado no modal de negação)
         window.__showBusyOverlay = show;
         window.__hideBusyOverlay = hide;
 
-        // 1) Links de AÇÃO com data-busy-text (aceitar, saiu, entregue, WhatsApp, etc.)
+        // 1) Cliques em links das AÇÕES (com data-busy-text) e troca de abas (?tab=...)
         document.addEventListener('click', function(e){
           var t = e.target;
           if (!t || !t.closest) return;
@@ -892,39 +902,43 @@ export default async function AdminPedidosPage({
           if (a) {
             var busyText = a.getAttribute('data-busy-text');
             var href = a.getAttribute('href') || '';
-            // Se tiver data-busy-text, impede a navegação, mostra overlay e navega depois
+
             if (busyText) {
               e.preventDefault();
               show(busyText);
-              // dá um "tick" para o overlay pintar antes de sair da página
-              setTimeout(function(){ window.location.assign(href); }, 50);
+              afterNextPaint(function(){ window.location.assign(href); });
               return;
             }
-            // Troca de abas (?tab=...) — também dá um pequeno delay para pintar
             if (/[?&]tab=/.test(href)) {
               e.preventDefault();
               show('Carregando...');
-              setTimeout(function(){ window.location.assign(href); }, 20);
+              afterNextPaint(function(){ window.location.assign(href); });
               return;
             }
           }
 
-          // Botões genéricos com data-busy-text (caso existam)
+          // Botões (não-links) com data-busy-text
           var btn = t.closest('[data-busy-text]');
           if (btn && !btn.closest('a[href]')) {
             show(btn.getAttribute('data-busy-text') || 'Processando...');
           }
         }, true);
 
-        // 2) Submit do formulário de filtros
+        // 2) Submit do formulário de filtros: bloqueia, mostra overlay e submete após pintar
         document.addEventListener('submit', function(e){
           var f = e.target;
-          if(!f || f.nodeName !== 'FORM') return;
-          var isFilters = f.querySelector('select[name="status"]') && f.querySelector('input[name="cf"]') && f.querySelector('input[name="ct"]');
-          if (isFilters) show('Carregando...');
+          if (!f || f.nodeName !== 'FORM') return;
+          var isFilters = f.querySelector('select[name="status"]') &&
+                          f.querySelector('input[name="cf"]') &&
+                          f.querySelector('input[name="ct"]');
+          if (isFilters) {
+            e.preventDefault();
+            show('Carregando...');
+            afterNextPaint(function(){ f.submit(); });
+          }
         }, true);
 
-        // 3) Modal "Negar": mostra overlay ao confirmar
+        // 3) Modal "Negar": fetch + redirect (overlay permanece até concluir)
         (function(){
           var dlg = document.getElementById('denyModal');
           if(!dlg) return;
@@ -967,6 +981,7 @@ export default async function AdminPedidosPage({
       })();`
         }}
       />
+
 
       {/* ===== Fim do overlay ===== */}
     </main>
