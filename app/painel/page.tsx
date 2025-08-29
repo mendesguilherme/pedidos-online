@@ -7,7 +7,8 @@ import ToppingssEntry from "./_tabs/toppingsEntry";
 import AddonsEntry from "./_tabs/addonsEntry";
 import ProductsEntry from "./_tabs/productsEntry";
 import OrdersBusyBridge from "./_components/OrdersBusyBridge";
-
+import NewOrderChime from "./_components/NewOrderChime";
+import OrdersSoundToggle from "./_components/OrdersSoundToggle";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileText as OrdersIcon, Folder, ChefHat, Utensils, Shapes, Layers, Package } from "lucide-react";
@@ -24,7 +25,6 @@ import Link from "next/link";
 import React from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import ToppingsTabs from "./_tabs/toppingsTabs";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -338,7 +338,7 @@ export default async function AdminPedidosPage({
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <span>{session?.user?.name ?? "Admin"}</span>
             <LogoutButton />
-          </div>
+          </div>          
         </div>
         <p className="mt-4 text-red-600">Falha ao carregar pedidos: {error.message}</p>
       </main>
@@ -445,13 +445,14 @@ export default async function AdminPedidosPage({
 
       {/* topo com título, nome e logout */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Administração</h1>
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span>{session?.user?.name ?? "Admin"}</span>
-          <LogoutButton />
-        </div>
+        <h1 className="text-2xl font-bold">Administração</h1>        
+        
+        <div className="flex items-center gap-3">
+            <OrdersSoundToggle />
+            <LogoutButton />
+        </div>   
       </div>
-
+        
       {/* Abas */}
       <Tabs defaultValue={currentTab} className="mt-4">
         <TabsList className="rounded-xl">
@@ -483,7 +484,8 @@ export default async function AdminPedidosPage({
         </TabsList>
 
         {/* === Aba Pedidos (DEFAULT) === */}
-        <TabsContent value="pedidos" className="mt-4">
+        <TabsContent value="pedidos" className="mt-4">  
+          <NewOrderChime onlyWhenTabActive onlyStatusPendente />        
           <p className="text-sm text-gray-500 mt-2">
             Clique em Aceitar/Negar para atualizar o status. Você retornará a esta página após a ação.
           </p>
@@ -766,81 +768,7 @@ export default async function AdminPedidosPage({
                 )}
               </tbody>
             </table>
-          </div>
-
-          {/* Modal nativo para "Negar" (sem transformar a página em client) */}
-          <dialog id="denyModal" className="rounded-xl border p-0 w-full max-w-md">
-            <form method="dialog" className="p-4 space-y-3">
-              <div className="text-base font-semibold">Negar pedido</div>
-              <p className="text-sm text-gray-600">
-                Informe um motivo (opcional) para registrar no pedido.
-              </p>
-              <textarea
-                id="denyReason"
-                className="w-full h-28 rounded-xl border border-[hsl(var(--border))] p-2 \
-                outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 focus:border-[hsl(var(--border))]"
-                maxLength={500}
-                placeholder="Ex.: Endereço fora da área de entrega, item indisponível, etc."
-              />
-              <div className="flex justify-end gap-2 pt-1">
-                <button value="cancel" className="rounded-xl bg-gray-200 px-3 py-2 hover:bg-gray-300">
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  data-confirm
-                  className="rounded-xl bg-gray-900 text-white px-3 py-2 hover:bg-black"
-                >
-                  Confirmar negação
-                </button>
-              </div>
-            </form>
-          </dialog>
-
-          {/* Script leve para abrir o dialog e enviar POST com {reason} */}
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-(function(){
-  var dlg = document.getElementById('denyModal');
-  if(!dlg) return;
-  var reasonEl = dlg.querySelector('#denyReason');
-
-  document.addEventListener('click', function(e){
-    var target = e.target;
-    if(!target) return;
-    var btn = target.closest && target.closest('[data-deny-token]');
-    if(!btn) return;
-    e.preventDefault();
-    dlg.dataset.token = btn.getAttribute('data-deny-token') || '';
-    dlg.dataset.redirect = btn.getAttribute('data-deny-redirect') || '/painel';
-    if (reasonEl) reasonEl.value = '';
-    try { dlg.showModal(); } catch(_) { /* ignore */ }
-  });
-
-  var confirmBtn = dlg.querySelector('[data-confirm]');
-  if (confirmBtn) {
-    confirmBtn.addEventListener('click', async function(){
-      var token = dlg.dataset.token || '';
-      var redirect = dlg.dataset.redirect || '/painel';
-      var reason = reasonEl ? reasonEl.value : '';
-      try{
-        if (token) {
-          await fetch(token, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: String(reason || '').slice(0,500) })
-          });
-        }
-      }catch(_){} finally {
-        try { dlg.close(); } catch(_) {}
-        window.location.assign(redirect);
-      }
-    });
-  }
-})();`
-            }}
-          />
+          </div>                    
 
           {/* paginação */}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700">
